@@ -1,0 +1,2 @@
+vendor/autarch-0.9.0-py3-none-any.whl
+cryptography>=42        # enables Ed25519 signing (real provenance)

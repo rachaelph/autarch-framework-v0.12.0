@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autarch"
+version = "0.9.0"
+description = "An AI-native operating layer: a council of minds you preside over. Intelligence is unlimited; consequences are governed."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+authors = [{ name = "Autarch" }]
+keywords = ["ai", "agent", "operating-system", "capability-security", "governance"]
+dependencies = []
+
+[project.optional-dependencies]
+crypto = ["cryptography>=42"]
+otel = ["opentelemetry-api>=1.20"]
+dev = ["pytest>=7", "cryptography>=42"]
+
+[project.scripts]
+autarch = "autarch.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["autarch*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

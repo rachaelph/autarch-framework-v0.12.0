@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install (with dev + crypto extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,crypto]"
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Smoke-test the offline examples
+        run: |
+          for e in quickstart council tools mesh provenance delegation guarantees \
+                   economy network gossip durable security mcp langchain observability; do
+            python "examples/$e.py" > /dev/null || exit 1
+          done
+
+      - name: Health check
+        run: python -m autarch --workspace ./sandbox health --json
