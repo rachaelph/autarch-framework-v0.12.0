@@ -249,7 +249,7 @@ def _make_client_factory(deployment, endpoint, api_version, use_aad):
 
     def _factory():
         from openai import AsyncAzureOpenAI
-        from agent_framework.openai import OpenAIChatClient
+        from agent_framework.openai import OpenAIChatCompletionClient
 
         kwargs = dict(azure_endpoint=endpoint, api_version=api_version)
         if prefer_aad:
@@ -260,7 +260,10 @@ def _make_client_factory(deployment, endpoint, api_version, use_aad):
             )
         else:
             kwargs["api_key"] = api_key
-        return OpenAIChatClient(model=deployment, async_client=AsyncAzureOpenAI(**kwargs))
+        return OpenAIChatCompletionClient(
+            model=deployment,
+            async_client=AsyncAzureOpenAI(**kwargs),
+        )
 
     return _factory, ("Entra ID" if prefer_aad else "api-key")
 
