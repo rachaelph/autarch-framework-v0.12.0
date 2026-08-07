@@ -1,0 +1,211 @@
+{
+  "cbe|MO|18 2 stranded non shielded 200 box": {
+    "decision": {
+      "_llm_tax_reason": "Tangible personal property (wire cable). Missouri sales/use tax applies.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Low-voltage cabling for alarm system",
+      "capex_opex": "CapEx",
+      "confidence": 0.95,
+      "existing_task_ok": false,
+      "item_type": "Security & Surveillance Systems",
+      "rationale": "Low-voltage cable used for new system installation; capitalized as Security & Surveillance Systems.",
+      "suggested_task": "Security system installation cabling",
+      "task_code": "TC-5020"
+    },
+    "description": "18/2 STRANDED NON-SHIELDED, 200' BOX",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  },
+  "cbe|MO|2 tn siren in ss encl 118db": {
+    "decision": {
+      "_llm_tax_reason": "Tangible personal property (siren hardware). Missouri sales/use tax applies.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Security devices (sirens)",
+      "capex_opex": "CapEx",
+      "confidence": 0.97,
+      "existing_task_ok": false,
+      "item_type": "Security & Surveillance Systems",
+      "rationale": "New siren device for alarm system is CapEx as a security system component. Fits Security & Surveillance Systems.",
+      "suggested_task": "Security system siren installation",
+      "task_code": "TC-5020"
+    },
+    "description": "2-TN SIREN IN SS ENCL 118DB",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  },
+  "cbe|MO|22 4 stranded non shielded 200 box": {
+    "decision": {
+      "_llm_tax_reason": "Tangible personal property (wire cable). Missouri sales/use tax applies.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Low-voltage cabling for alarm system",
+      "capex_opex": "CapEx",
+      "confidence": 0.95,
+      "existing_task_ok": false,
+      "item_type": "Security & Surveillance Systems",
+      "rationale": "Low-voltage cable for alarm sensors is capitalized as part of the new asset. Maps to Security & Surveillance Systems due to use for new installation.",
+      "suggested_task": "Security system installation cabling",
+      "task_code": "TC-5020"
+    },
+    "description": "22/4 STRANDED NON-SHIELDED, 200' BOX",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  },
+  "cbe|MO|bosch tritech 360 pir wht": {
+    "decision": {
+      "_llm_tax_reason": "Tangible personal property (security equipment). Missouri sales/use tax applies.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Security devices (motion/PIR sensors)",
+      "capex_opex": "CapEx",
+      "confidence": 0.98,
+      "existing_task_ok": false,
+      "item_type": "Security & Surveillance Systems",
+      "rationale": "PIR sensors are physical security devices being newly installed, thus CapEx. Maps directly to Security & Surveillance Systems. Installation or new component, not repair.",
+      "suggested_task": "New installation of security sensor",
+      "task_code": "TC-5020"
+    },
+    "description": "BOSCH TRITECH 360 PIR WHT",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  },
+  "cbe|MO|contact surface mount 1 1 4 gap gray": {
+    "decision": {
+      "_llm_tax_reason": "Tangible personal property (mount contact). Missouri sales/use tax applies.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Security devices (surface mount contacts)",
+      "capex_opex": "CapEx",
+      "confidence": 0.97,
+      "existing_task_ok": false,
+      "item_type": "Security & Surveillance Systems",
+      "rationale": "Door/window contacts are new physical alarm system components; CapEx for new installation.",
+      "suggested_task": "Security door/window sensor installation",
+      "task_code": "TC-5020"
+    },
+    "description": "CONTACT, SURFACE MOUNT 1-1/4\" GAP GRAY",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  },
+  "cbe|MO|elk 12vdc strobe blue": {
+    "decision": {
+      "_llm_tax_reason": "Tangible personal property (strobe light). Missouri sales/use tax applies.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Security devices (strobe)",
+      "capex_opex": "CapEx",
+      "confidence": 0.97,
+      "existing_task_ok": false,
+      "item_type": "Security & Surveillance Systems",
+      "rationale": "Strobe for alarm system is a physical security asset, included in new installation, so CapEx.",
+      "suggested_task": "Security system strobe installation",
+      "task_code": "TC-5020"
+    },
+    "description": "ELK 12VDC STROBE - BLUE",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  },
+  "cbe|MO|fuel surcharge": {
+    "decision": {
+      "_llm_tax_reason": "Missouri generally does not tax fuel surcharges unless part of a taxable delivery charge; here it's potentially being misclassified.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Professional Services - Surcharge",
+      "capex_opex": "CapEx",
+      "confidence": 0.9,
+      "existing_task_ok": false,
+      "item_type": "Professional Services",
+      "rationale": "Fuel surcharges are auxiliary costs for installation service; capitalized as part of new asset. Item type is Professional Services, but linked for system installation.",
+      "suggested_task": "Fuel surcharge on installation labor",
+      "task_code": "TC-5020"
+    },
+    "description": "FUEL SURCHARGE",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  },
+  "cbe|MO|hardware kit": {
+    "decision": {
+      "_llm_tax_reason": "Tangible personal property (hardware). Missouri sales/use tax applies.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Mounting hardware for alarm system",
+      "capex_opex": "CapEx",
+      "confidence": 0.96,
+      "existing_task_ok": false,
+      "item_type": "Security & Surveillance Systems",
+      "rationale": "Mounting hardware is integral for installing new security asset; CapEx as part of asset acquisition.",
+      "suggested_task": "Security system mounting hardware",
+      "task_code": "TC-5020"
+    },
+    "description": "HARDWARE KIT",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  },
+  "cbe|MO|honeywell glassbreak detector": {
+    "decision": {
+      "_llm_tax_reason": "Tangible personal property (detector). Missouri sales/use tax applies.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Security devices (glassbreak detectors)",
+      "capex_opex": "CapEx",
+      "confidence": 0.98,
+      "existing_task_ok": false,
+      "item_type": "Security & Surveillance Systems",
+      "rationale": "Glassbreak detectors are physical security components for a new asset, so CapEx. Standardized as Security & Surveillance Systems.",
+      "suggested_task": "New installation of security sensor",
+      "task_code": "TC-5020"
+    },
+    "description": "HONEYWELL GLASSBREAK DETECTOR",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  },
+  "cbe|MO|install alarm": {
+    "decision": {
+      "_llm_tax_reason": "Labor for installation of tangible personal property (non-real property) is not taxable in MO; tax treatment here as taxable may be incorrect.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Alarm system installation labor",
+      "capex_opex": "CapEx",
+      "confidence": 0.98,
+      "existing_task_ok": false,
+      "item_type": "Professional Services",
+      "rationale": "Labor for installing a new security system is capitalized into the asset; Professional Services item type linked to security installation.",
+      "suggested_task": "Installation of security/alarm system",
+      "task_code": "TC-5020"
+    },
+    "description": "INSTALL ALARM",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  },
+  "cbe|MO|install alarm travel po": {
+    "decision": {
+      "_llm_tax_reason": "Travel portion of install labor generally not taxable in MO; tax charged may be misclassified if treated as taxable.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Professional Services - Travel",
+      "capex_opex": "CapEx",
+      "confidence": 0.9,
+      "existing_task_ok": false,
+      "item_type": "Professional Services",
+      "rationale": "Travel costs directly related to installation of new alarm system are capitalized; Professional Services as auxiliary to asset installation.",
+      "suggested_task": "Travel for alarm system installation",
+      "task_code": "TC-5020"
+    },
+    "description": "INSTALL ALARM TRAVEL (PO)",
+    "first_seen": "2026-08-07T12:53:01+00:00",
+    "model": "maf",
+    "state": "MO",
+    "vendor": "CBE"
+  }
+}

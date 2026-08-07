@@ -55,6 +55,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -63,6 +64,7 @@ from pathlib import Path
 # other autarch install on the path.
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # so `import refdata` (sibling module) resolves
 
 from autarch import (  # noqa: E402
     Agent,
@@ -84,6 +86,9 @@ from autarch import (  # noqa: E402
 from autarch.intelligence.factory import build_provider  # noqa: E402
 from autarch.intelligence.mock import MockProvider  # noqa: E402
 from autarch.util import extract_json  # noqa: E402
+import refdata  # noqa: E402  governed taxability matrix / task codes / PO master / history
+import docintel  # noqa: E402  Azure Document Intelligence prebuilt-invoice extraction (optional)
+import decision_cache  # noqa: E402  deterministic classification cache (reproducible determination)
 
 try:
     import agent_framework as _af  # noqa: F401
@@ -105,6 +110,17 @@ REQUIRED_FIELDS = ("vendor_name", "invoice_number", "total_amount", "description
 
 DEFAULT_MODEL = "azure:gpt-5.4"
 DEFAULT_THRESHOLD = 0.85  # "anything below ~85% confidence routes to a human"
+
+# Diagram step 5 - CAPITALIZATION RULES (logic in code, $2k / $100k thresholds):
+CAP_THRESHOLD = 2000.0             # capitalize an asset/project at/above this; below is a de-minimis expense
+MAJOR_PROJECT_THRESHOLD = 100000.0  # at/above this it is a MAJOR project -> AFE/board approval + review
+# Diagram step 10 - ROUTING confidence tiers (0.85 auto-approve, 0.70-0.85 auto-post w/ review flag):
+AUTOPOST_FLAG_THRESHOLD = 0.70
+# Period costs (freight, fuel surcharge, travel/mileage, handling) are EXPENSED regardless of the task
+# code the model picked - they are never capitalized into an asset.
+_PERIOD_COST_RE = re.compile(
+    r"\b(freight|shipping|surcharge|trip\s*charge|trip\s*fee|travel|mileage|per\s*diem|handling|"
+    r"restock(?:ing)?|expedit)\w*", re.IGNORECASE)
 
 _EXTRACT_SYS = "You are a precise invoice information-extraction assistant. Output ONLY one JSON object, no prose."
 _JUDGE_SYS = "You are a capital-asset accounting and use-tax expert for a US convenience-store chain. Output ONLY one JSON object, no prose."
@@ -193,15 +209,18 @@ _DEMO_SCRIPT = {
     }),
     "STEP: CLASSIFY_LINES": json.dumps({
         "lines": [
-            {"capex_opex": "CapEx", "asset_category": "Fuel Dispenser",
-             "suggested_task": "New Fuel Dispenser Installation (Capital)", "existing_task_ok": False,
-             "confidence": 0.92, "rationale": "Brand-new Encore 700S dispenser tied to AFE-2025-IL-0091 - a new capital asset, not a repair."},
-            {"capex_opex": "CapEx", "asset_category": "Fuel-Island Equipment",
-             "suggested_task": "New Fuel Dispenser Installation (Capital)", "existing_task_ok": True,
-             "confidence": 0.90, "rationale": "Sump kit installed with the new dispensers is capitalized into the fuel-island asset."},
-            {"capex_opex": "CapEx", "asset_category": "Installation Labor (capitalized)",
-             "suggested_task": "New Fuel Dispenser Installation (Capital)", "existing_task_ok": True,
-             "confidence": 0.83, "rationale": "Labor to place the new dispensers in service is capitalized into the asset cost, not expensed."},
+            {"capex_opex": "CapEx", "asset_category": "Fuel Dispenser", "item_type": "Fuel Equipment",
+             "task_code": "TC-1040", "suggested_task": "New Fuel Dispenser Installation (Capital)",
+             "existing_task_ok": False, "confidence": 0.92,
+             "rationale": "Brand-new Encore 700S dispenser tied to AFE-2025-IL-0091 - a new capital asset, not a repair."},
+            {"capex_opex": "CapEx", "asset_category": "Fuel-Island Equipment", "item_type": "Fuel Equipment",
+             "task_code": "TC-1040", "suggested_task": "New Fuel Dispenser Installation (Capital)",
+             "existing_task_ok": True, "confidence": 0.90,
+             "rationale": "Sump kit installed with the new dispensers is capitalized into the fuel-island asset."},
+            {"capex_opex": "CapEx", "asset_category": "Installation Labor (capitalized)", "item_type": "Fuel Equipment",
+             "task_code": "TC-1040", "suggested_task": "New Fuel Dispenser Installation (Capital)",
+             "existing_task_ok": True, "confidence": 0.83,
+             "rationale": "Labor to place the new dispensers in service is capitalized into the asset cost, not expensed."},
         ]
     }),
     "STEP: TAX_LINES": json.dumps({
@@ -264,6 +283,45 @@ def parse_args(argv):
             del argv[i:i + 2]
         else:
             del argv[i]
+    # --embed [spec]: DETERMINISTIC semantic line->task/item-type mapping via embeddings. Bare
+    # --embed uses the offline 'hash' embedder; pass a spec (e.g. ollama:nomic-embed-text) for richer
+    # meaning. When unset, the model free-picks the item type/task (non-deterministic).
+    embed_spec = None
+    if "--embed" in argv:
+        i = argv.index("--embed")
+        if i + 1 < len(argv) and not argv[i + 1].startswith("--"):
+            embed_spec = argv[i + 1]
+            del argv[i:i + 2]
+        else:
+            embed_spec = "hash"
+            del argv[i]
+    # --doci [endpoint]: extract the PDF with Azure Document Intelligence 'prebuilt-invoice'
+    # (structured header + line items WITH per-field confidence; governing state from the ship-to
+    # address). Bare --doci uses AZURE_DOCINTEL_ENDPOINT. Falls back to OCR+LLM if unavailable.
+    doci_on, doci_endpoint = False, None
+    if "--doci" in argv:
+        doci_on = True
+        i = argv.index("--doci")
+        nxt = argv[i + 1] if i + 1 < len(argv) else None
+        if nxt and not nxt.startswith("--") and not nxt.lower().endswith(".pdf"):
+            doci_endpoint = nxt
+            del argv[i:i + 2]
+        else:
+            del argv[i]
+    # --no-cache / --cache [path]: DETERMINISTIC decision cache. ON by default (examples/
+    # decision_cache.json) so the SAME invoice yields the SAME determination every run; --cache PATH
+    # relocates the file, --no-cache disables it (re-derive every line from the model each run).
+    cache_disabled = "--no-cache" in argv
+    argv = [a for a in argv if a != "--no-cache"]
+    cache_override = None
+    if "--cache" in argv:
+        i = argv.index("--cache")
+        if i + 1 < len(argv) and not argv[i + 1].startswith("--"):
+            cache_override = argv[i + 1]
+            del argv[i:i + 2]
+        else:
+            del argv[i]
+    cache_path = None if cache_disabled else (cache_override or decision_cache.DEFAULT_CACHE_PATH)
     model, argv = _split_flag(argv, "--model")
     auth, argv = _split_flag(argv, "--auth")
     thr, argv = _split_flag(argv, "--threshold")
@@ -273,7 +331,7 @@ def parse_args(argv):
     except ValueError:
         threshold = DEFAULT_THRESHOLD
     return (path, (model or DEFAULT_MODEL), (auth or "auto").lower(), threshold, demo, as_json,
-            csv_on, csv_path, html_on, html_path)
+            csv_on, csv_path, html_on, html_path, embed_spec, doci_on, doci_endpoint, cache_path)
 
 
 def banner(title: str) -> None:
@@ -347,7 +405,14 @@ def _connect_maf(deployment, endpoint, api_version, auth_mode):
     modes = {"aad": [True], "key": [False]}.get(auth_mode, [False, True] if has_key else [True])
     for idx, use_aad in enumerate(modes):
         factory, label = _make_client_factory(deployment, endpoint, api_version, use_aad)
-        candidate = MAFModelProvider(factory, agent_name="autarch-invoice-agent", model_label=deployment)
+        # Deterministic decoding: temperature 0 + a fixed seed so the SAME invoice yields the SAME
+        # classification/tax determination run-to-run (the model, not just the reference data, is
+        # reproducible). gpt-4.1 / gpt-4o accept both; reasoning models that reject temperature will
+        # ignore it via client_kwargs.
+        candidate = MAFModelProvider(
+            factory, agent_name="autarch-invoice-agent", model_label=deployment,
+            run_kwargs={"client_kwargs": {"temperature": 0, "seed": 7}},
+        )
         try:
             candidate.complete("Reply with the single word: OK.")  # one-turn auth probe
             return candidate, label
@@ -548,22 +613,45 @@ def extract_line_items(provider, text, header) -> list:
     return lines
 
 
-def classify_lines(provider, header, lines) -> list:
-    """Diagram step 3 - classify EACH line CapEx vs OpEx (rules + LLM) and validate its task."""
+def classify_lines(provider, header, lines, ref) -> list:
+    """Diagram step 3 - classify EACH line CapEx vs OpEx and validate its task. When the governed
+    reference data is present the model ALSO maps each line to one standardized ITEM TYPE (used for
+    the tax matrix) and the best-fitting TASK CODE (whose cap_eligible flag then AUTHORITATIVELY
+    decides CapEx vs OpEx in build_line_results)."""
     listing = "\n".join(
         f"{i + 1}. {ln['description']}  (qty {ln.get('quantity') or '-'}, amount {ln.get('amount') or '-'})"
         for i, ln in enumerate(lines)
     )
+    itypes = refdata.item_types(ref)
+    catalog = refdata.task_code_catalog(ref)
+    descs = refdata.item_type_descriptors(ref)
+    itype_block = ("\n\nITEM TYPES (map each line to EXACTLY one, copied verbatim; use the hints to pick "
+                   "the RIGHT bucket):\n"
+                   + "\n".join(f"- {t}: {descs.get(t, '')}" for t in itypes)) if itypes else ""
+    tc_block = ("\n\nTASK CODES (pick the single best-fitting code for each line, or \"\" if none):\n"
+                + "\n".join(f"- {c}: {d} ({'CapEx-eligible' if cap else 'expense/OpEx'})" for c, d, cap in catalog)) if catalog else ""
+    itype_field = ', "item_type": ""' if itypes else ""
+    tc_field = ', "task_code": ""' if catalog else ""
+    extra = ("map it to ONE standardized item type (for tax) and pick the best TASK CODE, "
+             if (itypes or catalog) else "")
+    itype_rule = ("When choosing the item type: the physical alarm/security devices (motion/PIR sensors, "
+                  "glassbreak detectors, sirens, strobes, door/window contacts, cameras, access control, "
+                  "keypads, and the low-voltage cabling + mounting hardware for them) are 'Security & "
+                  "Surveillance Systems'; installation/wiring labor, travel/mileage, freight and fuel "
+                  "surcharges are 'Professional Services'; reserve 'Safety Equipment' for fire/life-safety "
+                  "(extinguishers, suppression, PPE). " if itypes else "")
     prompt = (
         "STEP: CLASSIFY_LINES\n"
-        "For EACH numbered invoice line, classify CapEx vs OpEx and validate the capitalization task. "
-        "Creating/installing a NEW asset - or a component or installation labor capitalized INTO it - "
-        "is CapEx; a like-for-like repair, routine maintenance, or a consumable is OpEx. Do NOT just "
-        "accept an existing 'repair' code; decide the correct task (tasks exist only on capital AFE "
-        "items). Return JSON {\"lines\": [...]} with ONE entry per line IN THE SAME ORDER, each: "
+        "For EACH numbered invoice line, classify CapEx vs OpEx, validate the capitalization task, "
+        f"{extra}"
+        "then explain briefly. Creating/installing a NEW asset - or a component or installation labor "
+        "capitalized INTO it - is CapEx; a like-for-like repair, routine maintenance, or a consumable "
+        f"is OpEx. Do NOT just accept an existing 'repair' code. {itype_rule}Return JSON {{\"lines\": [...]}} with ONE "
+        "entry per line IN THE SAME ORDER, each: "
         '{"capex_opex": "CapEx"|"OpEx", "asset_category": "", "suggested_task": "", '
-        '"existing_task_ok": true, "confidence": 0.0, "rationale": ""}.\n\n'
-        f"INVOICE HEADER:\n{json.dumps(header, indent=2)}\n\nLINES:\n{listing}\n\nJSON:"
+        '"existing_task_ok": true' + itype_field + tc_field + ', "confidence": 0.0, "rationale": ""}.'
+        f"{itype_block}{tc_block}"
+        f"\n\nINVOICE HEADER:\n{json.dumps(header, indent=2)}\n\nLINES:\n{listing}\n\nJSON:"
     )
     data = _ask(provider, "classify_lines", _JUDGE_SYS, prompt)
     return _align(data, len(lines))
@@ -594,6 +682,39 @@ def tax_lines(provider, header, lines, classifications) -> list:
     return _align(data, len(lines))
 
 
+def apply_tax_matrix(header, classifications, ref) -> list:
+    """Diagram step 4, RULES-FIRST: taxable Y/N + rate come from the GOVERNED taxability matrix keyed
+    by (ship-to state x item_type) - deterministic, no model call. 'A' (ambiguous) and unmapped
+    cells raise a per-line exception (-> SME). Returns one dict per line aligned to classifications."""
+    state = (header.get("state") or "").strip().upper()
+    out = []
+    for c in classifications:
+        itype = (c or {}).get("item_type", "")
+        verdict, label, rate = refdata.taxability(ref, state, itype)
+        e = {"jurisdiction_state": state, "item_type": itype, "tax_verdict": verdict,
+             "tax_verdict_label": label, "expected_tax_rate": rate, "tax_basis": "",
+             "exception": False, "exception_reason": "", "taxable": None, "confidence": 0.0,
+             "rationale": ""}
+        if verdict == "T":
+            e.update(taxable=True, confidence=0.97,
+                     tax_basis=f"matrix {state}/{itype} = Taxable @ {rate}",
+                     rationale=f"{itype} is taxable in {state} per the taxability matrix.")
+        elif verdict == "E":
+            e.update(taxable=False, expected_tax_rate=0.0, confidence=0.97,
+                     tax_basis=f"matrix {state}/{itype} = Exempt",
+                     rationale=f"{itype} is exempt in {state} per the taxability matrix.")
+        elif verdict == "A":
+            e.update(taxable=None, exception=True, confidence=0.5,
+                     tax_basis=f"matrix {state}/{itype} = Ambiguous",
+                     exception_reason=f"{itype} in {state} is AMBIGUOUS in the taxability matrix - requires SME review.")
+        else:
+            e.update(taxable=None, exception=True, confidence=0.4,
+                     tax_basis=f"no matrix entry for {state}/{itype or '(unmapped)'}",
+                     exception_reason=f"No taxability rule for {state}/{itype or '(unmapped item type)'} - requires review.")
+        out.append(e)
+    return out
+
+
 def _num(v):
     """Parse a currency/number string to float, or None."""
     try:
@@ -602,81 +723,239 @@ def _num(v):
         return None
 
 
-def build_line_results(lines, classifications, taxes, threshold: float, header: dict) -> list:
-    """Merge the per-line extraction + classification + tax into one result per line, with a
-    per-line confidence (worst of the two judges) and a route (diagram step 5). Then allocate the
-    invoice's actually-charged tax across the taxable lines (pro-rata by expected tax, else by
-    amount) so each line shows charged-vs-expected and its own tax delta / self-assessed shortfall."""
+def build_line_results(lines, classifications, taxes, threshold: float, header: dict, ref: dict) -> list:
+    """Merge the per-line extraction + classification + tax into one result per line. RULES-FIRST:
+    when a line's TASK CODE resolves in the governed task-code master, its ``cap_eligible`` flag
+    AUTHORITATIVELY sets CapEx vs OpEx (with asset class + depreciation); the model's guess is only
+    a fallback. Expected tax = matrix rate x line amount when the matrix says taxable. Per-line
+    confidence is the worst of the two judges; the route follows (diagram step 5). Then the invoice's
+    actually-charged tax is allocated across taxable lines so each shows charged-vs-expected + delta."""
+    # Diagram STEP 5 - CAPITALIZATION RULES (logic in code, $2k / $100k thresholds). The capital
+    # ASSET/PROJECT total (cap-eligible, non-period-cost lines) decides capitalization: capitalize
+    # only when it reaches $2,000 (de-minimis expense below), and flag a MAJOR project at $100,000.
+    cap_project_total = 0.0
+    for i, ln in enumerate(lines):
+        c = classifications[i] if i < len(classifications) else {}
+        tr = refdata.task_lookup(ref, str(c.get("task_code", "")).strip())
+        if tr and tr.get("cap_eligible") and not _PERIOD_COST_RE.search(ln.get("description", "") or ""):
+            cap_project_total += _num(ln.get("amount")) or 0.0
+    capitalize_project = cap_project_total >= CAP_THRESHOLD
+    major_project = cap_project_total >= MAJOR_PROJECT_THRESHOLD
+
     out = []
     for i, ln in enumerate(lines):
         c = classifications[i] if i < len(classifications) else {}
         t = taxes[i] if i < len(taxes) else {}
+        amount = _num(ln.get("amount"))
+
+        # --- Diagram STEP 5: CapEx vs OpEx via capitalization rules + the task-code master -------- #
+        model_capex = str(c.get("capex_opex", "")).strip()
+        task_code = str(c.get("task_code", "")).strip()
+        task_rec = refdata.task_lookup(ref, task_code)
+        asset_class = c.get("asset_category", "")
+        useful_life = depreciation = None
+        period_cost = bool(_PERIOD_COST_RE.search(ln.get("description", "") or ""))
+        if task_rec is not None:
+            asset_class = task_rec.get("asset_class") or asset_class
+            useful_life = task_rec.get("useful_life_months")
+            depreciation = task_rec.get("depreciation")
+            cap_ok = bool(task_rec.get("cap_eligible"))
+            if period_cost:
+                # freight / fuel surcharge / travel / handling -> period expense, never capitalized;
+                # realign to the services expense code so the asset/depreciation stay coherent.
+                capex_opex, capex_basis = "OpEx", "period cost (freight/surcharge/travel) - expensed"
+                svc = refdata.task_lookup(ref, "TC-9030")
+                if svc and cap_ok:
+                    task_code, asset_class = "TC-9030", svc.get("asset_class") or asset_class
+                    useful_life, depreciation = svc.get("useful_life_months"), svc.get("depreciation")
+            elif not cap_ok:
+                capex_opex, capex_basis = "OpEx", f"task {task_rec.get('code')} (cap_eligible=False)"
+            elif not capitalize_project:
+                capex_opex = "OpEx"
+                capex_basis = (f"below ${int(CAP_THRESHOLD):,} capitalization threshold "
+                               f"(project ${cap_project_total:,.0f}) - expensed")
+            else:
+                capex_opex = "CapEx"
+                capex_basis = (f"task {task_rec.get('code')} cap-eligible; project "
+                               f"${cap_project_total:,.0f} >= ${int(CAP_THRESHOLD):,}")
+            capex_conflict = bool(model_capex and model_capex.lower() != capex_opex.lower())
+        else:
+            capex_opex = "OpEx" if period_cost else model_capex
+            capex_basis = "period cost - expensed" if period_cost else "AI (no task-code match)"
+            capex_conflict = False
+
+        # --- tax: matrix verdict (rules-first) -> taxable + rate + expected ---------------------- #
+        taxable = t.get("taxable")
+        rate = t.get("expected_tax_rate")
+        expected = round(rate * amount, 2) if (taxable and rate and amount) else (0.0 if taxable is False else None)
+        tax_exception = bool(t.get("exception"))
+
+        # --- Diagram STEP 9: DUAL VALIDATION (LLM tax assessment vs the tax engine) -------------- #
+        # Only when the two verdicts AGREE may a line consider auto-approve; a DIVERGENCE (engine says
+        # exempt but the model reads it taxable, or vice-versa) or an ambiguous engine call stops the
+        # line at a named analyst. This is the gate the flow diagram makes central - without it the
+        # matrix verdict alone would (wrongly) assert "over-collected / seek credit" when the vendor's
+        # charged tax is real evidence the item is taxable.
+        matrix_on = bool(ref.get("taxability"))
+        llm_taxable = c.get("_llm_tax_taxable")
+        tax_dual = None
+        if matrix_on and llm_taxable is not None:
+            if taxable is None:
+                tax_dual = "ambiguous"           # engine could not decide (already an exception)
+            elif bool(taxable) == bool(llm_taxable):
+                tax_dual = "agree"
+            else:
+                tax_dual = "diverge"
+        tax_divergence = (tax_dual == "diverge")
+
         conf = min(_confidence(c), _confidence(t))
-        exception = bool(t.get("exception"))
-        route = "SME_REVIEW" if (conf < threshold or exception) else "AUTO_POST"
+        # Semantic second opinion (validator): the model's pick stays authoritative; the embedder's
+        # deterministic nearest entry either CONFIRMS it or, when it disagrees in a way that changes
+        # the taxability verdict, forces the line to SME review.
+        sem = c.get("_sem")
+        llm_item = c.get("item_type", "")
+        llm_task = str(c.get("task_code", "")).strip()
+        tax_mapping_conflict = False
+        if sem:
+            sem_item, sem_task = sem.get("item_type"), sem.get("task_code")
+            item_conflict = bool(sem_item and llm_item and sem_item != llm_item)
+            task_conflict = bool(sem_task and llm_task and llm_task != sem_task)
+            mapping_conflict = item_conflict or task_conflict
+            if item_conflict:
+                state = (header.get("state") or "").strip().upper()
+                llm_verdict = refdata.taxability(ref, state, llm_item)[0]
+                sem_verdict = refdata.taxability(ref, state, sem_item)[0]
+                tax_mapping_conflict = bool(llm_verdict != sem_verdict)
+            agree = "confirmed" if not mapping_conflict else "DISAGREES"
+            mapping_basis = (f"LLM pick, semantic {agree} (index nearest: item {sem_item} "
+                             f"{sem.get('item_score')}, task {sem_task} {sem.get('task_score')})")
+        else:
+            mapping_conflict = False
+            mapping_basis = "LLM pick"
+        route = ("SME_REVIEW" if (conf < threshold or tax_exception or capex_conflict
+                                  or tax_mapping_conflict or tax_divergence)
+                 else "AUTO_POST")
         out.append({
             "n": i + 1,
             "description": ln.get("description", ""),
             "quantity": ln.get("quantity", ""),
-            "amount": _num(ln.get("amount")),
+            "amount": amount,
             "amount_raw": ln.get("amount", ""),
-            "capex_opex": c.get("capex_opex", ""),
-            "asset_category": c.get("asset_category", ""),
+            "capex_opex": capex_opex,
+            "capex_basis": capex_basis,
+            "capex_conflict": capex_conflict,
+            "mapping_basis": mapping_basis,
+            "mapping_conflict": mapping_conflict,
+            "tax_mapping_conflict": tax_mapping_conflict,
+            "tax_dual": tax_dual,
+            "tax_divergence": tax_divergence,
+            "llm_tax_taxable": llm_taxable,
+            "llm_tax_reason": c.get("_llm_tax_reason", ""),
+            "cache": c.get("_cache"),
+            "asset_category": asset_class,
+            "task_code": task_code,
+            "useful_life_months": useful_life,
+            "depreciation": depreciation,
             "suggested_task": c.get("suggested_task", ""),
             "existing_task_ok": c.get("existing_task_ok"),
             "class_rationale": c.get("rationale", ""),
-            "taxable": t.get("taxable"),
+            "item_type": t.get("item_type") or c.get("item_type", ""),
+            "taxable": taxable,
+            "tax_verdict": t.get("tax_verdict"),
+            "tax_verdict_label": t.get("tax_verdict_label"),
+            "tax_basis": t.get("tax_basis", ""),
             "jurisdiction_state": t.get("jurisdiction_state", ""),
-            "expected_tax_rate": t.get("expected_tax_rate"),
-            "expected_tax_amount": _num(t.get("expected_tax_amount")),
-            "tax_exception": exception,
+            "expected_tax_rate": rate,
+            "expected_tax_amount": expected,
+            "tax_exception": tax_exception,
             "tax_exception_reason": t.get("exception_reason", ""),
             "tax_rationale": t.get("rationale", ""),
             "confidence": round(conf, 3),
             "route": route,
         })
 
-    # Allocate the invoice's charged tax across taxable lines: pro-rata by expected tax (falls back
-    # to line amount when no expected tax resolved). Each line's delta = expected - allocated charged
-    # (positive = under-collected -> use tax owed on that line).
+    # Allocate the invoice's charged tax across ALL lines pro-rata by line AMOUNT (the vendor's tax
+    # base is the invoice value). This localizes a discrepancy to the RIGHT line: an exempt line that
+    # still received a share of charged tax shows it as over-collected on that line; a taxable line
+    # shows only the small rate delta. Each line's delta = expected - allocated charged (positive =
+    # under-collected -> use tax owed on that line).
     charged_total = _num(header.get("tax_charged")) or 0.0
-    total_expected = sum(r["expected_tax_amount"] for r in out if r["taxable"] and r["expected_tax_amount"])
-    total_amt = sum(r["amount"] for r in out if r["taxable"] and r["amount"])
+    total_amt_all = sum(r["amount"] for r in out if r["amount"])
     for r in out:
-        share = 0.0
-        if r["taxable"]:
-            if total_expected > 0 and r["expected_tax_amount"]:
-                share = r["expected_tax_amount"] / total_expected
-            elif total_amt > 0 and r["amount"]:
-                share = r["amount"] / total_amt
+        share = (r["amount"] / total_amt_all) if (total_amt_all > 0 and r["amount"]) else 0.0
         alloc = round(charged_total * share, 2)
         exp = r["expected_tax_amount"] or 0.0
         r["charged_tax_alloc"] = alloc
         r["tax_delta"] = round(exp - alloc, 2)
+        # Posting basis (step 13): where the cost lands + the use tax to self-assess on this line.
+        if str(r["capex_opex"]).lower() == "capex":
+            r["posting_target"] = f"capitalize to asset: {r['asset_category'] or '(asset)'}"
+        elif str(r["capex_opex"]).lower() == "opex":
+            r["posting_target"] = "expense to GL"
+        else:
+            r["posting_target"] = "(unclassified)"
+        r["use_tax_to_allocate"] = round(max(0.0, r["tax_delta"]), 2)  # >0 = self-assess on this line
     return out
 
 
 def summarize_lines(line_results, header) -> dict:
     """Invoice-level rollup of the per-line results: CapEx/OpEx totals, expected vs charged tax,
-    self-assessed use tax owed, and exception / SME-review counts."""
+    and a full tax RECONCILIATION that flags BOTH under-collection (self-assess use tax) AND
+    over-collection (vendor charged tax on exempt/lower-rate items -> verify classification / seek
+    credit). A material mismatch either way is an exception."""
     capex_total = sum(r["amount"] for r in line_results if r["amount"] and str(r["capex_opex"]).lower() == "capex")
     opex_total = sum(r["amount"] for r in line_results if r["amount"] and str(r["capex_opex"]).lower() == "opex")
-    expected_tax = sum(r["expected_tax_amount"] for r in line_results if r["expected_tax_amount"] and r.get("taxable"))
-    charged = _num(header.get("tax_charged")) or 0.0
-    use_tax_owed = max(0.0, round(expected_tax - charged, 2))
-    n_exc = sum(1 for r in line_results if r["tax_exception"])
+    # Diagram step 5: a capital project at/above $100k is a MAJOR project (AFE/board approval) -> review.
+    major_project = capex_total >= MAJOR_PROJECT_THRESHOLD
+    expected_tax = round(sum(r["expected_tax_amount"] for r in line_results
+                             if r["expected_tax_amount"] and r.get("taxable")), 2)
+    charged = round(_num(header.get("tax_charged")) or 0.0, 2)
+    # Tolerance: $1 or 2% of the larger side, so tiny rounding doesn't raise a false exception.
+    tol = max(1.0, 0.02 * max(expected_tax, charged))
+    use_tax_owed = max(0.0, round(expected_tax - charged, 2))      # under-collected -> self-assess
+    over_collected = max(0.0, round(charged - expected_tax, 2))    # over-collected -> verify/credit
+    if use_tax_owed > tol:
+        tax_status = "under_collected"
+    elif over_collected > tol:
+        tax_status = "over_collected"
+    else:
+        tax_status = "balanced"
+    tax_recon_exception = tax_status != "balanced"
+    # The expected-tax figure is only as trustworthy as the item-type classifications behind it.
+    # When lines carry an unresolved tax-relevant mapping conflict (the model and the semantic index
+    # disagree on a taxability-driving item type) or an ambiguous matrix verdict, the over/under
+    # conclusion is PROVISIONAL - resolve the classification before asserting a credit or accrual.
+    n_tax_mapping_conflict = sum(1 for r in line_results if r.get("tax_mapping_conflict"))
+    n_ambiguous = sum(1 for r in line_results if str(r.get("tax_verdict") or "").upper().startswith("A"))
+    # Diagram step 9: count lines where the LLM tax assessment and the tax engine DIVERGED. Any
+    # divergence means the invoice's taxability itself is disputed, so the over/under-collection
+    # figure is UNRESOLVED - it must go to a named analyst, not be asserted as a credit/accrual.
+    n_tax_divergence = sum(1 for r in line_results if r.get("tax_divergence"))
+    tax_unresolved = bool(tax_recon_exception and n_tax_divergence)
+    tax_provisional = bool(tax_recon_exception and (n_tax_mapping_conflict or n_ambiguous or n_tax_divergence))
+    n_exc = sum(1 for r in line_results if r["tax_exception"]) + (1 if tax_recon_exception else 0)
     n_sme = sum(1 for r in line_results if r["route"] == "SME_REVIEW")
     return {
         "capex_total": round(capex_total, 2),
         "opex_total": round(opex_total, 2),
-        "expected_tax_total": round(expected_tax, 2),
-        "tax_charged": round(charged, 2),
+        "major_project": major_project,
+        "cap_threshold": CAP_THRESHOLD,
+        "expected_tax_total": expected_tax,
+        "tax_charged": charged,
         "use_tax_owed": use_tax_owed,
+        "over_collected": over_collected,
+        "tax_status": tax_status,
+        "tax_recon_exception": tax_recon_exception,
+        "tax_provisional": tax_provisional,
+        "tax_unresolved": tax_unresolved,
+        "n_tax_divergence": n_tax_divergence,
+        "n_tax_mapping_conflict": n_tax_mapping_conflict,
+        "tax_tolerance": round(tol, 2),
         "tax_shortfall": bool(use_tax_owed > 0.01),
         "n_lines": len(line_results),
         "n_exceptions": n_exc,
         "n_sme": n_sme,
-        "route": "SME_REVIEW" if n_sme else "AUTO_POST",
+        "route": "SME_REVIEW" if (n_sme or tax_recon_exception or major_project) else "AUTO_POST",
     }
 
 
@@ -875,17 +1154,131 @@ def _collect_usage():
 # --------------------------------------------------------------------------------------------------
 # Report
 # --------------------------------------------------------------------------------------------------
-def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: float) -> dict:
-    # Header (invoice-level) fields for context + reconciliation.
-    fields = extract_invoice_fields(provider, text)
+def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: float,
+        embed_spec=None, di=None, cache_path=None) -> dict:
+    # Governed, read-only load of the reference data (taxability matrix, task codes, PO master,
+    # history) - each read is signed and the loader is proven unable to write/delete.
+    ref, ref_gov = refdata.load_reference()
 
-    # Diagram steps 3-5, PER LINE ITEM: extract lines -> classify each CapEx/OpEx -> apply tax rules
-    # per line -> score each line's confidence and route (high auto-posts, low/exception -> SME).
-    lines = extract_line_items(provider, text, fields)
-    classifications = classify_lines(provider, fields, lines) if lines else []
-    taxes = tax_lines(provider, fields, lines, classifications) if lines else []
-    line_results = build_line_results(lines, classifications, taxes, threshold, fields)
+    # Optional DETERMINISTIC semantic mapper: embed the task/item-type catalog once so line ->
+    # task_code / item_type is reproducible (same input -> same answer) instead of an LLM free-pick.
+    embedder, sem_index, embed_label = None, None, None
+    if embed_spec:
+        try:
+            from autarch.intelligence.factory import build_embedder
+            embedder = build_embedder(embed_spec)
+            sem_index = refdata.build_semantic_index(ref, embedder)
+            if sem_index:
+                _mode = "lexical" if "hash" in str(embed_spec).lower() else "learned"
+                embed_label = f"{embed_spec} ({_mode})"
+        except Exception as exc:  # noqa: BLE001
+            print(f"  (semantic mapping unavailable: {type(exc).__name__}: {exc}; using LLM pick)")
+
+    # Document Intelligence results (when --doci ran): its 'prebuilt-invoice' output is authoritative
+    # for the header fields + line items it extracted, each carrying a real confidence score.
+    di = di or {}
+    di_header = {k: v for k, v in (di.get("header") or {}).items() if str(v).strip()}
+    di_conf = di.get("confidence") or {}
+    di_lines = di.get("lines") or []
+
+    # Header (invoice-level) fields for context + reconciliation. The LLM extract provides the full
+    # field set (incl. AFE#/site# that DI's invoice model doesn't carry); DI then OVERRIDES the
+    # fields it lifted with confidence (vendor, invoice#, PO#, totals, and the ship-to state).
+    fields = extract_invoice_fields(provider, text)
+    for k, v in di_header.items():
+        if k in fields:
+            fields[k] = str(v).strip()
+
+    # Diagram steps 3-5, PER LINE ITEM: extract lines -> classify each (CapEx/OpEx + item type +
+    # task code) -> apply tax rules per line -> score each line's confidence and route. Tax is
+    # RULES-FIRST from the governed taxability matrix when it is available; otherwise the model
+    # decides taxability directly. DI line items (structured + confidence-scored) are used when
+    # present; otherwise the model extracts them from the OCR text.
+    if di_lines:
+        lines = [{k: str(ln.get(k, "")).strip() for k in LINE_KEYS} for ln in di_lines
+                 if str(ln.get("description", "")).strip()]
+    else:
+        lines = extract_line_items(provider, text, fields)
+    classifications = classify_lines(provider, fields, lines, ref) if lines else []
+
+    # Diagram STEP 8 - INDEPENDENT LLM tax assessment. The tax ENGINE (matrix, below) is the rules
+    # verdict; this is a SEPARATE model opinion on whether each line is taxable, so step 9 (dual
+    # validation) can compare the two. Folded into each classification so the decision cache persists
+    # BOTH together -> the agree/diverge gate is reproducible run-to-run.
+    llm_tax = tax_lines(provider, fields, lines, classifications) if lines else []
+    for i, c in enumerate(classifications):
+        if i < len(llm_tax):
+            c["_llm_tax_taxable"] = llm_tax[i].get("taxable")
+            c["_llm_tax_reason"] = (llm_tax[i].get("rationale") or llm_tax[i].get("exception_reason") or "")
+
+    # DETERMINISTIC decision cache (reproducibility). Azure OpenAI decoding is not deterministic even
+    # at temperature 0, so the SAME line can otherwise land on a different item type/task code and
+    # flip its tax verdict run-to-run. The cache reuses a previously-persisted classification for any
+    # line already seen (same vendor + ship-to state + normalized description) so the determination
+    # is identical every run; newly-seen lines are classified by the model and persisted for next
+    # time. LLM-quality accuracy on first sight, byte-for-byte reproducibility thereafter.
+    cache_stats = None
+    if cache_path and classifications:
+        try:
+            import decision_cache
+            _cache = decision_cache.load_cache(cache_path)
+            cache_stats = decision_cache.apply_cache(
+                _cache, fields, lines, classifications, model_label=getattr(provider, "name", ""))
+            decision_cache.save_cache(cache_path, _cache)
+            cache_stats["path"] = cache_path
+        except Exception as exc:  # noqa: BLE001
+            print(f"  (decision cache unavailable: {type(exc).__name__}: {exc})")
+
+    # DETERMINISTIC semantic CROSS-CHECK (validator, never an override). The reasoning model
+    # (gpt-4.1) is the more accurate classifier - it understands that "FUEL SURCHARGE" is a freight
+    # charge (Professional Services), not fuel equipment, and that "INSTALL ALARM" is labor. A bare
+    # nearest-neighbour over the catalog cannot, and letting it OVERRIDE the model demonstrably
+    # mis-mapped those lines and fabricated tax. So the embedder's deterministic nearest entry is
+    # recorded as an independent second opinion: when it AGREES with the model we gain reproducible
+    # confirmation; when it DISAGREES on the taxability-driving item type, build_line_results routes
+    # that line to SME review instead of silently trusting either side.
+    sem_mode = None
+    if sem_index is not None:
+        sem_mode = "lexical" if "hash" in str(embed_spec).lower() else "learned"
+        for i, ln in enumerate(lines):
+            if i >= len(classifications):
+                break
+            sm = refdata.map_line_semantic(sem_index, ln.get("description", ""), embedder)
+            if not sm:
+                continue
+            c = classifications[i]
+            c["_sem"] = sm
+            c["_sem_mode"] = sem_mode
+
+    if lines and ref.get("taxability"):
+        taxes = apply_tax_matrix(fields, classifications, ref)  # tax ENGINE (deterministic, no model call)
+    elif lines:
+        taxes = llm_tax  # no matrix -> the LLM assessment IS the verdict (no dual validation possible)
+    else:
+        taxes = []
+    line_results = build_line_results(lines, classifications, taxes, threshold, fields, ref)
     rollup = summarize_lines(line_results, fields)
+
+    # PO/AFE reconciliation: match the invoice to the governed PO master (by PO#/invoice# incl.
+    # alt formats and vendor aliases) and flag discrepancies against the committed PO.
+    po_rec, po_score, po_how = refdata.match_po(
+        ref, fields.get("invoice_number", ""), fields.get("po_number", ""), fields.get("vendor_name", ""))
+    po_discrepancy_list = refdata.po_discrepancies(po_rec, fields, line_results)
+
+    # Multi-jurisdiction (step 11): a PO that spans multiple sites/states (or an invoice state that
+    # differs from the PO state) needs a jurisdiction allocation -> route to SME (allocation itself
+    # is downstream). Detected here; not auto-allocated.
+    states_seen = {(r.get("jurisdiction_state") or "").upper() for r in line_results if r.get("jurisdiction_state")}
+    states_seen.discard("")
+    multi_jurisdiction = bool((po_rec and str(po_rec.get("location_site", "")).upper() == "MULTI") or len(states_seen) > 1)
+
+    # Historical precedent (step 8): similar past decisions for this vendor + item type + state,
+    # to calibrate confidence and give an audit-defensible basis.
+    from collections import Counter
+    itypes = [r.get("item_type") for r in line_results if r.get("item_type")]
+    dom_itype = Counter(itypes).most_common(1)[0][0] if itypes else ""
+    prec_matches, prec_summary = refdata.precedents(
+        ref, fields.get("vendor_name", ""), dom_itype, fields.get("state", ""))
 
     # Anti-hallucination: extracted header fields must be grounded in the signed source.
     ungrounded = check_grounding(fields, text, exempt=GROUNDED_EXEMPT)
@@ -902,12 +1295,24 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
     # Per-field verdict (one judge call): present / grounded / judge status + reason.
     field_verdicts = evaluate_field_verdicts(provider, fields, text)
 
-    # Confidence: worst LINE wins (fail-closed). Invoice routes to review if any line does, or an
-    # exception/ungrounded value/failed panel is present.
+    # Confidence: worst LINE wins (fail-closed). Invoice routes to review if any line does, or a
+    # tax-reconciliation exception, ungrounded value, failed panel, PO discrepancy, or a
+    # multi-jurisdiction allocation need is present.
     line_confs = [r["confidence"] for r in line_results]
     overall = min(line_confs) if line_confs else 0.0
-    route = "HUMAN_REVIEW" if (rollup["route"] == "SME_REVIEW" or overall < threshold or ungrounded
-                               or not quality_report.passed or not safety_report.passed) else "AUTO_APPROVE"
+    # Hard blockers force a named analyst regardless of confidence.
+    hard_blockers = (rollup["route"] == "SME_REVIEW" or rollup.get("tax_recon_exception")
+                     or bool(ungrounded) or bool(po_discrepancy_list) or multi_jurisdiction
+                     or not quality_report.passed or not safety_report.passed
+                     or rollup.get("major_project"))
+    # Diagram STEP 10 - routing confidence tiers: >= 0.85 auto-approve; 0.70-0.85 auto-post WITH a
+    # 48-hour review flag; < 0.70 (or any hard blocker) route to a named analyst.
+    if hard_blockers or overall < AUTOPOST_FLAG_THRESHOLD:
+        route = "HUMAN_REVIEW"
+    elif overall < threshold:
+        route = "AUTO_POST_FLAGGED"
+    else:
+        route = "AUTO_APPROVE"
 
     # Source citations: point each populated header field at its supporting passage in the source.
     citer = Citer(text)
@@ -937,6 +1342,31 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
         "fields": fields,
         "lines": line_results,
         "rollup": rollup,
+        "po": {
+            "matched": bool(po_rec),
+            "score": po_score,
+            "how": po_how,
+            "record": {k: po_rec.get(k) for k in ("po_number", "afe_number", "project_name",
+                        "vendor_name", "task_code", "asset_class", "location_state", "budget_amount")}
+                      if po_rec else None,
+            "discrepancies": po_discrepancy_list,
+        },
+        "multi_jurisdiction": {"flag": multi_jurisdiction, "states": sorted(states_seen)},
+        "precedent": {"summary": prec_summary,
+                      "matches": [{k: h.get(k) for k in ("invoice_number", "ship_to_state", "item_type",
+                                   "routing_result", "overall_confidence", "taxability", "scenario_label")}
+                                  for h in prec_matches]},
+        "reference": {"loaded": ref_gov.get("loaded", []),
+                      "guarantee_read_only": ref_gov.get("guarantee_read_only"),
+                      "signed_reads": len(ref_gov.get("why_ids", [])),
+                      "semantic_mapping": embed_label},
+        "classification_cache": cache_stats,
+        "extraction": {"engine": "document_intelligence" if di_header else "ocr+llm",
+                       "di_fields": sorted(di_header.keys()),
+                       "di_confidence": di_conf,
+                       "di_state_source": di.get("state_source", ""),
+                       "di_line_count": len(di_lines),
+                       "di_pages": di.get("n_pages")},
         "confidence": {"overall": round(overall, 3), "threshold": threshold,
                        "per_line": {r["n"]: r["confidence"] for r in line_results}},
         "routing": route,
@@ -975,6 +1405,15 @@ def print_report(rep: dict) -> None:
     print(f"  site / state: {f.get('site_number') or '-'} / {f.get('state') or '-'}")
     print(f"  total       : {_money(f.get('total_amount'))}   tax billed: {_money(f.get('tax_charged'))}")
 
+    ext = rep.get("extraction") or {}
+    if ext.get("engine") == "document_intelligence":
+        conf = ext.get("di_confidence") or {}
+        lo = f"min {min(conf.values()):.2f}" if conf else "n/a"
+        print(f"  extraction  : Azure Document Intelligence (prebuilt-invoice) - {ext.get('di_line_count')} "
+              f"line(s), field confidence {lo}, state via {ext.get('di_state_source') or '-'}")
+    else:
+        print("  extraction  : OCR + LLM")
+
     banner("LINE-ITEM CLASSIFICATION & TAX  (steps 3-5: classify -> tax -> confidence -> route)")
     if not lines:
         print("  (no line items were extracted)")
@@ -983,27 +1422,108 @@ def print_report(rep: dict) -> None:
         amt = _money(r["amount"]) if r["amount"] is not None else (r["amount_raw"] or "-")
         print(f"{head[:74].ljust(74)} {amt:>12}")
         tok = "" if r["existing_task_ok"] is None else ("yes" if r["existing_task_ok"] else "no")
+        basis = f"  [{r.get('capex_basis')}]" if r.get("capex_basis") else ""
+        cache_tag = {"hit": "  {cached}", "new": "  {new->cached}"}.get(r.get("cache"), "")
         print(f"        step3  {str(r['capex_opex'] or '-'):5}  asset: {r['asset_category'] or '-'}"
-              f"   task: {r['suggested_task'] or '-'} (existing OK: {tok})")
+              f"   task: {r.get('task_code') or r['suggested_task'] or '-'} (existing OK: {tok}){basis}{cache_tag}")
+        if r.get("capex_conflict"):
+            print(f"               ** the model guessed a different CapEx/OpEx than the task-code rule")
+        if r.get("mapping_basis") and r["mapping_basis"] != "LLM pick":
+            if r.get("tax_mapping_conflict"):
+                note = "  ** semantic index disagrees on a TAX-RELEVANT item type -> SME review"
+            elif r.get("mapping_conflict"):
+                note = "  ** semantic index suggests a different mapping (non-material)"
+            else:
+                note = ""
+            print(f"               map: {r['mapping_basis']}{note}")
         taxable = r["taxable"]
-        tax_line = (f"        step4  taxable={taxable}  {r['jurisdiction_state'] or '-'}"
+        tbasis = f"  [{r.get('tax_basis')}]" if r.get("tax_basis") else ""
+        tax_line = (f"        step4  taxable={taxable}  {r.get('item_type') or '-'}"
                     f" @{_pct(r['expected_tax_rate'])}   expected {_money(r['expected_tax_amount'])}"
-                    f"   charged~{_money(r.get('charged_tax_alloc'))}   \u0394 {_money(r.get('tax_delta'))}")
+                    f"   charged~{_money(r.get('charged_tax_alloc'))}   \u0394 {_money(r.get('tax_delta'))}{tbasis}")
         if r["tax_exception"]:
             tax_line += "   ** EXCEPTION"
         print(tax_line)
         if r["tax_exception"] and r["tax_exception_reason"]:
             for ln in _wrap(r["tax_exception_reason"], 84):
                 print(f"               {ln}")
+        # Diagram step 8+9: independent LLM tax verdict + dual-validation result vs the tax engine.
+        dual = r.get("tax_dual")
+        if dual:
+            eng = "taxable" if r.get("taxable") else ("exempt" if r.get("taxable") is False else "ambiguous")
+            llm = "taxable" if r.get("llm_tax_taxable") else "exempt"
+            if dual == "agree":
+                print(f"        step8-9  dual validation: AGREE (engine={eng}, model={llm})")
+            elif dual == "diverge":
+                print(f"        step8-9  dual validation: ** DIVERGE - engine={eng} but model reads {llm}"
+                      f" -> analyst review (do NOT auto-post/credit)")
+                if r.get("llm_tax_reason"):
+                    for ln in _wrap(f"model: {r['llm_tax_reason']}", 84):
+                        print(f"                 {ln}")
+            else:
+                print(f"        step8-9  dual validation: engine call is {eng} -> analyst review")
         arrow = "AUTO-POST" if r["route"] == "AUTO_POST" else "SME REVIEW"
         print(f"        step5  confidence {r['confidence']:.2f}  ->  {arrow}")
 
     banner("INVOICE ROLLUP")
     print(f"  CapEx total     : {_money(roll['capex_total'])}      OpEx total: {_money(roll['opex_total'])}")
-    print(f"  expected tax    : {_money(roll['expected_tax_total'])}   vs charged {_money(roll['tax_charged'])}"
-          f"  ->  use tax owed {_money(roll['use_tax_owed'])}")
+    print(f"  capitalization  : project {_money(roll['capex_total'])} vs ${int(roll.get('cap_threshold', CAP_THRESHOLD)):,} "
+          f"threshold -> {'CAPITALIZE' if roll['capex_total'] >= roll.get('cap_threshold', CAP_THRESHOLD) else 'expense (de minimis)'}"
+          + ("   ** MAJOR PROJECT (AFE/board)" if roll.get('major_project') else ""))
+    print(f"  expected tax    : {_money(roll['expected_tax_total'])}   vs charged {_money(roll['tax_charged'])}")
+    status = roll.get("tax_status", "balanced")
+    unresolved = roll.get("tax_unresolved")
+    n_div = roll.get("n_tax_divergence", 0)
+    if status == "balanced":
+        print(f"  tax reconciliation: balanced (within {_money(roll.get('tax_tolerance'))} tolerance)")
+    elif unresolved:
+        # Dual-validation gate diverged: the taxability itself is disputed, so the gap is NOT a firm
+        # over/under-collection - it goes to a named analyst (per the flow), not a credit/accrual.
+        gap = roll['over_collected'] if status == "over_collected" else roll['use_tax_owed']
+        print(f"  tax reconciliation: ** DUAL-VALIDATION DIVERGENCE on {n_div} line(s) - the tax engine and "
+              f"the model disagree on taxability")
+        print(f"                      expected {_money(roll['expected_tax_total'])} vs charged "
+              f"{_money(roll['tax_charged'])} (\u0394 {_money(gap)}) is UNRESOLVED -> analyst review; do NOT "
+              f"seek credit / self-assess until the taxability is confirmed")
+    elif status == "under_collected":
+        print(f"  tax reconciliation: ** UNDER-COLLECTED - self-assess use tax {_money(roll['use_tax_owed'])}")
+    elif status == "over_collected":
+        print(f"  tax reconciliation: ** OVER-COLLECTED {_money(roll['over_collected'])} - vendor charged tax "
+              f"the matrix says isn't due; verify classification / seek credit")
+    if roll.get("tax_provisional") and not unresolved:
+        print(f"                      (PROVISIONAL: {roll.get('n_tax_mapping_conflict', 0)} line(s) have a disputed "
+              f"tax-relevant item type; resolve classification in SME review before any credit/accrual)")
     print(f"  lines           : {roll['n_lines']}   tax exceptions: {roll['n_exceptions']}   "
           f"to SME review: {roll['n_sme']}")
+
+    mj = rep.get("multi_jurisdiction") or {}
+    if mj.get("flag"):
+        print(f"  ** MULTI-JURISDICTION: states {', '.join(mj.get('states') or []) or '(PO spans multiple sites)'}"
+              f" - requires tax allocation across jurisdictions (route to SME).")
+
+    prec = (rep.get("precedent") or {}).get("summary") or {}
+    if prec.get("count"):
+        routing = ", ".join(f"{k}:{v}" for k, v in (prec.get("routing") or {}).items())
+        print(f"  precedent       : {prec['count']} similar past decision(s), avg confidence "
+              f"{prec.get('avg_confidence')}  ({routing})")
+
+    po = rep.get("po") or {}
+    banner("PO / AFE RECONCILIATION  (governed PO master)")
+    if po.get("matched"):
+        rec = po["record"]
+        print(f"  matched PO      : {rec.get('po_number')}  (score {po['score']}, via {po['how']})")
+        print(f"  project / AFE   : {rec.get('project_name') or '-'}  /  {rec.get('afe_number') or '-'}")
+        print(f"  PO vendor/state : {rec.get('vendor_name') or '-'}  /  {rec.get('location_state') or '-'}")
+        print(f"  PO task / asset : {rec.get('task_code') or '-'}  /  {rec.get('asset_class') or '-'}"
+              f"   budget {_money(rec.get('budget_amount'))}")
+        if po.get("discrepancies"):
+            print("  ** discrepancies vs the invoice:")
+            for d in po["discrepancies"]:
+                print(f"       - {d}")
+        else:
+            print("  no discrepancies against the PO.")
+    else:
+        print(f"  no PO matched (best score {po.get('score')}).  -> unbacked invoice, route to review.")
 
     banner("ANTI-HALLUCINATION")
     if rep["grounding"]["flagged"]:
@@ -1055,6 +1575,19 @@ def print_report(rep: dict) -> None:
     ev, conf = rep["evidence"], rep["confidence"]
     print(f"  read-only guarantee : {ev['guarantee_read_only']}  (agent cannot write or delete)")
     print(f"  signed why-record   : {ev['why_id']}  (provenance verifies: {ev['provenance_verifies']})")
+    refm = rep.get("reference") or {}
+    if refm.get("loaded"):
+        print(f"  reference data      : {', '.join(refm['loaded'])}  "
+              f"(read-only guarantee {refm.get('guarantee_read_only')}, {refm.get('signed_reads')} signed reads)")
+    if refm.get("semantic_mapping"):
+        _auth = "learned" in str(refm["semantic_mapping"])
+        _desc = ("learned second opinion; tax-relevant disagreements route to review" if _auth
+                 else "lexical second opinion (offline; confirms/flags, never overrides the model)")
+        print(f"  line->task check    : semantic cross-check ({refm['semantic_mapping']}) - {_desc}")
+    cache = rep.get("classification_cache")
+    if cache:
+        print(f"  decision cache      : {cache.get('hits', 0)} reproduced (deterministic) + "
+              f"{cache.get('new', 0)} newly classified & persisted  ({cache.get('keys', 0)} known lines)")
     print(f"  all values grounded : {rep['grounding']['all_grounded']}")
     print(f"  quality panel       : {'PASS' if rep['quality']['passed'] else 'FAIL'}  (mean {rep['quality']['score']})")
     print(f"  safety panel        : {'PASS' if rep['safety']['passed'] else 'FAIL'}  (mean {rep['safety']['score']})")
@@ -1074,14 +1607,28 @@ def print_report(rep: dict) -> None:
     if rep["routing"] == "AUTO_APPROVE":
         print(f"  AUTO-APPROVE & POST  (worst-line confidence {conf['overall']:.2f} >= {conf['threshold']:.2f},"
               f" no exceptions) - validated BEFORE payment.")
+    elif rep["routing"] == "AUTO_POST_FLAGGED":
+        print(f"  AUTO-POST + 48H REVIEW FLAG  (worst-line confidence {conf['overall']:.2f} in the "
+              f"{AUTOPOST_FLAG_THRESHOLD:.2f}-{conf['threshold']:.2f} tier, no hard exceptions) - posts now, "
+              f"queued for a 48-hour spot review.")
     else:
         reasons = []
         if roll["n_sme"]:
             reasons.append(f"{roll['n_sme']} line(s) to SME review")
-        if roll["n_exceptions"]:
-            reasons.append(f"{roll['n_exceptions']} tax exception(s)")
-        if conf["overall"] < conf["threshold"]:
-            reasons.append(f"worst-line confidence {conf['overall']:.2f} < {conf['threshold']:.2f}")
+        if roll.get("major_project"):
+            reasons.append(f"major project (CapEx {_money(roll['capex_total'])} >= {_money(MAJOR_PROJECT_THRESHOLD)}) - AFE/board")
+        if roll.get("tax_unresolved"):
+            reasons.append(f"dual-validation divergence on {roll.get('n_tax_divergence', 0)} line(s) - taxability disputed")
+        elif roll.get("tax_status") == "under_collected":
+            reasons.append(f"tax under-collected (use tax {_money(roll['use_tax_owed'])})")
+        elif roll.get("tax_status") == "over_collected":
+            reasons.append(f"tax over-collected {_money(roll['over_collected'])}")
+        if (rep.get("multi_jurisdiction") or {}).get("flag"):
+            reasons.append("multi-jurisdiction allocation needed")
+        if (rep.get("po") or {}).get("discrepancies"):
+            reasons.append(f"{len((rep['po'])['discrepancies'])} PO discrepancy(ies)")
+        if conf["overall"] < AUTOPOST_FLAG_THRESHOLD:
+            reasons.append(f"worst-line confidence {conf['overall']:.2f} < {AUTOPOST_FLAG_THRESHOLD:.2f}")
         if not rep["grounding"]["all_grounded"]:
             reasons.append("ungrounded value(s)")
         if not rep["quality"]["passed"]:
@@ -1100,9 +1647,12 @@ def _wrap(s, width):
 
 # Per-line CSV columns for downstream posting / SME triage.
 _CSV_COLUMNS = (
-    "n", "description", "quantity", "amount", "capex_opex", "asset_category", "suggested_task",
-    "existing_task_ok", "taxable", "jurisdiction_state", "expected_tax_rate", "expected_tax_amount",
-    "charged_tax_alloc", "tax_delta", "tax_exception", "tax_exception_reason", "confidence", "route",
+    "n", "description", "quantity", "amount", "capex_opex", "capex_basis", "task_code",
+    "asset_category", "useful_life_months", "depreciation", "existing_task_ok",
+    "item_type", "mapping_basis", "mapping_conflict", "taxable", "tax_verdict",
+    "jurisdiction_state", "expected_tax_rate",
+    "expected_tax_amount", "charged_tax_alloc", "tax_delta", "use_tax_to_allocate", "tax_basis",
+    "tax_exception", "tax_exception_reason", "posting_target", "confidence", "route",
 )
 
 
@@ -1165,6 +1715,24 @@ def _hpass(passed) -> str:
     return "<span class='pass'>PASS</span>" if passed else "<span class='fail'>FAIL</span>"
 
 
+def _tax_recon_html(roll) -> str:
+    """Render the invoice-level tax reconciliation status (balanced / under / over / dual-divergence)."""
+    status = roll.get("tax_status", "balanced")
+    if roll.get("tax_unresolved") and status != "balanced":
+        gap = roll['over_collected'] if status == "over_collected" else roll['use_tax_owed']
+        return (f"<span class='fail'>DUAL-VALIDATION DIVERGENCE</span> on "
+                f"{roll.get('n_tax_divergence', 0)} line(s) &mdash; the tax engine and the model disagree "
+                f"on taxability; the {_money(gap)} gap is <b>UNRESOLVED</b>, routed to analyst review "
+                f"(do NOT seek credit / self-assess until confirmed)")
+    if status == "under_collected":
+        return (f"<span class='fail'>UNDER-COLLECTED</span> &mdash; self-assess use tax "
+                f"<b>{_money(roll['use_tax_owed'])}</b>")
+    if status == "over_collected":
+        return (f"<span class='fail'>OVER-COLLECTED {_money(roll['over_collected'])}</span> &mdash; vendor "
+                f"charged tax the matrix says isn't due; verify classification / seek credit")
+    return f"<span class='pass'>balanced</span> <span class='sub'>(within {_money(roll.get('tax_tolerance'))})</span>"
+
+
 def _scores_html(rows, skipped) -> str:
     trs = ["<tr><th>dimension</th><th>score</th><th>result</th><th>reason</th></tr>"]
     for name, score, passed, reason in rows:
@@ -1217,24 +1785,30 @@ def _usage_calls_html(rows) -> str:
 
 
 def _lines_html(lines) -> str:
-    trs = ["<tr><th>#</th><th>line item</th><th>amount</th><th>CapEx/OpEx</th><th>taxable</th>"
-           "<th>rate</th><th>expected</th><th>charged~</th><th>&Delta;</th><th>conf</th><th>route</th></tr>"]
+    trs = ["<tr><th>#</th><th>line item</th><th>amount</th><th>CapEx/OpEx</th><th>item type</th>"
+           "<th>taxable</th><th>rate</th><th>expected</th><th>charged~</th><th>&Delta;</th><th>conf</th><th>route</th></tr>"]
     for r in lines:
         exc = " class='exc'" if r["tax_exception"] else ""
         route_cls = "pass" if r["route"] == "AUTO_POST" else "warn"
         route = "AUTO-POST" if r["route"] == "AUTO_POST" else "SME REVIEW"
+        sub = (f"asset: {_html_escape(r['asset_category'] or '-')} &middot; "
+               f"task: {_html_escape(r.get('task_code') or r['suggested_task'] or '-')}")
+        if r.get("capex_basis"):
+            sub += f" &middot; <i>{_html_escape(r['capex_basis'])}</i>"
+        if r.get("tax_basis"):
+            sub += f"<br>tax: <i>{_html_escape(r['tax_basis'])}</i>"
         trs.append(
             f"<tr{exc}><td>{r['n']}</td><td>{_html_escape(r['description'])}"
-            f"<div class='sub'>asset: {_html_escape(r['asset_category'] or '-')} &middot; task: "
-            f"{_html_escape(r['suggested_task'] or '-')}</div></td>"
+            f"<div class='sub'>{sub}</div></td>"
             f"<td class='num'>{_money(r['amount'])}</td><td>{_html_escape(r['capex_opex'] or '-')}</td>"
+            f"<td>{_html_escape(r.get('item_type') or '-')}</td>"
             f"<td>{_html_escape(r['taxable'])}</td><td class='num'>{_pct(r['expected_tax_rate'])}</td>"
             f"<td class='num'>{_money(r['expected_tax_amount'])}</td><td class='num'>{_money(r.get('charged_tax_alloc'))}</td>"
             f"<td class='num'>{_money(r.get('tax_delta'))}</td><td class='num'>{r['confidence']:.2f}</td>"
             f"<td><span class='{route_cls}'>{route}</span></td></tr>"
         )
         if r["tax_exception"] and r["tax_exception_reason"]:
-            trs.append(f"<tr{exc}><td></td><td colspan='10' class='sub'>&#9888; {_html_escape(r['tax_exception_reason'])}</td></tr>")
+            trs.append(f"<tr{exc}><td></td><td colspan='11' class='sub'>&#9888; {_html_escape(r['tax_exception_reason'])}</td></tr>")
     return "<table class='scores'>\n" + "\n".join(trs) + "\n</table>"
 
 
@@ -1248,7 +1822,13 @@ def render_report_html(rep: dict, meta: dict) -> str:
     doc_url = meta.get("doc_url") or ""
     doc_link = f"<a class='cite' href='{esc(doc_url)}'><b>{esc(meta.get('doc_name'))}</b> &#8599;</a>" if doc_url else f"<b>{esc(meta.get('doc_name'))}</b>"
     auto = rep["routing"] == "AUTO_APPROVE"
-    banner_cls, banner_txt = ("ok", "AUTO-APPROVE & POST") if auto else ("sme", "ROUTE TO SME REVIEW")
+    flagged = rep["routing"] == "AUTO_POST_FLAGGED"
+    if auto:
+        banner_cls, banner_txt = "ok", "AUTO-APPROVE & POST"
+    elif flagged:
+        banner_cls, banner_txt = "warn", "AUTO-POST + 48H REVIEW FLAG"
+    else:
+        banner_cls, banner_txt = "sme", "ROUTE TO SME REVIEW"
     p = [
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width, initial-scale=1'>",
@@ -1273,11 +1853,40 @@ def render_report_html(rep: dict, meta: dict) -> str:
         _lines_html(rep["lines"]) if rep["lines"] else "<p>(no line items extracted)</p>",
         "<h2>Invoice rollup</h2><table class='kv'>",
         f"<tr><th>CapEx / OpEx</th><td>{_money(roll['capex_total'])} / {_money(roll['opex_total'])}</td></tr>",
-        f"<tr><th>expected vs charged tax</th><td>{_money(roll['expected_tax_total'])} vs {_money(roll['tax_charged'])} "
-        f"&rarr; use tax owed <b>{_money(roll['use_tax_owed'])}</b></td></tr>",
+        f"<tr><th>expected vs charged tax</th><td>{_money(roll['expected_tax_total'])} vs {_money(roll['tax_charged'])}</td></tr>",
+        f"<tr><th>tax reconciliation</th><td>{_tax_recon_html(roll)}</td></tr>",
         f"<tr><th>lines / exceptions / SME</th><td>{roll['n_lines']} / {roll['n_exceptions']} / {roll['n_sme']}</td></tr>",
         "</table>",
     ]
+    mj = rep.get("multi_jurisdiction") or {}
+    if mj.get("flag"):
+        p.append(f"<p class='warn'>&#9888; Multi-jurisdiction: states {esc(', '.join(mj.get('states') or []))} "
+                 f"&mdash; requires tax allocation across jurisdictions (route to SME).</p>")
+    prec = (rep.get("precedent") or {}).get("summary") or {}
+    if prec.get("count"):
+        routing = ", ".join(f"{esc(k)}: {v}" for k, v in (prec.get("routing") or {}).items())
+        p.append(f"<p class='sub'>Precedent: {prec['count']} similar past decision(s), avg confidence "
+                 f"{prec.get('avg_confidence')} ({routing}) &middot; e.g. &ldquo;{esc(prec.get('example'))}&rdquo;</p>")
+    po = rep.get("po") or {}
+    p.append("<h2>PO / AFE reconciliation <span class='sub'>governed PO master</span></h2>")
+    if po.get("matched"):
+        rec = po["record"]
+        p.append("<table class='kv'>")
+        p.append(f"<tr><th>matched PO</th><td>{esc(rec.get('po_number'))} "
+                 f"<span class='sub'>(score {po['score']}, via {esc(po['how'])})</span></td></tr>")
+        p.append(f"<tr><th>project / AFE</th><td>{esc(rec.get('project_name') or '-')} / {esc(rec.get('afe_number') or '-')}</td></tr>")
+        p.append(f"<tr><th>PO vendor / state</th><td>{esc(rec.get('vendor_name') or '-')} / {esc(rec.get('location_state') or '-')}</td></tr>")
+        p.append(f"<tr><th>PO task / asset</th><td>{esc(rec.get('task_code') or '-')} / {esc(rec.get('asset_class') or '-')} "
+                 f"&middot; budget {_money(rec.get('budget_amount'))}</td></tr>")
+        p.append("</table>")
+        if po.get("discrepancies"):
+            p.append("<p class='warn'>Discrepancies vs the invoice:</p><ul>")
+            p.extend(f"<li class='warn'>{esc(d)}</li>" for d in po["discrepancies"])
+            p.append("</ul>")
+        else:
+            p.append("<p class='pass'>No discrepancies against the PO.</p>")
+    else:
+        p.append(f"<p class='warn'>No PO matched (best score {po.get('score')}) &mdash; unbacked invoice, route to review.</p>")
     flagged = rep["grounding"]["flagged"]
     p.append("<h2>Anti-hallucination</h2>")
     if flagged:
@@ -1315,10 +1924,11 @@ def main() -> int:
     except Exception:
         pass
 
-    path, model, auth_mode, threshold, demo, as_json, csv_on, csv_path, html_on, html_path = parse_args(sys.argv[1:])
+    path, model, auth_mode, threshold, demo, as_json, csv_on, csv_path, html_on, html_path, embed_spec, doci_on, doci_endpoint, cache_path = parse_args(sys.argv[1:])
     if not path and not demo:
         print("usage: python examples/extract_invoice.py <invoice.pdf> [--model azure:<deployment>] "
-              "[--auth aad|key|auto] [--threshold 0.85] [--json] [--csv [out.csv]] [--html [out.html]]")
+              "[--auth aad|key|auto] [--threshold 0.85] [--json] [--csv [out.csv]] [--html [out.html]] "
+              "[--embed [spec]] [--doci [endpoint]] [--cache [path]] [--no-cache]")
         print("       python examples/extract_invoice.py --demo   (offline, bundled sample invoice)")
         return 2
 
@@ -1330,6 +1940,10 @@ def main() -> int:
         tmp_demo = Path(tempfile.mkdtemp(prefix="autarch_invoice_demo_")) / "sample_invoice.txt"
         tmp_demo.write_text(DEMO_INVOICE, encoding="utf-8")
         path = str(tmp_demo)
+    # Keep offline demo decisions out of the real shared cache (unless the user pointed --cache
+    # somewhere explicitly): route the demo to a throwaway cache file.
+    if demo and cache_path == decision_cache.DEFAULT_CACHE_PATH:
+        cache_path = str(Path(tempfile.mkdtemp(prefix="autarch_invoice_cache_")) / "decision_cache.json")
 
     doc = Path(path).expanduser()
     if not doc.exists():
@@ -1338,6 +1952,9 @@ def main() -> int:
 
     provider, engine_label, is_live = resolve_engine(model, auth_mode, demo)
     print(f"  reasoning engine: {engine_label}")
+    if embed_spec:
+        _mode = "lexical" if "hash" in str(embed_spec).lower() else "learned"
+        print(f"  line->task check   : semantic cross-check / validator ({_mode}: {embed_spec})")
 
     banner(f"1) GOVERNED READ - {doc.name}")
     agent, read_result, guarantee_ok = governed_read(doc)
@@ -1349,7 +1966,43 @@ def main() -> int:
     print(f"  read OK: {len(text):,} characters   |   read-only guarantee holds: {guarantee_ok}")
     print(f"  signed why-record: {read_result.why_id}")
 
-    if _looks_scanned(text):
+    # Step 5 - Document Intelligence: structured, confidence-scored extraction of the same PDF. The
+    # governed read above already proved the file was touched read-only; DI is the extraction engine.
+    di = None
+    if doci_on:
+        endpoint = doci_endpoint or os.environ.get("AZURE_DOCINTEL_ENDPOINT")
+        if not endpoint:
+            print("  --doci set but no endpoint (pass --doci <url> or set AZURE_DOCINTEL_ENDPOINT); using OCR+LLM.")
+        elif doc.suffix.lower() != ".pdf":
+            print("  --doci needs a PDF; using OCR+LLM for this file.")
+        else:
+            banner(f"1b) DOCUMENT INTELLIGENCE - prebuilt-invoice  |  {doc.name}")
+            tenant = (os.environ.get("AZURE_DOCINTEL_TENANT_ID") or os.environ.get("AZURE_OPENAI_TENANT_ID")
+                      or os.environ.get("AZURE_TENANT_ID"))
+            key = os.environ.get("AZURE_DOCINTEL_KEY")
+            print(f"  endpoint: {endpoint}")
+            di = docintel.analyze_invoice(str(doc), endpoint, tenant_id=tenant, api_key=key)
+            if di is None:
+                print("  azure-ai-documentintelligence not installed - using OCR+LLM.")
+            elif di.get("error"):
+                print(f"  DI extraction failed ({di['error']}) - using OCR+LLM.")
+                di = None
+            else:
+                conf = di.get("confidence") or {}
+                print(f"  DI OK: {len(di.get('header') or {})} header field(s), "
+                      f"{len(di.get('lines') or [])} line item(s), {di.get('n_pages')} page(s), "
+                      f"{len(di.get('content') or ''):,} chars OCR")
+                if conf:
+                    print(f"  field confidence (min {min(conf.values()):.2f}): "
+                          + ", ".join(f"{k} {v:.2f}" for k, v in conf.items()))
+                if di.get("state_source"):
+                    print(f"  governing state {di['header'].get('state', '?')} from {di['state_source']} "
+                          f"(ship-to, not bill-to)")
+                if di.get("content"):
+                    text = di["content"]  # DI's OCR becomes the grounding/citation source
+                    print(f"  using DI OCR content ({len(text):,} chars) for grounding")
+
+    if di is None and _looks_scanned(text):
         print("  no text layer found (scanned/image-only PDF) - running governed vision-OCR fallback ...")
         ocr = vision_transcribe(doc, provider)
         if ocr.strip():
@@ -1360,7 +2013,8 @@ def main() -> int:
                   "provider and non-vision deployments cannot OCR).")
 
     try:
-        rep = run(provider, text, agent, read_result, guarantee_ok, threshold)
+        rep = run(provider, text, agent, read_result, guarantee_ok, threshold, embed_spec, di=di,
+                  cache_path=cache_path)
     finally:
         if is_live:
             provider.close()
