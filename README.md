@@ -67,6 +67,29 @@ or an exhausted budget still blocks it. *AI proposes, the kernel disposes — ev
 when you are the one proposing.* See `examples/extract.py` (governed PDF read →
 LLM extraction → deterministic validation).
 
+## Flagship application — Circle K CapEx / CIP invoice governance
+
+A production-shaped use case built on the kernel: read a capital-project **invoice PDF** and produce a
+governed, audit-ready **per-line CapEx/OpEx + task-code + use-tax determination** *before* payment.
+It runs the full CapEx-exception-review flow end to end — Document Intelligence extraction → PO/AFE
+match → task-code + capitalization ($2k/$100k) → tax matrix + local rates → **an independent LLM tax
+assessment dual-validated against the rules engine** → confidence-tiered routing — with a signed audit
+trail and **deterministic, reproducible** results (same invoice → same determination every run).
+
+```powershell
+python examples/extract_invoice.py "C:\path\to\invoice.pdf" `
+    --model azure:gpt-4.1-rp --auth aad `
+    --doci "https://circlekdoci.cognitiveservices.azure.com/" `
+    --embed azure:text-embedding-3-small --html out.html --csv out.csv
+
+# or fully offline, zero setup:
+python examples/extract_invoice.py --demo
+```
+
+**Full setup + run guide: [examples/README-circle-k.md](examples/README-circle-k.md).**
+The tax matrix, task codes, PO master, and rates are governed reference data you swap for your own —
+no code change. Every reference read is signed; low-confidence or disputed lines route to a human.
+
 ## Use the CLI — preside over the council
 
 ```bash

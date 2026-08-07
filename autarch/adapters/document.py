@@ -6,10 +6,9 @@ one folder, and provably nothing else (no write, no delete, no network). Every
 read is audited and signed. The model that extracts fields runs *after* this
 governed read — see `examples/extract.py`.
 
-PDF text extraction uses the optional `pypdf` package (`pip install autarch[pdf]`).
-Image-only PDFs fall back to local OCR with PyMuPDF and RapidOCR. DOCX, plain-text,
-and markdown are read natively with the standard library, so the adapter works with
-zero dependencies for those formats.
+PDF text extraction uses the optional `pypdf` package (`pip install autarch[pdf]`);
+DOCX, plain-text, and markdown are read natively with the standard library, so the
+adapter works with zero dependencies for those formats.
 """
 from __future__ import annotations
 
@@ -100,34 +99,7 @@ class DocumentAdapter(Adapter):
                 "(pip install autarch[pdf]); .txt/.md work with no dependency"
             ) from exc
         reader = PdfReader(str(target))
-        text = "\n".join((page.extract_text() or "") for page in reader.pages)
-        if text.strip():
-            return text
-        return DocumentAdapter._ocr_pdf(target)
-
-    @staticmethod
-    def _ocr_pdf(target: Path) -> str:
-        try:
-            import numpy as np
-            import pymupdf
-            from rapidocr import RapidOCR
-        except ImportError as exc:
-            raise RuntimeError(
-                "PDF has no extractable text; scanned PDFs need the OCR dependencies "
-                "from `pip install autarch[pdf]`"
-            ) from exc
-
-        engine = RapidOCR()
-        pages: List[str] = []
-        with pymupdf.open(str(target)) as document:
-            for page in document:
-                pixmap = page.get_pixmap(dpi=300, alpha=False)
-                image = np.frombuffer(pixmap.samples, dtype=np.uint8).reshape(
-                    pixmap.height, pixmap.width, pixmap.n
-                )
-                result = engine(image)
-                pages.append("\n".join(result.txts or []))
-        return "\n".join(pages)
+        return "\n".join((page.extract_text() or "") for page in reader.pages)
 
     @staticmethod
     def _read_docx(target: Path) -> str:

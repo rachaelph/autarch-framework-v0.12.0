@@ -16,13 +16,6 @@ dependencies = []
 [project.optional-dependencies]
 crypto = ["cryptography>=42"]
 otel = ["opentelemetry-api>=1.20"]
-pdf = [
-	"numpy>=1.24",
-	"onnxruntime>=1.20",
-	"pymupdf>=1.24",
-	"pypdf>=5",
-	"rapidocr>=3",
-]
 dev = ["pytest>=7", "cryptography>=42"]
 
 [project.scripts]

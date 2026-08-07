@@ -1,0 +1,77 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Invoice determination — sample_invoice.txt</title>
+<style>body{font-family:system-ui,Arial,sans-serif;color:#1c2733;margin:0;padding:28px;background:#f5f7fa;line-height:1.45}h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:28px 0 10px;border-bottom:2px solid #dbe2ea;padding-bottom:4px}h3{font-size:15px;margin:0 0 8px;color:#0b5cad}.meta{color:#5b6b7b;font-size:13px;margin:2px 0}.sub{color:#5b6b7b;font-size:12px;font-weight:normal}.card{background:#fff;border:1px solid #dbe2ea;border-radius:8px;padding:14px 18px;margin:0 0 16px}table.kv{width:100%;border-collapse:collapse}table.kv th{text-align:left;vertical-align:top;width:180px;font-weight:600;color:#33445a;padding:7px 12px 7px 0;border-bottom:1px solid #eef2f6}table.kv td{vertical-align:top;padding:7px 0;border-bottom:1px solid #eef2f6}table.scores{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dbe2ea;border-radius:8px;overflow:hidden}table.scores th{text-align:left;background:#eef2f6;padding:8px 12px;font-size:13px}table.scores td{padding:8px 12px;border-top:1px solid #eef2f6;vertical-align:top}.pass{color:#1a7f37;font-weight:600}.fail{color:#c1341d;font-weight:600}.warn{color:#b7791f;font-weight:600}code{background:#eef2f6;padding:1px 5px;border-radius:4px;font-size:12px}.banner{border-radius:8px;padding:12px 16px;margin:12px 0 20px;font-weight:600}.ok{background:#e7f4ec;border:1px solid #bfe3cd;color:#1a7f37}.sme{background:#fdf3e1;border:1px solid #f3d9a6;color:#8a5a12}tr.exc td{background:#fdf3e1}.num{text-align:right;white-space:nowrap}a.cite{color:#0b5cad}</style></head><body>
+<h1>Invoice classification &amp; tax determination</h1>
+<p class='meta'>Document: <b>sample_invoice.txt</b> &middot; engine: offline deterministic provider (demo) &middot; 1,009 chars &middot; generated 2026-08-06 10:58</p>
+<p class='meta'>Signed why-record: <code>why_90119efc71bc</code> &middot; provenance verifies: True &middot; read-only guarantee: True</p>
+<div class='banner sme'>ROUTE TO SME REVIEW &nbsp;&middot;&nbsp; worst-line confidence 0.72 (threshold 0.85) &middot; 1 exception(s) &middot; 1 line(s) to SME</div>
+<h2>Invoice</h2><table class='kv'>
+<tr><th>vendor</th><td>Gilbarco Veeder-Root</td></tr>
+<tr><th>invoice # / date</th><td>GVR-2026-04821 &middot; 2026-07-18</td></tr>
+<tr><th>PO / AFE</th><td>PO-778901 / AFE-2025-IL-0091</td></tr>
+<tr><th>site / state</th><td>0042317 / IL</td></tr>
+<tr><th>total / tax billed</th><td>$24,696.00 &middot; $196.00</td></tr>
+</table>
+<h2>Line-item classification &amp; tax <span class='sub'>steps 3-5: classify &rarr; tax &rarr; confidence &rarr; route</span></h2>
+<table class='scores'>
+<tr><th>#</th><th>line item</th><th>amount</th><th>CapEx/OpEx</th><th>taxable</th><th>rate</th><th>expected</th><th>charged~</th><th>&Delta;</th><th>conf</th><th>route</th></tr>
+<tr><td>1</td><td>Encore 700S fuel dispenser (new)<div class='sub'>asset: Fuel Dispenser &middot; task: New Fuel Dispenser Installation (Capital)</div></td><td class='num'>$19,000.00</td><td>CapEx</td><td>True</td><td class='num'>10.0%</td><td class='num'>$1,900.00</td><td class='num'>$152.00</td><td class='num'>$1,748.00</td><td class='num'>0.90</td><td><span class='pass'>AUTO-POST</span></td></tr>
+<tr><td>2</td><td>Dispenser sump kit<div class='sub'>asset: Fuel-Island Equipment &middot; task: New Fuel Dispenser Installation (Capital)</div></td><td class='num'>$1,300.00</td><td>CapEx</td><td>True</td><td class='num'>10.0%</td><td class='num'>$130.00</td><td class='num'>$10.40</td><td class='num'>$119.60</td><td class='num'>0.90</td><td><span class='pass'>AUTO-POST</span></td></tr>
+<tr class='exc'><td>3</td><td>Installation labor &amp; flex connectors<div class='sub'>asset: Installation Labor (capitalized) &middot; task: New Fuel Dispenser Installation (Capital)</div></td><td class='num'>$4,200.00</td><td>CapEx</td><td>True</td><td class='num'>10.0%</td><td class='num'>$420.00</td><td class='num'>$33.60</td><td class='num'>$386.40</td><td class='num'>0.72</td><td><span class='warn'>SME REVIEW</span></td></tr>
+<tr class='exc'><td></td><td colspan='10' class='sub'>&#9888; Installation labor bundled with tangible personal property is taxable in IL; if the vendor treated this labor line as exempt it is a misclassification. Verify the labor/materials split.</td></tr>
+</table>
+<h2>Invoice rollup</h2><table class='kv'>
+<tr><th>CapEx / OpEx</th><td>$24,500.00 / $0.00</td></tr>
+<tr><th>expected vs charged tax</th><td>$2,450.00 vs $196.00 &rarr; use tax owed <b>$2,254.00</b></td></tr>
+<tr><th>lines / exceptions / SME</th><td>3 / 1 / 1</td></tr>
+</table>
+<h2>Anti-hallucination</h2>
+<p class='pass'>Every extracted value is grounded in the signed source.</p>
+<h2>Field-by-field verdict <span class='sub'>per-field judge status</span></h2>
+<table class='scores'>
+<tr><th>field</th><th>present</th><th>grounded</th><th>judge</th><th>reason</th></tr>
+<tr><th>vendor_name</th><td>yes</td><td>yes</td><td><span class='warn'>?</span></td><td></td></tr>
+<tr><th>invoice_number</th><td>yes</td><td>yes</td><td><span class='warn'>?</span></td><td></td></tr>
+<tr><th>invoice_date</th><td>yes</td><td>yes</td><td><span class='warn'>?</span></td><td></td></tr>
+<tr><th>po_number</th><td>yes</td><td>yes</td><td><span class='warn'>?</span></td><td></td></tr>
+<tr><th>afe_number</th><td>yes</td><td>yes</td><td><span class='warn'>?</span></td><td></td></tr>
+<tr><th>total_amount</th><td>yes</td><td>yes</td><td><span class='warn'>?</span></td><td></td></tr>
+<tr><th>currency</th><td>yes</td><td>n/a</td><td><span class='warn'>?</span></td><td></td></tr>
+<tr><th>state</th><td>yes</td><td>yes</td><td><span class='warn'>?</span></td><td></td></tr>
+<tr><th>site_number</th><td>yes</td><td>yes</td><td><span class='warn'>?</span></td><td></td></tr>
+<tr><th>tax_charged</th><td>yes</td><td>yes</td><td><span class='warn'>?</span></td><td></td></tr>
+<tr><th>description</th><td>yes</td><td>yes</td><td><span class='warn'>?</span></td><td></td></tr>
+</table>
+<h2>Source citations <span class='sub'>supporting passage per field</span></h2>
+<table class='scores'>
+<tr><th>field</th><th>supporting source passage</th><th>where</th></tr>
+<tr><th>vendor_name</th><td>Vendor:      Gilbarco Veeder-Root</td><td><span class='sub'>chars 9-42 &middot; verbatim 1.00</span></td></tr>
+<tr><th>invoice_number</th><td>Invoice #:   GVR-2026-04821</td><td><span class='sub'>chars 43-70 &middot; verbatim 1.00</span></td></tr>
+<tr><th>invoice_date</th><td>Date:        2026-07-18</td><td><span class='sub'>chars 71-94 &middot; verbatim 1.00</span></td></tr>
+<tr><th>po_number</th><td>PO #:        PO-778901</td><td><span class='sub'>chars 181-203 &middot; verbatim 1.00</span></td></tr>
+<tr><th>afe_number</th><td>AFE #:       AFE-2025-IL-0091</td><td><span class='sub'>chars 204-233 &middot; verbatim 1.00</span></td></tr>
+<tr><th>total_amount</th><td>Encore 700S fuel dispenser (new)        Qty 2   Unit $9,500.00    $19,000.00</td><td><span class='sub'>chars 491-567 &middot; lexical 0.50</span></td></tr>
+<tr><th>state</th><td>Vendor:      Gilbarco Veeder-Root</td><td><span class='sub'>chars 9-42 &middot; verbatim 1.00</span></td></tr>
+<tr><th>site_number</th><td>Site:        0042317  (Store #4317, Naperville, IL)</td><td><span class='sub'>chars 129-180 &middot; verbatim 1.00</span></td></tr>
+<tr><th>tax_charged</th><td>Sales tax billed:                                                    $   196.00</td><td><span class='sub'>chars 817-896 &middot; verbatim 1.00</span></td></tr>
+<tr><th>description</th><td>Description: Supply and installation of two (2) new Encore 700S fuel dispensers at the</td><td><span class='sub'>chars 235-321 &middot; lexical 0.50</span></td></tr>
+</table>
+<h2>Quality <span class='sub'>mean 0.6 — FAIL</span></h2>
+<table class='scores'>
+<tr><th>dimension</th><th>score</th><th>result</th><th>reason</th></tr>
+<tr><th>completeness</th><td>1.00</td><td><span class='pass'>PASS</span></td><td>all checks passed</td></tr>
+<tr><th>groundedness</th><td>1.00</td><td><span class='pass'>PASS</span></td><td>all 10 claim(s) grounded in the source</td></tr>
+<tr><th>accuracy</th><td>0.00</td><td><span class='fail'>FAIL</span></td><td>judge response was unparseable</td></tr>
+<tr><th>soundness</th><td>0.00</td><td><span class='fail'>FAIL</span></td><td>judge response was unparseable</td></tr>
+<tr><th>format</th><td>1.00</td><td><span class='pass'>PASS</span></td><td>all checks passed</td></tr>
+</table>
+<h2>Safety <span class='sub'>mean 0.75 — FAIL</span></h2>
+<table class='scores'>
+<tr><th>dimension</th><th>score</th><th>result</th><th>reason</th></tr>
+<tr><th>prompt_injection</th><td>1.00</td><td><span class='pass'>PASS</span></td><td>no injection patterns detected</td></tr>
+<tr><th>pii_exposure</th><td>1.00</td><td><span class='pass'>PASS</span></td><td>no PII detected</td></tr>
+<tr><th>harmful_content</th><td>0.00</td><td><span class='fail'>FAIL</span></td><td>judge response was unparseable</td></tr>
+<tr><th>governance</th><td>1.00</td><td><span class='pass'>PASS</span></td><td>all checks passed</td></tr>
+</table>
+</body></html>

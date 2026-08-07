@@ -105,6 +105,7 @@ def build_embedder(spec):
 
       "hash" / "hash:512"        -> offline feature-hashing embedder (no deps)
       "ollama" / "ollama:model"  -> local learned embeddings via Ollama
+      "azure" / "azure:deploy"   -> Azure OpenAI embedding deployment (AAD or key)
       "openai" / "openai:model"  -> cloud learned embeddings (needs OPENAI_API_KEY)
       an EmbeddingProvider       -> returned as-is
     """
@@ -123,6 +124,14 @@ def build_embedder(spec):
         return OllamaEmbedder()
     if spec.startswith("ollama:"):
         return OllamaEmbedder(model=spec.split(":", 1)[1])
+    if spec == "azure":
+        from .azure_embedding import AzureOpenAIEmbedder
+
+        return AzureOpenAIEmbedder()
+    if spec.startswith("azure:"):
+        from .azure_embedding import AzureOpenAIEmbedder
+
+        return AzureOpenAIEmbedder(deployment=spec.split(":", 1)[1])
     if spec in ("openai", "gpt"):
         from .openai_embedding import OpenAIEmbedder
 
@@ -138,5 +147,5 @@ def build_embedder(spec):
 
     raise ValueError(
         f"Unknown embedder spec: {spec!r}. Try 'hash[:dim]', 'ollama[:model]', "
-        "or 'openai[:model]' (or a bare 'text-embedding-3-small')."
+        "'azure[:deployment]', or 'openai[:model]' (or a bare 'text-embedding-3-small')."
     )

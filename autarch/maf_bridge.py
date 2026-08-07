@@ -318,12 +318,16 @@ class MAFModelProvider(ModelProvider):
         instructions_default: str = "You are a precise assistant. Follow the instructions exactly.",
         agent_name: str = "autarch-maf",
         agent_kwargs: Optional[dict] = None,
+        run_kwargs: Optional[dict] = None,
         model_label: str = "maf",
     ) -> None:
         self._client_factory = client_factory
         self._instructions_default = instructions_default
         self._agent_name = agent_name
         self._agent_kwargs = dict(agent_kwargs or {})
+        # Options forwarded to every ``agent.run(...)`` call, e.g.
+        # ``{"client_kwargs": {"temperature": 0, "seed": 7}}`` for deterministic decoding.
+        self._run_kwargs = dict(run_kwargs or {})
         self._model_label = model_label
         self._runner: Optional[_LoopRunner] = None
         self._client = None
@@ -367,7 +371,7 @@ class MAFModelProvider(ModelProvider):
             **self._agent_kwargs,
         )
         _t0 = time.time()
-        resp = await agent.run(prompt)
+        resp = await agent.run(prompt, **self._run_kwargs)
         _t1 = time.time()
         text = _maf_response_text(resp)
         _record_maf_usage(resp, self._model_label, prompt, system, text, label, _t0, _t1)
@@ -404,7 +408,9 @@ class MAFModelProvider(ModelProvider):
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": openai_vision_content(prompt, images)})
         _t0 = time.time()
-        resp = await inner.chat.completions.create(model=self._model_label, messages=messages)
+        resp = await inner.chat.completions.create(
+            model=self._model_label, messages=messages, **(self._run_kwargs.get("client_kwargs") or {})
+        )
         _t1 = time.time()
         choices = getattr(resp, "choices", None) or []
         text = (getattr(getattr(choices[0], "message", None), "content", "") or "") if choices else ""
