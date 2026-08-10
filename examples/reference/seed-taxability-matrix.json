@@ -5,6 +5,7 @@
     "Safety Equipment",
     "HVAC & Mechanical",
     "IT & Electronics",
+    "Security & Surveillance Systems",
     "Vehicles & Heavy Equipment",
     "Professional Services",
     "Environmental"
@@ -31,7 +32,7 @@
     "MN": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
     "MI": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
     "MA": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "A", "IT & Electronics": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
-    "MO": { "Fuel Equipment": "T", "Construction Materials": "A", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "A", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "MO": {"Fuel Equipment": "T", "Construction Materials": "A", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "A", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E"},
     "AK": { "Fuel Equipment": "E", "Construction Materials": "E", "Safety Equipment": "E", "HVAC & Mechanical": "E", "IT & Electronics": "A", "Vehicles & Heavy Equipment": "E", "Professional Services": "E", "Environmental": "E" }
   },
   "legend": { "T": "Taxable", "E": "Exempt", "A": "Ambiguous — requires review" },
