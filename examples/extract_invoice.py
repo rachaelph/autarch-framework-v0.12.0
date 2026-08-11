@@ -625,6 +625,12 @@ def classify_lines(provider, header, lines, ref) -> list:
     itypes = refdata.item_types(ref)
     catalog = refdata.task_code_catalog(ref)
     descs = refdata.item_type_descriptors(ref)
+    po_rec, po_score, po_how = refdata.match_po(
+        ref,
+        invoice_number=header.get("invoice_number", ""),
+        po_number=header.get("po_number", ""),
+        vendor_name=header.get("vendor_name", ""),
+    )
     itype_block = ("\n\nITEM TYPES (map each line to EXACTLY one, copied verbatim; use the hints to pick "
                    "the RIGHT bucket):\n"
                    + "\n".join(f"- {t}: {descs.get(t, '')}" for t in itypes)) if itypes else ""
@@ -634,12 +640,22 @@ def classify_lines(provider, header, lines, ref) -> list:
     tc_field = ', "task_code": ""' if catalog else ""
     extra = ("map it to ONE standardized item type (for tax) and pick the best TASK CODE, "
              if (itypes or catalog) else "")
-    itype_rule = ("When choosing the item type: the physical alarm/security devices (motion/PIR sensors, "
-                  "glassbreak detectors, sirens, strobes, door/window contacts, cameras, access control, "
-                  "keypads, and the low-voltage cabling + mounting hardware for them) are 'Security & "
-                  "Surveillance Systems'; installation/wiring labor, travel/mileage, freight and fuel "
-                  "surcharges are 'Professional Services'; reserve 'Safety Equipment' for fire/life-safety "
-                  "(extinguishers, suppression, PPE). " if itypes else "")
+    itype_rule = ("When choosing the item type: physical alarm/security devices and their dedicated "
+                  "cabling/hardware are 'Security & Surveillance Systems'; separately stated travel, "
+                  "survey, consulting, and non-capital installation services are 'Professional Services'; "
+                  "freight, shipping, delivery, handling, and surcharges are 'Freight & Delivery'. "
+                  if itypes else "")
+    po_context = ""
+    if po_rec is not None and po_how in {"id", "id+vendor"}:
+        po_context = ("\n\nMATCHED PO REFERENCE (use as context; invoice facts still control):\n"
+                      + json.dumps({
+                          "po_number": po_rec.get("po_number"),
+                          "description": po_rec.get("description"),
+                          "line_descriptions": po_rec.get("line_descriptions"),
+                          "task_code": po_rec.get("task_code"),
+                          "asset_class": po_rec.get("asset_class"),
+                          "match_score": po_score,
+                      }, indent=2))
     prompt = (
         "STEP: CLASSIFY_LINES\n"
         "For EACH numbered invoice line, classify CapEx vs OpEx, validate the capitalization task, "
@@ -651,7 +667,7 @@ def classify_lines(provider, header, lines, ref) -> list:
         '{"capex_opex": "CapEx"|"OpEx", "asset_category": "", "suggested_task": "", '
         '"existing_task_ok": true' + itype_field + tc_field + ', "confidence": 0.0, "rationale": ""}.'
         f"{itype_block}{tc_block}"
-        f"\n\nINVOICE HEADER:\n{json.dumps(header, indent=2)}\n\nLINES:\n{listing}\n\nJSON:"
+        f"{po_context}\n\nINVOICE HEADER:\n{json.dumps(header, indent=2)}\n\nLINES:\n{listing}\n\nJSON:"
     )
     data = _ask(provider, "classify_lines", _JUDGE_SYS, prompt)
     model_rows = _align(data, len(lines))
