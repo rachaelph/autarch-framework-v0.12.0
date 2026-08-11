@@ -78,9 +78,9 @@ trail and **deterministic, reproducible** results (same invoice → same determi
 
 ```powershell
 python examples/extract_invoice.py "C:\path\to\invoice.pdf" `
-    --model azure:gpt-4.1-rp --auth aad `
+    --model azure:invoice-extractor --auth aad `
     --doci "https://circlekdoci.cognitiveservices.azure.com/" `
-    --embed azure:text-embedding-3-small --html out.html --csv out.csv
+    --embed azure:invoice-embeddings --html out.html --csv out.csv
 
 # or fully offline, zero setup:
 python examples/extract_invoice.py --demo

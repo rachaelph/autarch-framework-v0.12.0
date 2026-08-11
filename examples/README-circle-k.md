@@ -60,8 +60,8 @@ cache keyed on vendor + ship-to state + line description), so results are audita
 
 | Purpose | Resource | Endpoint | Deployment / model |
 |---|---|---|---|
-| Reasoning (chat) | Azure OpenAI `aif-learning` | `https://aif-learning.cognitiveservices.azure.com/` | `gpt-4.1-rp` |
-| Semantic mapping (embeddings) | same resource | same endpoint | `text-embedding-3-small` |
+| Reasoning (chat) | Azure OpenAI `circlektesting` | `https://circlektesting.openai.azure.com/` | `invoice-extractor` |
+| Semantic mapping (embeddings) | same resource | same endpoint | `invoice-embeddings` |
 | Invoice extraction | Document Intelligence `circlekdoci` | `https://circlekdoci.cognitiveservices.azure.com/` | `prebuilt-invoice` |
 
 Auth is **Microsoft Entra ID (AAD)** — no API keys. The signed-in identity needs the data-plane roles
@@ -78,17 +78,17 @@ guest, the credential is **tenant-pinned** via `AZURE_OPENAI_TENANT_ID`.
 az account get-access-token --tenant 3e41b164-59e6-4ce9-8c15-767e2c81431c --resource https://cognitiveservices.azure.com | Out-Null
 
 # 2) Configure the environment (Entra ID auth, key auth is disabled on the resource)
-$env:AZURE_OPENAI_ENDPOINT    = "https://aif-learning.cognitiveservices.azure.com/"
-$env:AZURE_OPENAI_DEPLOYMENT  = "gpt-4.1-rp"
+$env:AZURE_OPENAI_ENDPOINT    = "https://circlektesting.openai.azure.com/"
+$env:AZURE_OPENAI_DEPLOYMENT  = "invoice-extractor"
 $env:AZURE_OPENAI_API_VERSION = "2024-12-01-preview"
 $env:AZURE_OPENAI_TENANT_ID   = "3e41b164-59e6-4ce9-8c15-767e2c81431c"
 Remove-Item Env:\AZURE_OPENAI_API_KEY -ErrorAction SilentlyContinue
 
 # 3) Run the full pipeline on an invoice
 python examples/extract_invoice.py "C:\path\to\invoice.pdf" `
-    --model azure:gpt-4.1-rp --auth aad `
+    --model azure:invoice-extractor --auth aad `
     --doci "https://circlekdoci.cognitiveservices.azure.com/" `
-    --embed azure:text-embedding-3-small `
+    --embed azure:invoice-embeddings `
     --html out\invoice_report.html --csv out\invoice_lines.csv
 ```
 
@@ -107,10 +107,10 @@ no Azure, no keys — so you can see the exact output shape.
 | Flag | Meaning |
 |---|---|
 | `<invoice.pdf>` | Path to the invoice (PDF; scanned/image-only supported via vision-OCR) |
-| `--model azure:<deployment>` | Reasoning deployment (e.g. `azure:gpt-4.1-rp`) |
+| `--model azure:<deployment>` | Reasoning deployment (e.g. `azure:invoice-extractor`) |
 | `--auth aad\|key\|auto` | Credential mode; use `aad` (key auth is disabled) |
 | `--doci [endpoint]` | Extract with Document Intelligence `prebuilt-invoice` (bare uses `AZURE_DOCINTEL_ENDPOINT`) |
-| `--embed [spec]` | Semantic cross-check; use `azure:text-embedding-3-small` (learned) |
+| `--embed [spec]` | Semantic cross-check; use `azure:invoice-embeddings` (learned) |
 | `--threshold 0.85` | Auto-post confidence threshold |
 | `--cache [path]` / `--no-cache` | Deterministic decision cache (on by default at `examples/decision_cache.json`) |
 | `--html [path]` / `--csv [path]` | Write the HTML report / per-line CSV |
