@@ -654,7 +654,20 @@ def classify_lines(provider, header, lines, ref) -> list:
         f"\n\nINVOICE HEADER:\n{json.dumps(header, indent=2)}\n\nLINES:\n{listing}\n\nJSON:"
     )
     data = _ask(provider, "classify_lines", _JUDGE_SYS, prompt)
-    return _align(data, len(lines))
+    model_rows = _align(data, len(lines))
+    reference_rows = refdata.reference_classifications(ref, header, lines)
+    required = ("capex_opex", "asset_category", "item_type", "task_code", "confidence", "rationale")
+    for model_row, reference_row in zip(model_rows, reference_rows):
+        if not reference_row:
+            continue
+        for key in required:
+            if model_row.get(key) in (None, ""):
+                model_row[key] = reference_row.get(key)
+        if model_row.get("existing_task_ok") is None:
+            model_row["existing_task_ok"] = reference_row.get("existing_task_ok")
+        if all(model_row.get(key) == reference_row.get(key) for key in ("item_type", "task_code")):
+            model_row["_reference_fallback"] = True
+    return model_rows
 
 
 def tax_lines(provider, header, lines, classifications) -> list:
@@ -1952,6 +1965,10 @@ def main() -> int:
 
     provider, engine_label, is_live = resolve_engine(model, auth_mode, demo)
     print(f"  reasoning engine: {engine_label}")
+    if model.startswith("azure:") and not demo and not is_live:
+        print("  Aborting: an explicit Azure model was requested, but Azure is unavailable. "
+              "Set AZURE_OPENAI_ENDPOINT and authenticate before rerunning.")
+        return 1
     if embed_spec:
         _mode = "lexical" if "hash" in str(embed_spec).lower() else "learned"
         print(f"  line->task check   : semantic cross-check / validator ({_mode}: {embed_spec})")

@@ -21,6 +21,7 @@ falls back to the model-only path.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import tempfile
 from difflib import SequenceMatcher
@@ -123,6 +124,59 @@ def task_lookup(data, code):
         if str(t.get("code", "")).strip().lower() == code:
             return t
     return None
+
+
+_FREIGHT_RE = re.compile(r"\b(freight|shipping|delivery fee|handling|fuel surcharge|tariff surcharge)\b", re.I)
+_SERVICE_RE = re.compile(r"\b(travel|mileage|site survey|consulting|engineering|design fee)\b", re.I)
+_FINANCE_RE = re.compile(r"\b(interest|late[- ]?payment|liability waiver|administrative fee)\b", re.I)
+
+
+def reference_classifications(data, header, lines) -> list:
+    """Classify lines from an exact PO match when model classifications are unavailable.
+
+    Explicit freight, service, and finance lines use their dedicated task codes. All other lines
+    inherit the matched PO's primary task. Records without a valid task/item-type pair remain empty
+    so callers route them to review instead of inventing a determination.
+    """
+    rec, score, how = match_po(
+        data,
+        invoice_number=header.get("invoice_number", ""),
+        po_number=header.get("po_number", ""),
+        vendor_name=header.get("vendor_name", ""),
+    )
+    if rec is None or how not in {"id", "id+vendor"}:
+        return [{} for _ in lines]
+
+    primary_code = str(rec.get("task_code") or "").strip()
+    out = []
+    for line in lines:
+        description = str(line.get("description") or "")
+        if _FINANCE_RE.search(description):
+            code = "TC-9060"
+        elif _FREIGHT_RE.search(description):
+            code = "TC-9050"
+        elif _SERVICE_RE.search(description):
+            code = "TC-9030"
+        else:
+            code = primary_code
+        task = task_lookup(data, code)
+        item_type = str((task or {}).get("item_type") or "").strip()
+        if task is None or not item_type:
+            out.append({})
+            continue
+        capex = "CapEx" if task.get("cap_eligible") else "OpEx"
+        out.append({
+            "capex_opex": capex,
+            "asset_category": task.get("asset_class", ""),
+            "suggested_task": task.get("description", ""),
+            "existing_task_ok": code == primary_code,
+            "item_type": item_type,
+            "task_code": code,
+            "confidence": round(0.9 if score >= 0.9 else 0.85, 2),
+            "rationale": f"Reference fallback from matched PO {rec.get('po_number')} and task {code}.",
+            "_reference_fallback": True,
+        })
+    return out
 
 
 def _sim(a, b) -> float:
@@ -258,6 +312,12 @@ _ITEM_TYPE_HINTS = {
     "Professional Services": "installation labor install wiring labor service consulting engineering design "
                             "freight shipping delivery handling travel mileage trip charge fuel surcharge fee permit",
     "Environmental": "environmental remediation compliance regulatory permit spill monitoring assessment",
+    "Real Property Repair & Installation": "canopy site improvement installed real property repair erection labor "
+                                             "demolition fascia construction installation",
+    "Signage & Display": "sign signage illuminated cabinet pricer LED display shroud wordmark price sign",
+    "Equipment Rental": "rental rent portable storage container leased equipment container guard",
+    "Freight & Delivery": "freight shipping delivery handling fuel surcharge tariff surcharge retail delivery fee",
+    "Finance Charges": "interest late payment liability waiver administrative fee finance charge",
 }
 
 

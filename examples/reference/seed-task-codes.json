@@ -4,6 +4,7 @@
     "description": "Commercial Refrigeration and Ice-Making Equipment, Including Ice Makers, Condensing Units, Tubing, Thermostats, Adapter Kits and Related Components",
     "category": "Store Equipment",
     "asset_class": "Refrigeration Equipment",
+    "item_type": "HVAC & Mechanical",
     "cap_eligible": true,
     "useful_life_months": 144,
     "depreciation": "straight-line"
@@ -13,6 +14,7 @@
     "description": "Fuel Canopies, Canopy Fascia, Fuel Islands and Related Site Improvements",
     "category": "Construction",
     "asset_class": "Land Improvements",
+    "item_type": "Real Property Repair & Installation",
     "cap_eligible": true,
     "useful_life_months": 240,
     "depreciation": "straight-line"
@@ -22,6 +24,7 @@
     "description": "Bollards, Post Guards, Protective Post Covers, Fencing and Security Barriers",
     "category": "Construction",
     "asset_class": "Fencing and Security Barriers",
+    "item_type": "Construction Materials",
     "cap_eligible": true,
     "useful_life_months": 180,
     "depreciation": "straight-line"
@@ -31,6 +34,7 @@
     "description": "Security, Intrusion Alarm, Surveillance and Access Control Systems, Including Alarm Panels, Motion Detectors, Glass-Break Detectors, Contacts, Sirens, Strobes, Cabling and Direct Installation",
     "category": "IT",
     "asset_class": "Security Systems",
+    "item_type": "Security & Surveillance Systems",
     "cap_eligible": true,
     "useful_life_months": 84,
     "depreciation": "straight-line"
@@ -40,6 +44,7 @@
     "description": "Exterior and Interior Signage, Including Price Signs, LED Signs, Illuminated Cabinets, Sign Shrouds and Related Electrical Components",
     "category": "Signage",
     "asset_class": "Signage",
+    "item_type": "Signage & Display",
     "cap_eligible": true,
     "useful_life_months": 120,
     "depreciation": "straight-line"
@@ -49,6 +54,7 @@
     "description": "Interior Store Fixtures, Custom Cabinets, Display Enclosures, Shelving and Related Store Furnishings",
     "category": "Store Equipment",
     "asset_class": "Store Fixtures",
+    "item_type": "Construction Materials",
     "cap_eligible": true,
     "useful_life_months": 84,
     "depreciation": "straight-line"
@@ -58,6 +64,7 @@
     "description": "Maintenance and Repair of Existing Canopies, Signs, Fixtures and Equipment - Non-Capitalizable",
     "category": "Expense",
     "asset_class": "Maintenance and Repair",
+    "item_type": "Real Property Repair & Installation",
     "cap_eligible": false,
     "useful_life_months": 0,
     "depreciation": "expensed"
@@ -67,6 +74,7 @@
     "description": "Installation Labor, Site Surveys, Travel and Other Professional Services Not Directly Capitalized",
     "category": "Expense",
     "asset_class": "Professional Services",
+    "item_type": "Professional Services",
     "cap_eligible": false,
     "useful_life_months": 0,
     "depreciation": "expensed"
@@ -76,6 +84,7 @@
     "description": "Portable Storage Containers and Related Equipment Rental - Non-Capitalizable",
     "category": "Expense",
     "asset_class": "Rental Expense",
+    "item_type": "Equipment Rental",
     "cap_eligible": false,
     "useful_life_months": 0,
     "depreciation": "expensed"
@@ -85,6 +94,7 @@
     "description": "Freight, Shipping, Delivery, Fuel Surcharges and Retail Delivery Fees",
     "category": "Expense",
     "asset_class": "Freight and Delivery",
+    "item_type": "Freight & Delivery",
     "cap_eligible": false,
     "useful_life_months": 0,
     "depreciation": "expensed"
@@ -94,6 +104,7 @@
     "description": "Interest Charges, Late-Payment Charges, Liability Waivers and Other Administrative Fees",
     "category": "Expense",
     "asset_class": "Finance and Administrative Charges",
+    "item_type": "Finance Charges",
     "cap_eligible": false,
     "useful_life_months": 0,
     "depreciation": "expensed"
