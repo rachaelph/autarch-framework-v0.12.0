@@ -8,6 +8,7 @@ sys.path.insert(0, str(EXAMPLES_DIR))
 
 import refdata  # noqa: E402
 import extract_invoice  # noqa: E402
+from autarch.evaluation import check_grounding  # noqa: E402
 
 
 def _reference_data():
@@ -84,3 +85,10 @@ def test_classify_lines_fills_empty_model_response_from_reference_data():
     assert rows[0]["task_code"] == "TC-5020"
     assert rows[0]["item_type"] == "Security & Surveillance Systems"
     assert rows[0]["_reference_fallback"] is True
+
+
+def test_grounding_accepts_equivalent_date_format_only():
+    source = "Invoice Date 2/18/2025"
+
+    assert check_grounding({"invoice_date": "2025-02-18"}, source) == []
+    assert check_grounding({"invoice_date": "2025-02-19"}, source)

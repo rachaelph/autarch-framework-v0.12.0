@@ -890,10 +890,31 @@ def check_grounding(
             continue
         if " ".join(fold(value).split()) in haystack:
             continue  # appears verbatim in the source -> grounded
+        if _equivalent_date_in_source(value, source):
+            continue
         verdict = grounder.evaluate(value)
         if not verdict.passed:
             flagged.append((key, value, verdict.reasons))
     return flagged
+
+
+def _equivalent_date_in_source(value: str, source: str) -> bool:
+    """Whether an ISO date value appears in the source in a common US numeric format."""
+    import datetime
+    import re
+
+    try:
+        expected = datetime.date.fromisoformat(value)
+    except ValueError:
+        return False
+    for month, day, year in re.findall(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{2}|\d{4})\b", source):
+        full_year = int(year) + 2000 if len(year) == 2 else int(year)
+        try:
+            if datetime.date(full_year, int(month), int(day)) == expected:
+                return True
+        except ValueError:
+            continue
+    return False
 
 
 @dataclass
