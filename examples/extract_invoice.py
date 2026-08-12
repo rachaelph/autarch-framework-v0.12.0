@@ -582,7 +582,7 @@ def classify_asset(provider, fields) -> dict:
 # apply tax rules to EACH line, and score EACH line's confidence -> high auto-posts, low/exception
 # routes to SME review. Batched (one call per stage returns an array) to keep it token-efficient.
 # --------------------------------------------------------------------------------------------------
-LINE_KEYS = ("description", "quantity", "unit_price", "amount")
+LINE_KEYS = ("description", "quantity", "unit_price", "amount", "tax_status")
 
 
 def _align(data, n) -> list:
@@ -599,9 +599,12 @@ def extract_line_items(provider, text, header) -> list:
         "STEP: EXTRACT_LINES\n"
         "Extract EVERY line item from the INVOICE as a JSON object {\"lines\": [...]}, one entry per "
         "line, each EXACTLY {\"description\": \"\", \"quantity\": \"\", \"unit_price\": \"\", "
-        "\"amount\": \"\"}. Amounts/prices as plain numbers (no symbols or thousands separators). "
+        "\"amount\": \"\", \"tax_status\": \"\"}. Amounts/prices as plain numbers (no symbols or "
+        "thousands separators). Copy an explicit printed line tax marker into tax_status using only "
+        "T, N, E, or NT; otherwise leave it blank. "
         "Copy descriptions verbatim; INCLUDE labor/service lines and surcharges. Do NOT include "
-        "subtotal/tax/total summary rows.\n\n"
+        "subtotal/tax/total summary rows, but DO INCLUDE separately stated late-payment fees, other "
+        "fees, and similar charges even when they appear next to the summary totals.\n\n"
         f"INVOICE:\n{text[:14000]}\n\nJSON:"
     )
     data = _ask(provider, "extract_lines", _EXTRACT_SYS, prompt)
@@ -611,6 +614,57 @@ def extract_line_items(provider, text, header) -> list:
         if isinstance(it, dict) and str(it.get("description", "")).strip():
             lines.append({k: str(it.get(k, "")).strip() for k in LINE_KEYS})
     return lines
+
+
+def normalize_extraction(header: dict, di_lines: list, model_lines: list,
+                         authoritative_header: dict | None = None) -> tuple[dict, list, list]:
+    """Validate header arithmetic, choose the most complete line set, and retain printed tax evidence."""
+    normalized = dict(header)
+    issues = []
+    if authoritative_header is not None and "tax_charged" not in authoritative_header:
+        normalized["tax_charged"] = ""
+        issues.append("cleared_unverified_model_tax")
+    tax = _num(normalized.get("tax_charged"))
+    subtotal = _num(normalized.get("subtotal"))
+    total = _num(normalized.get("total_amount"))
+    if tax is not None and subtotal is not None and abs(tax - subtotal) <= 0.01:
+        normalized["tax_charged"] = ""
+        tax = None
+        issues.append("rejected_tax_equal_to_subtotal")
+
+    def line_total(rows):
+        amounts = [_num(row.get("amount")) for row in rows]
+        return round(sum(amount for amount in amounts if amount is not None), 2)
+
+    primary = [dict(row) for row in (di_lines or model_lines)]
+    candidate = [dict(row) for row in model_lines]
+    target = (total - tax) if total is not None and tax is not None else total
+    if di_lines and candidate and target is not None:
+        primary_delta = abs(line_total(primary) - target)
+        candidate_delta = abs(line_total(candidate) - target)
+        tolerance = max(1.0, abs(target) * 0.001)
+        if candidate_delta <= tolerance and candidate_delta + 0.01 < primary_delta:
+            primary = candidate
+            issues.append("used_reconciled_model_lines")
+
+    for line in primary:
+        if str(line.get("tax_status") or "").strip():
+            continue
+        amount = _num(line.get("amount"))
+        description = str(line.get("description") or "").strip().lower()
+        for evidence in candidate:
+            evidence_amount = _num(evidence.get("amount"))
+            evidence_description = str(evidence.get("description") or "").strip().lower()
+            status = str(evidence.get("tax_status") or "").strip().upper()
+            same_amount = amount is not None and evidence_amount is not None and abs(amount - evidence_amount) <= 0.01
+            same_description = description and evidence_description and (
+                description in evidence_description or evidence_description in description
+            )
+            if status in {"T", "N", "E", "NT"} and (same_amount or same_description):
+                line["tax_status"] = status
+                break
+        line.setdefault("tax_status", "")
+    return normalized, primary, issues
 
 
 def classify_lines(provider, header, lines, ref) -> list:
@@ -681,6 +735,12 @@ def classify_lines(provider, header, lines, ref) -> list:
                 model_row[key] = reference_row.get(key)
         if model_row.get("existing_task_ok") is None:
             model_row["existing_task_ok"] = reference_row.get("existing_task_ok")
+        if reference_row.get("_reference_override"):
+            for key in ("capex_opex", "asset_category", "item_type", "task_code", "suggested_task"):
+                model_row[key] = reference_row.get(key)
+            model_row["_reference_override"] = True
+        elif model_row.get("task_code") == reference_row.get("task_code"):
+            model_row["item_type"] = reference_row.get("item_type")
         if all(model_row.get(key) == reference_row.get(key) for key in ("item_type", "task_code")):
             model_row["_reference_fallback"] = True
     return model_rows
@@ -716,6 +776,8 @@ def apply_tax_matrix(header, classifications, ref) -> list:
     by (ship-to state x item_type) - deterministic, no model call. 'A' (ambiguous) and unmapped
     cells raise a per-line exception (-> SME). Returns one dict per line aligned to classifications."""
     state = (header.get("state") or "").strip().upper()
+    local_rate = ((ref.get("taxability") or {}).get("local_rates") or {}).get(state)
+    rate_scope = "effective" if isinstance(local_rate, (int, float)) else "state_base_only"
     out = []
     for c in classifications:
         itype = (c or {}).get("item_type", "")
@@ -726,7 +788,10 @@ def apply_tax_matrix(header, classifications, ref) -> list:
              "rationale": ""}
         if verdict == "T":
             e.update(taxable=True, confidence=0.97,
-                     tax_basis=f"matrix {state}/{itype} = Taxable @ {rate}",
+                     tax_basis=(f"matrix {state}/{itype} = Taxable @ {rate}"
+                                + (" (state base rate; local rate unresolved)"
+                                   if rate_scope == "state_base_only" else " (effective rate)")),
+                     tax_rate_scope=rate_scope,
                      rationale=f"{itype} is taxable in {state} per the taxability matrix.")
         elif verdict == "E":
             e.update(taxable=False, expected_tax_rate=0.0, confidence=0.97,
@@ -818,6 +883,19 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
         rate = t.get("expected_tax_rate")
         expected = round(rate * amount, 2) if (taxable and rate and amount) else (0.0 if taxable is False else None)
         tax_exception = bool(t.get("exception"))
+        tax_status = str(ln.get("tax_status") or "").strip().upper()
+        marker_taxable = True if tax_status == "T" else (False if tax_status in {"N", "E", "NT"} else None)
+        vendor_tax_conflict = bool(
+            marker_taxable is not None and taxable is not None and marker_taxable != bool(taxable)
+        )
+        tax_exception = tax_exception or vendor_tax_conflict
+        tax_exception_reason = t.get("exception_reason", "")
+        if vendor_tax_conflict:
+            conflict_reason = (
+                f"Invoice line is marked {tax_status}, but the governed matrix says "
+                f"{'taxable' if taxable else 'exempt'}; preserve both as evidence and route to review."
+            )
+            tax_exception_reason = "; ".join(filter(None, (tax_exception_reason, conflict_reason)))
 
         # --- Diagram STEP 9: DUAL VALIDATION (LLM tax assessment vs the tax engine) -------------- #
         # Only when the two verdicts AGREE may a line consider auto-approve; a DIVERGENCE (engine says
@@ -868,6 +946,8 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
             "n": i + 1,
             "description": ln.get("description", ""),
             "quantity": ln.get("quantity", ""),
+            "tax_status": tax_status,
+            "vendor_tax_conflict": vendor_tax_conflict,
             "amount": amount,
             "amount_raw": ln.get("amount", ""),
             "capex_opex": capex_opex,
@@ -895,9 +975,10 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
             "tax_basis": t.get("tax_basis", ""),
             "jurisdiction_state": t.get("jurisdiction_state", ""),
             "expected_tax_rate": rate,
+            "tax_rate_scope": t.get("tax_rate_scope", ""),
             "expected_tax_amount": expected,
             "tax_exception": tax_exception,
-            "tax_exception_reason": t.get("exception_reason", ""),
+            "tax_exception_reason": tax_exception_reason,
             "tax_rationale": t.get("rationale", ""),
             "confidence": round(conf, 3),
             "route": route,
@@ -960,8 +1041,12 @@ def summarize_lines(line_results, header) -> dict:
     # divergence means the invoice's taxability itself is disputed, so the over/under-collection
     # figure is UNRESOLVED - it must go to a named analyst, not be asserted as a credit/accrual.
     n_tax_divergence = sum(1 for r in line_results if r.get("tax_divergence"))
+    n_state_base_rates = sum(1 for r in line_results
+                             if r.get("taxable") and r.get("tax_rate_scope") == "state_base_only")
     tax_unresolved = bool(tax_recon_exception and n_tax_divergence)
-    tax_provisional = bool(tax_recon_exception and (n_tax_mapping_conflict or n_ambiguous or n_tax_divergence))
+    tax_provisional = bool(tax_recon_exception and (
+        n_tax_mapping_conflict or n_ambiguous or n_tax_divergence or n_state_base_rates
+    ))
     n_exc = sum(1 for r in line_results if r["tax_exception"]) + (1 if tax_recon_exception else 0)
     n_sme = sum(1 for r in line_results if r["route"] == "SME_REVIEW")
     return {
@@ -979,6 +1064,7 @@ def summarize_lines(line_results, header) -> dict:
         "tax_unresolved": tax_unresolved,
         "n_tax_divergence": n_tax_divergence,
         "n_tax_mapping_conflict": n_tax_mapping_conflict,
+        "n_state_base_rates": n_state_base_rates,
         "tax_tolerance": round(tol, 2),
         "tax_shortfall": bool(use_tax_owed > 0.01),
         "n_lines": len(line_results),
@@ -1215,19 +1301,19 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
     # fields it lifted with confidence (vendor, invoice#, PO#, totals, and the ship-to state).
     fields = extract_invoice_fields(provider, text)
     for k, v in di_header.items():
-        if k in fields:
-            fields[k] = str(v).strip()
+        fields[k] = str(v).strip()
 
     # Diagram steps 3-5, PER LINE ITEM: extract lines -> classify each (CapEx/OpEx + item type +
     # task code) -> apply tax rules per line -> score each line's confidence and route. Tax is
     # RULES-FIRST from the governed taxability matrix when it is available; otherwise the model
     # decides taxability directly. DI line items (structured + confidence-scored) are used when
     # present; otherwise the model extracts them from the OCR text.
-    if di_lines:
-        lines = [{k: str(ln.get(k, "")).strip() for k in LINE_KEYS} for ln in di_lines
-                 if str(ln.get("description", "")).strip()]
-    else:
-        lines = extract_line_items(provider, text, fields)
+    model_lines = extract_line_items(provider, text, fields)
+    structured_lines = [{k: str(ln.get(k, "")).strip() for k in LINE_KEYS} for ln in di_lines
+                        if str(ln.get("description", "")).strip()]
+    fields, lines, extraction_issues = normalize_extraction(
+        fields, structured_lines, model_lines, authoritative_header=di_header if di_header else None
+    )
     classifications = classify_lines(provider, fields, lines, ref) if lines else []
 
     # Diagram STEP 8 - INDEPENDENT LLM tax assessment. The tax ENGINE (matrix, below) is the rules
@@ -1395,6 +1481,7 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
                        "di_confidence": di_conf,
                        "di_state_source": di.get("state_source", ""),
                        "di_line_count": len(di_lines),
+                       "reconciliation_issues": extraction_issues,
                        "di_pages": di.get("n_pages")},
         "confidence": {"overall": round(overall, 3), "threshold": threshold,
                        "per_line": {r["n"]: r["confidence"] for r in line_results}},
@@ -1473,6 +1560,9 @@ def print_report(rep: dict) -> None:
         if r["tax_exception"]:
             tax_line += "   ** EXCEPTION"
         print(tax_line)
+        if r.get("tax_status"):
+            conflict = "  ** CONFLICT -> SME review" if r.get("vendor_tax_conflict") else ""
+            print(f"               invoice tax marker: {r['tax_status']}{conflict}")
         if r["tax_exception"] and r["tax_exception_reason"]:
             for ln in _wrap(r["tax_exception_reason"], 84):
                 print(f"               {ln}")
@@ -1520,8 +1610,12 @@ def print_report(rep: dict) -> None:
         print(f"  tax reconciliation: ** OVER-COLLECTED {_money(roll['over_collected'])} - vendor charged tax "
               f"the matrix says isn't due; verify classification / seek credit")
     if roll.get("tax_provisional") and not unresolved:
-        print(f"                      (PROVISIONAL: {roll.get('n_tax_mapping_conflict', 0)} line(s) have a disputed "
-              f"tax-relevant item type; resolve classification in SME review before any credit/accrual)")
+        reasons = []
+        if roll.get("n_tax_mapping_conflict"):
+            reasons.append(f"{roll['n_tax_mapping_conflict']} disputed tax-relevant mapping(s)")
+        if roll.get("n_state_base_rates"):
+            reasons.append("state base rate used; local jurisdiction rate unresolved")
+        print(f"                      (PROVISIONAL: {'; '.join(reasons)} - resolve before posting tax.)")
     print(f"  lines           : {roll['n_lines']}   tax exceptions: {roll['n_exceptions']}   "
           f"to SME review: {roll['n_sme']}")
 
@@ -1676,10 +1770,11 @@ def _wrap(s, width):
 
 # Per-line CSV columns for downstream posting / SME triage.
 _CSV_COLUMNS = (
-    "n", "description", "quantity", "amount", "capex_opex", "capex_basis", "task_code",
+    "n", "description", "quantity", "amount", "tax_status", "vendor_tax_conflict",
+    "capex_opex", "capex_basis", "task_code",
     "asset_category", "useful_life_months", "depreciation", "existing_task_ok",
     "item_type", "mapping_basis", "mapping_conflict", "taxable", "tax_verdict",
-    "jurisdiction_state", "expected_tax_rate",
+    "jurisdiction_state", "expected_tax_rate", "tax_rate_scope",
     "expected_tax_amount", "charged_tax_alloc", "tax_delta", "use_tax_to_allocate", "tax_basis",
     "tax_exception", "tax_exception_reason", "posting_target", "confidence", "route",
 )
@@ -1754,11 +1849,17 @@ def _tax_recon_html(roll) -> str:
                 f"on taxability; the {_money(gap)} gap is <b>UNRESOLVED</b>, routed to analyst review "
                 f"(do NOT seek credit / self-assess until confirmed)")
     if status == "under_collected":
-        return (f"<span class='fail'>UNDER-COLLECTED</span> &mdash; self-assess use tax "
+        text = (f"<span class='fail'>UNDER-COLLECTED</span> &mdash; self-assess use tax "
                 f"<b>{_money(roll['use_tax_owed'])}</b>")
+        if roll.get("tax_provisional"):
+            text += " <b>(PROVISIONAL: local jurisdiction rate or mapping unresolved)</b>"
+        return text
     if status == "over_collected":
-        return (f"<span class='fail'>OVER-COLLECTED {_money(roll['over_collected'])}</span> &mdash; vendor "
-                f"charged tax the matrix says isn't due; verify classification / seek credit")
+        text = (f"<span class='fail'>OVER-COLLECTED {_money(roll['over_collected'])}</span> &mdash; vendor "
+                f"charged tax above the matrix estimate; verify classification / rate")
+        if roll.get("tax_provisional"):
+            text += " <b>(PROVISIONAL: local jurisdiction rate or mapping unresolved; do not seek credit yet)</b>"
+        return text
     return f"<span class='pass'>balanced</span> <span class='sub'>(within {_money(roll.get('tax_tolerance'))})</span>"
 
 
@@ -1815,7 +1916,8 @@ def _usage_calls_html(rows) -> str:
 
 def _lines_html(lines) -> str:
     trs = ["<tr><th>#</th><th>line item</th><th>amount</th><th>CapEx/OpEx</th><th>item type</th>"
-           "<th>taxable</th><th>rate</th><th>expected</th><th>charged~</th><th>&Delta;</th><th>conf</th><th>route</th></tr>"]
+           "<th>invoice marker</th><th>taxable</th><th>rate</th><th>expected</th><th>charged~</th><th>&Delta;</th>"
+           "<th>conf</th><th>route</th></tr>"]
     for r in lines:
         exc = " class='exc'" if r["tax_exception"] else ""
         route_cls = "pass" if r["route"] == "AUTO_POST" else "warn"
@@ -1831,13 +1933,14 @@ def _lines_html(lines) -> str:
             f"<div class='sub'>{sub}</div></td>"
             f"<td class='num'>{_money(r['amount'])}</td><td>{_html_escape(r['capex_opex'] or '-')}</td>"
             f"<td>{_html_escape(r.get('item_type') or '-')}</td>"
+            f"<td>{_html_escape(r.get('tax_status') or '-')}</td>"
             f"<td>{_html_escape(r['taxable'])}</td><td class='num'>{_pct(r['expected_tax_rate'])}</td>"
             f"<td class='num'>{_money(r['expected_tax_amount'])}</td><td class='num'>{_money(r.get('charged_tax_alloc'))}</td>"
             f"<td class='num'>{_money(r.get('tax_delta'))}</td><td class='num'>{r['confidence']:.2f}</td>"
             f"<td><span class='{route_cls}'>{route}</span></td></tr>"
         )
         if r["tax_exception"] and r["tax_exception_reason"]:
-            trs.append(f"<tr{exc}><td></td><td colspan='11' class='sub'>&#9888; {_html_escape(r['tax_exception_reason'])}</td></tr>")
+            trs.append(f"<tr{exc}><td></td><td colspan='12' class='sub'>&#9888; {_html_escape(r['tax_exception_reason'])}</td></tr>")
     return "<table class='scores'>\n" + "\n".join(trs) + "\n</table>"
 
 

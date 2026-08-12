@@ -117,6 +117,7 @@ def analyze_invoice(pdf_path, endpoint, tenant_id=None, api_key=None):
     put("invoice_number", "InvoiceId")
     put("invoice_date", "InvoiceDate")
     put("po_number", "PurchaseOrder")
+    put("subtotal", "SubTotal", numeric=True)
     put("total_amount", "InvoiceTotal", numeric=True)
     put("tax_charged", "TotalTax", numeric=True)
 

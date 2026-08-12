@@ -93,8 +93,8 @@ def task_code_catalog(data) -> list:
 
 def taxability(data, state, item_type):
     """Look up ``(verdict, verdict_label, rate)`` for a ship-to state + item type. ``verdict`` is
-    ``T``/``E``/``A`` (or ``None`` when unknown); ``rate`` is the EFFECTIVE rate = state rate + the
-    representative local (county/city) add-on (diagram step 7), or ``None`` when unknown."""
+    ``T``/``E``/``A`` (or ``None`` when unknown); ``rate`` is the state rate plus a configured local
+    add-on. Callers must treat it as a state-base estimate when no local rate is configured."""
     tx = data.get("taxability") or {}
     matrix = tx.get("matrix") or {}
     rates = tx.get("tax_rates") or {}
@@ -128,7 +128,10 @@ def task_lookup(data, code):
 
 _FREIGHT_RE = re.compile(r"\b(freight|shipping|delivery fee|handling|fuel surcharge|tariff surcharge)\b", re.I)
 _SERVICE_RE = re.compile(r"\b(travel|mileage|site survey|consulting|engineering|design fee)\b", re.I)
-_FINANCE_RE = re.compile(r"\b(interest|late[- ]?payment|liability waiver|administrative fee)\b", re.I)
+_FINANCE_RE = re.compile(r"\b(interest|late[- ]?payment|administrative fee)\b", re.I)
+_FIXTURE_RE = re.compile(r"\b(cabinet|cabinetry|store fixture|casework)\b", re.I)
+_INSTALL_RE = re.compile(r"\b(install|installation)\b", re.I)
+_RENTAL_CHARGE_RE = re.compile(r"\b(liability waiver|personal property expense)\b", re.I)
 
 
 def reference_classifications(data, header, lines) -> list:
@@ -151,16 +154,25 @@ def reference_classifications(data, header, lines) -> list:
     out = []
     for line in lines:
         description = str(line.get("description") or "")
+        override = True
         if _FINANCE_RE.search(description):
             code = "TC-9060"
         elif _FREIGHT_RE.search(description):
             code = "TC-9050"
         elif _SERVICE_RE.search(description):
             code = "TC-9030"
+        elif _FIXTURE_RE.search(description):
+            code = "TC-6020"
+        elif _INSTALL_RE.search(description):
+            code = primary_code
+        elif _RENTAL_CHARGE_RE.search(description):
+            code = primary_code
         else:
             code = primary_code
+            override = False
         task = task_lookup(data, code)
-        item_type = str((task or {}).get("item_type") or "").strip()
+        item_type = ("Professional Services" if _INSTALL_RE.search(description)
+                     else str((task or {}).get("item_type") or "").strip())
         if task is None or not item_type:
             out.append({})
             continue
@@ -175,6 +187,7 @@ def reference_classifications(data, header, lines) -> list:
             "confidence": round(0.9 if score >= 0.9 else 0.85, 2),
             "rationale": f"Reference fallback from matched PO {rec.get('po_number')} and task {code}.",
             "_reference_fallback": True,
+            "_reference_override": override,
         })
     return out
 
