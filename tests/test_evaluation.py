@@ -5,6 +5,7 @@ from autarch import (
     Agent,
     AssertionEvaluator,
     ConsensusEvaluator,
+    GroundednessEvaluator,
     RubricJudge,
     capability,
     from_callables,
@@ -84,6 +85,16 @@ def test_consensus_majority():
     failing = AssertionEvaluator([("no", lambda s: False)])
     v = ConsensusEvaluator([passing, passing, failing], strategy="majority", threshold=0.6).evaluate("x")
     assert round(v.score, 2) == 0.67 and v.passed is True
+
+
+def test_groundedness_accepts_equivalent_invoice_number_formatting():
+    evaluator = GroundednessEvaluator(
+        source="Invoice total $3,795.50. Tax charged $0.00.",
+        min_support=0.0,
+    )
+
+    assert evaluator.evaluate("Invoice total 3795.5. Tax charged 0.0.").passed is True
+    assert evaluator.evaluate("Invoice total 3796.5.").passed is False
 
 
 # --- reflect() loop -------------------------------------------------------

@@ -126,9 +126,22 @@ def task_lookup(data, code):
     return None
 
 
-_FREIGHT_RE = re.compile(r"\b(freight|shipping|delivery fee|handling|fuel surcharge|tariff surcharge)\b", re.I)
-_SERVICE_RE = re.compile(r"\b(travel|mileage|site survey|consulting|engineering|design fee)\b", re.I)
-_FINANCE_RE = re.compile(r"\b(interest|late[- ]?payment|administrative fee)\b", re.I)
+_FREIGHT_RE = re.compile(
+    r"\b(freight|shipping|tracking|skid charge|delivery fee|handling|fuel surcharge|tariff surcharge)\b",
+    re.I,
+)
+_SERVICE_RE = re.compile(
+    r"\b(labou?r|trip|travel|mileage|site survey|consulting|engineering|design fee)\b", re.I
+)
+_FINANCE_RE = re.compile(
+    r"\b(interest|late[- ]?payment|administrative fee|document process(?:ing)? fee)\b", re.I
+)
+_CONSUMABLE_RE = re.compile(r"\b(environmental fee|consumables? fee|shop supplies?)\b", re.I)
+_MATERIAL_RE = re.compile(
+    r"\b(steel door|hinge|closer|exit hardware|detex|door sweep|weather strip|rain guard|kick plate|"
+    r"paint|motoe?r|impeller|contactor|parts?)\b",
+    re.I,
+)
 _FIXTURE_RE = re.compile(r"\b(cabinet|cabinetry|store fixture|casework)\b", re.I)
 _INSTALL_RE = re.compile(r"\b(install|installation)\b", re.I)
 _RENTAL_CHARGE_RE = re.compile(r"\b(liability waiver|personal property expense)\b", re.I)
@@ -155,14 +168,22 @@ def reference_classifications(data, header, lines) -> list:
     for line in lines:
         description = str(line.get("description") or "")
         override = True
+        item_type_override = ""
         if _FINANCE_RE.search(description):
             code = "TC-9060"
         elif _FREIGHT_RE.search(description):
             code = "TC-9050"
         elif _SERVICE_RE.search(description):
             code = "TC-9030"
+        elif _CONSUMABLE_RE.search(description):
+            code = "TC-9010"
+            item_type_override = "Construction Materials"
         elif _FIXTURE_RE.search(description):
             code = "TC-6020"
+        elif _MATERIAL_RE.search(description):
+            code = primary_code
+            item_type_override = "Construction Materials"
+            override = True
         elif _INSTALL_RE.search(description):
             code = primary_code
         elif _RENTAL_CHARGE_RE.search(description):
@@ -171,8 +192,9 @@ def reference_classifications(data, header, lines) -> list:
             code = primary_code
             override = False
         task = task_lookup(data, code)
-        item_type = ("Professional Services" if _INSTALL_RE.search(description)
-                     else str((task or {}).get("item_type") or "").strip())
+        item_type = (item_type_override or
+                 ("Professional Services" if _INSTALL_RE.search(description)
+                  else str((task or {}).get("item_type") or "").strip()))
         if task is None or not item_type:
             out.append({})
             continue
@@ -315,7 +337,7 @@ _ITEM_TYPE_HINTS = {
     "HVAC & Mechanical": "hvac heating ventilation air conditioning refrigeration walk-in cooler freezer "
                           "compressor ductwork thermostat rooftop unit mechanical",
     "IT & Electronics": "point of sale pos register network switch router firewall server computer monitor "
-                        "printer barcode scanner card reader payment terminal back-office electronics",
+                        "printer barcode scanner card reader payment terminal verifone ux300 back-office electronics",
     "Security & Surveillance Systems": "security burglar intrusion alarm system control panel motion sensor "
                         "pir glassbreak detector door window contact siren strobe horn keypad camera cctv "
                         "surveillance access control low-voltage security cabling wire mounting hardware "

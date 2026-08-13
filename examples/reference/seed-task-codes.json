@@ -40,6 +40,16 @@
     "depreciation": "straight-line"
   },
   {
+    "code": "TC-5030",
+    "description": "Point-of-Sale and Payment Equipment, Including Registers, Card Readers, Payment Terminals, Scanners and Related Electronics",
+    "category": "IT",
+    "asset_class": "Point-of-Sale Equipment",
+    "item_type": "IT & Electronics",
+    "cap_eligible": true,
+    "useful_life_months": 60,
+    "depreciation": "straight-line"
+  },
+  {
     "code": "TC-6010",
     "description": "Exterior and Interior Signage, Including Price Signs, LED Signs, Illuminated Cabinets, Sign Shrouds and Related Electrical Components",
     "category": "Signage",

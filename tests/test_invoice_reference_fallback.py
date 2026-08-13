@@ -128,6 +128,35 @@ def test_classify_lines_keeps_task_item_type_consistent():
     assert rows[0]["item_type"] == "Construction Materials"
 
 
+def test_dakota_ocr_motor_typo_uses_po_repair_task():
+    class RefrigerationProvider:
+        def complete(self, prompt, system=None):
+            return json.dumps({"lines": [{
+                "capex_opex": "OpEx",
+                "asset_category": "Refrigeration Equipment",
+                "item_type": "HVAC & Mechanical",
+                "task_code": "TC-1060",
+                "confidence": 0.9,
+                "rationale": "Motor equipment.",
+            }]})
+
+    rows = extract_invoice.classify_lines(
+        RefrigerationProvider(),
+        {
+            "invoice_number": "30938",
+            "po_number": "FWKD-255-8156",
+            "vendor_name": "Dakota Car Wash & Equipment, Inc.",
+        },
+        [{"description": "10 HP RYKO DRYER MOTOER RYKO", "quantity": "1", "amount": "1042.18"}],
+        _reference_data(),
+    )
+
+    assert rows[0]["task_code"] == "TC-9010"
+    assert rows[0]["asset_category"] == "Maintenance and Repair"
+    assert rows[0]["item_type"] == "Construction Materials"
+    assert rows[0]["_reference_override"] is True
+
+
 def test_installation_keeps_asset_task_but_uses_service_tax_type():
     data = _reference_data()
     rows = refdata.reference_classifications(
@@ -140,6 +169,35 @@ def test_installation_keeps_asset_task_but_uses_service_tax_type():
     assert rows[0]["capex_opex"] == "CapEx"
     assert rows[0]["item_type"] == "Professional Services"
     assert rows[0]["_reference_override"] is True
+
+
+def test_loris_invoice_descriptions_use_deterministic_po_overrides():
+    data = _reference_data()
+    cases = [
+        (
+            {"invoice_number": "108007", "po_number": "FWKD3152143", "vendor_name": "FOX GLASS ORLANDO, INC."},
+            ["Labor", "Trip", "3-0 x 7-0 Steel door"],
+            [("TC-9030", "Professional Services"), ("TC-9030", "Professional Services"),
+             ("TC-9010", "Construction Materials")],
+        ),
+        (
+            {"invoice_number": "80530", "po_number": "646449", "vendor_name": "MASONWAYS"},
+            ["TRACKING # 545785834B", "SKID CHARGE"],
+            [("TC-9050", "Freight & Delivery"), ("TC-9050", "Freight & Delivery")],
+        ),
+        (
+            {"invoice_number": "121767T", "po_number": "FWKD2660328", "vendor_name": "PETRO TOWERY"},
+            ["VERIFONE CARD READER - UX300", "DOCUMENT PROCESS FEE CK", "Environmental Fee", "CONSUMABLES FEE"],
+            [("TC-5030", "IT & Electronics"), ("TC-9060", "Finance Charges"),
+             ("TC-9010", "Construction Materials"), ("TC-9010", "Construction Materials")],
+        ),
+    ]
+
+    for header, descriptions, expected in cases:
+        rows = refdata.reference_classifications(
+            data, header, [{"description": description} for description in descriptions]
+        )
+        assert [(row["task_code"], row["item_type"]) for row in rows] == expected
 
 
 def test_normalize_extraction_rejects_subtotal_as_tax_and_prefers_reconciled_lines():
@@ -214,6 +272,27 @@ def test_printed_tax_marker_conflict_routes_to_review_without_overriding_matrix(
     assert rows[0]["tax_rate_scope"] == "state_base_only"
     assert rollup["tax_provisional"] is True
     assert rollup["n_state_base_rates"] == 1
+
+
+def test_state_base_only_tax_estimate_cannot_auto_post():
+    data = _reference_data()
+    lines = [{"description": "VERIFONE CARD READER - UX300", "amount": "1210.59"}]
+    classifications = [{
+        "capex_opex": "OpEx",
+        "asset_category": "Point-of-Sale Equipment",
+        "item_type": "IT & Electronics",
+        "task_code": "TC-5030",
+        "confidence": 0.97,
+    }]
+    taxes = extract_invoice.apply_tax_matrix({"state": "OH"}, classifications, data)
+
+    rows = extract_invoice.build_line_results(
+        lines, classifications, taxes, 0.85, {"state": "OH", "tax_charged": ""}, data
+    )
+
+    assert rows[0]["tax_rate_scope"] == "state_base_only"
+    assert rows[0]["state_base_estimate"] is True
+    assert rows[0]["route"] == "SME_REVIEW"
 
 
 def test_grounding_accepts_equivalent_date_format_only():

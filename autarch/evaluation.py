@@ -272,7 +272,13 @@ def _content_words(text: str) -> set:
 
 def _normalize_number(token: str) -> str:
     """Canonicalize a number token for comparison ($50,000 -> 50000; 50% -> 50%)."""
-    return token.lstrip("$").replace(",", "").strip()
+    normalized = token.lstrip("$").replace(",", "").strip()
+    suffix = "%" if normalized.endswith("%") else ""
+    numeric = normalized.removesuffix("%")
+    if "." in numeric:
+        numeric = numeric.rstrip("0").rstrip(".")
+    numeric = numeric.lstrip("0") or "0"
+    return numeric + suffix
 
 
 def _numbers(text: str) -> set:

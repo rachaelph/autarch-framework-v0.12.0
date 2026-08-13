@@ -976,8 +976,9 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
         else:
             mapping_conflict = False
             mapping_basis = "LLM pick"
+        state_base_estimate = bool(taxable and t.get("tax_rate_scope") == "state_base_only")
         route = ("SME_REVIEW" if (conf < threshold or tax_exception or capex_conflict
-                                  or tax_mapping_conflict or tax_divergence)
+                      or tax_mapping_conflict or tax_divergence or state_base_estimate)
                  else "AUTO_POST")
         out.append({
             "n": i + 1,
@@ -1013,6 +1014,7 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
             "jurisdiction_state": t.get("jurisdiction_state", ""),
             "expected_tax_rate": rate,
             "tax_rate_scope": t.get("tax_rate_scope", ""),
+            "state_base_estimate": state_base_estimate,
             "expected_tax_amount": expected,
             "tax_exception": tax_exception,
             "tax_exception_reason": tax_exception_reason,

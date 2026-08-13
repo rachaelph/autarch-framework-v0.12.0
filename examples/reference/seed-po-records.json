@@ -365,8 +365,8 @@
       "Environmental fee",
       "Consumables fee"
     ],
-    "task_code": "TC-5020",
-    "asset_class": "Security Systems",
+    "task_code": "TC-5030",
+    "asset_class": "Point-of-Sale Equipment",
     "budget_amount": null,
     "committed_amount": null,
     "location_state": "OH",

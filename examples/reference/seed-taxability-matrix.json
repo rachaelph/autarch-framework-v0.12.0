@@ -1,6 +1,7 @@
 {
   "item_types": [
     "Security & Surveillance Systems",
+    "IT & Electronics",
     "Real Property Repair & Installation",
     "Signage & Display",
     "Construction Materials",
@@ -12,14 +13,14 @@
   ],
   "states": ["MO", "FL", "IL", "AK", "CO", "OH", "TN", "ND"],
   "matrix": {
-    "MO": { "Security & Surveillance Systems": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
-    "FL": { "Security & Surveillance Systems": "T", "Real Property Repair & Installation": "E", "Signage & Display": "T", "Construction Materials": "A", "HVAC & Mechanical": "A", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "E", "Finance Charges": "E" },
-    "IL": { "Security & Surveillance Systems": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
-    "AK": { "Security & Surveillance Systems": "A", "Real Property Repair & Installation": "A", "Signage & Display": "A", "Construction Materials": "A", "HVAC & Mechanical": "A", "Equipment Rental": "A", "Professional Services": "E", "Freight & Delivery": "A", "Finance Charges": "E" },
-    "CO": { "Security & Surveillance Systems": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "E", "Finance Charges": "E" },
-    "OH": { "Security & Surveillance Systems": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
-    "TN": { "Security & Surveillance Systems": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
-    "ND": { "Security & Surveillance Systems": "A", "Real Property Repair & Installation": "A", "Signage & Display": "A", "Construction Materials": "A", "HVAC & Mechanical": "A", "Equipment Rental": "A", "Professional Services": "A", "Freight & Delivery": "A", "Finance Charges": "A" }
+    "MO": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
+    "FL": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "E", "Signage & Display": "T", "Construction Materials": "A", "HVAC & Mechanical": "A", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "E", "Finance Charges": "E" },
+    "IL": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
+    "AK": { "Security & Surveillance Systems": "A", "IT & Electronics": "A", "Real Property Repair & Installation": "A", "Signage & Display": "A", "Construction Materials": "A", "HVAC & Mechanical": "A", "Equipment Rental": "A", "Professional Services": "E", "Freight & Delivery": "A", "Finance Charges": "E" },
+    "CO": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "E", "Finance Charges": "E" },
+    "OH": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
+    "TN": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
+    "ND": { "Security & Surveillance Systems": "A", "IT & Electronics": "A", "Real Property Repair & Installation": "A", "Signage & Display": "A", "Construction Materials": "A", "HVAC & Mechanical": "A", "Equipment Rental": "A", "Professional Services": "A", "Freight & Delivery": "A", "Finance Charges": "A" }
   },
   "legend": {
     "T": "Taxable",
