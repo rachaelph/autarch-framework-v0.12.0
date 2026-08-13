@@ -324,6 +324,7 @@ def parse_args(argv):
     cache_path = None if cache_disabled else (cache_override or decision_cache.DEFAULT_CACHE_PATH)
     model, argv = _split_flag(argv, "--model")
     auth, argv = _split_flag(argv, "--auth")
+    endpoint, argv = _split_flag(argv, "--endpoint")
     thr, argv = _split_flag(argv, "--threshold")
     path = argv[0] if argv else None
     try:
@@ -331,7 +332,8 @@ def parse_args(argv):
     except ValueError:
         threshold = DEFAULT_THRESHOLD
     return (path, (model or DEFAULT_MODEL), (auth or "auto").lower(), threshold, demo, as_json,
-            csv_on, csv_path, html_on, html_path, embed_spec, doci_on, doci_endpoint, cache_path)
+            csv_on, csv_path, html_on, html_path, embed_spec, doci_on, doci_endpoint, cache_path,
+            endpoint)
 
 
 def banner(title: str) -> None:
@@ -427,12 +429,12 @@ def _connect_maf(deployment, endpoint, api_version, auth_mode):
     return None, None
 
 
-def resolve_engine(model, auth_mode, demo):
+def resolve_engine(model, auth_mode, demo, endpoint_override=None):
     """Pick the reasoning engine. MAF on Azure when configured; otherwise an offline provider.
 
     Returns ``(provider, engine_label, is_live)``. For ``--demo`` offline, the provider is scripted
     to the bundled sample so the full determination still runs end to end."""
-    endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
+    endpoint = endpoint_override or os.environ.get("AZURE_OPENAI_ENDPOINT")
     deployment = (
         model.split("azure:", 1)[1] if model.startswith("azure:")
         else (os.environ.get("AZURE_OPENAI_DEPLOYMENT") or model)
@@ -2056,10 +2058,11 @@ def main() -> int:
     except Exception:
         pass
 
-    path, model, auth_mode, threshold, demo, as_json, csv_on, csv_path, html_on, html_path, embed_spec, doci_on, doci_endpoint, cache_path = parse_args(sys.argv[1:])
+    path, model, auth_mode, threshold, demo, as_json, csv_on, csv_path, html_on, html_path, embed_spec, doci_on, doci_endpoint, cache_path, endpoint = parse_args(sys.argv[1:])
     if not path and not demo:
         print("usage: python examples/extract_invoice.py <invoice.pdf> [--model azure:<deployment>] "
-              "[--auth aad|key|auto] [--threshold 0.85] [--json] [--csv [out.csv]] [--html [out.html]] "
+              "[--auth aad|key|auto] [--endpoint <url>] [--threshold 0.85] [--json] "
+              "[--csv [out.csv]] [--html [out.html]] "
               "[--embed [spec]] [--doci [endpoint]] [--cache [path]] [--no-cache]")
         print("       python examples/extract_invoice.py --demo   (offline, bundled sample invoice)")
         return 2
@@ -2082,7 +2085,7 @@ def main() -> int:
         print(f"file not found: {doc}")
         return 2
 
-    provider, engine_label, is_live = resolve_engine(model, auth_mode, demo)
+    provider, engine_label, is_live = resolve_engine(model, auth_mode, demo, endpoint)
     print(f"  reasoning engine: {engine_label}")
     if model.startswith("azure:") and not demo and not is_live:
         print("  Aborting: an explicit Azure model was requested, but Azure is unavailable. "
@@ -2145,8 +2148,11 @@ def main() -> int:
             text = ocr
             print(f"  vision OCR recovered {len(text):,} characters")
         else:
-            print("  vision OCR recovered no text (needs a vision-capable model; the offline "
-                  "provider and non-vision deployments cannot OCR).")
+            print("  Aborting: no invoice text could be recovered. Install document extraction "
+                  "support with 'pip install -e .[document]' or use a vision-capable model.")
+            if is_live:
+                provider.close()
+            return 1
 
     try:
         rep = run(provider, text, agent, read_result, guarantee_ok, threshold, embed_spec, di=di,
