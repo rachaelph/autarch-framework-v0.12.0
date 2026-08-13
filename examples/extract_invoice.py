@@ -351,6 +351,18 @@ def _is_auth_error(exc) -> bool:
     ))
 
 
+def _is_transient_connection_error(exc) -> bool:
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if status == 429 or (isinstance(status, int) and status >= 500):
+        return True
+    message = f"{type(exc).__name__}: {exc}".lower()
+    return any(s in message for s in (
+        "timeout", "timed out", "connection error", "connection reset", "temporarily unavailable",
+        "rate limit", "too many requests", "429", "internal server error", "bad gateway",
+        "service unavailable", "gateway timeout",
+    ))
+
+
 def _make_client_factory(deployment, endpoint, api_version, use_aad):
     """Return ``(factory, auth_label)``. ``factory()`` lazily builds a MAF Azure chat client on the
     provider's own event loop (safe to reuse across autarch's thread-pool workers)."""
@@ -415,18 +427,41 @@ def _connect_maf(deployment, endpoint, api_version, auth_mode):
             factory, agent_name="autarch-invoice-agent", model_label=deployment,
             run_kwargs={"client_kwargs": {"temperature": 0, "seed": 7}},
         )
-        try:
-            candidate.complete("Reply with the single word: OK.")  # one-turn auth probe
-            return candidate, label
-        except Exception as exc:  # noqa: BLE001
-            candidate.close()
-            if _is_auth_error(exc) and idx + 1 < len(modes):
+        last_exc = None
+        for attempt in range(3):
+            try:
+                candidate.complete("Reply with the single word: OK.")  # one-turn auth probe
+                return candidate, label
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                if _is_transient_connection_error(exc) and attempt < 2:
+                    print(f"  MAF/Azure probe transient failure - retrying ({attempt + 2}/3) ...")
+                    continue
+                break
+        candidate.close()
+        if last_exc is not None:
+            if _is_auth_error(last_exc) and idx + 1 < len(modes):
                 other = "Entra ID" if not use_aad else "api-key"
                 print(f"  {label} auth rejected by the resource - retrying with {other} ...")
                 continue
-            print(f"  MAF/Azure connection failed ({type(exc).__name__}: {exc})")
+            print(f"  MAF/Azure connection failed ({type(last_exc).__name__}: {last_exc})")
             return None, None
     return None, None
+
+
+def _environment_setting(name, default=None):
+    """Read a setting from this process, then the persisted Windows user environment."""
+    value = os.environ.get(name)
+    if value or os.name != "nt":
+        return value or default
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+            value, _ = winreg.QueryValueEx(key, name)
+            return str(value).strip() or default
+    except (FileNotFoundError, OSError):
+        return default
 
 
 def resolve_engine(model, auth_mode, demo, endpoint_override=None):
@@ -434,12 +469,12 @@ def resolve_engine(model, auth_mode, demo, endpoint_override=None):
 
     Returns ``(provider, engine_label, is_live)``. For ``--demo`` offline, the provider is scripted
     to the bundled sample so the full determination still runs end to end."""
-    endpoint = endpoint_override or os.environ.get("AZURE_OPENAI_ENDPOINT")
+    endpoint = endpoint_override or _environment_setting("AZURE_OPENAI_ENDPOINT")
     deployment = (
         model.split("azure:", 1)[1] if model.startswith("azure:")
         else (os.environ.get("AZURE_OPENAI_DEPLOYMENT") or model)
     )
-    api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21")
+    api_version = _environment_setting("AZURE_OPENAI_API_VERSION", "2024-10-21")
 
     if _MAF_INSTALLED and endpoint:
         provider, label = _connect_maf(deployment, endpoint, api_version, auth_mode)
