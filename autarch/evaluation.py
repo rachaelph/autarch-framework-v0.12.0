@@ -359,8 +359,10 @@ class GroundednessEvaluator(Evaluator):
         grounded = 0
         ungrounded: List[Dict[str, str]] = []
         for claim in claims:
-            support = _overlap(_content_words(claim), source_words)
-            bad_numbers = _numbers(claim) - source_numbers
+            claim_words = _content_words(claim)
+            claim_numbers = _numbers(claim)
+            support = _overlap(claim_words, source_words)
+            bad_numbers = claim_numbers - source_numbers
             # An entity counts as invented only if it appears NOWHERE in the source
             # (case-folded): capitalized common words ("Coordinates") or partial
             # names ("The TES Tse") that DO occur in the source are not
@@ -369,7 +371,9 @@ class GroundednessEvaluator(Evaluator):
                 e for e in (_entities(claim) - source_entities)
                 if fold(e) not in source_folded
             }
-            if support >= self.min_support and not bad_numbers and not bad_entities:
+            non_numeric_words = _content_words(_NUMBER_RE.sub("", nfkc(claim)))
+            numeric_only_support = bool(claim_numbers) and not non_numeric_words
+            if (support >= self.min_support or numeric_only_support) and not bad_numbers and not bad_entities:
                 grounded += 1
             else:
                 why = []

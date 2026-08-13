@@ -96,6 +96,10 @@ def test_groundedness_accepts_equivalent_invoice_number_formatting():
     assert evaluator.evaluate("Invoice total 3795.5. Tax charged 0.0.").passed is True
     assert evaluator.evaluate("Invoice total 3796.5.").passed is False
 
+    numeric_only = GroundednessEvaluator(source="Tax charged $0.00.")
+    assert numeric_only.evaluate("0.0.").passed is True
+    assert numeric_only.evaluate("0.1.").passed is False
+
 
 # --- reflect() loop -------------------------------------------------------
 

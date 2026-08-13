@@ -295,6 +295,34 @@ def test_state_base_only_tax_estimate_cannot_auto_post():
     assert rows[0]["route"] == "SME_REVIEW"
 
 
+def test_governed_description_override_is_not_blocked_by_semantic_neighbor():
+    data = _reference_data()
+    lines = [{"description": "DOCUMENT PROCESS FEE CK", "amount": "1.95"}]
+    classifications = [{
+        "capex_opex": "OpEx",
+        "asset_category": "Finance and Administrative Charges",
+        "item_type": "Finance Charges",
+        "task_code": "TC-9060",
+        "confidence": 0.97,
+        "_reference_override": True,
+        "_sem": {
+            "item_type": "Construction Materials",
+            "task_code": "TC-9010",
+            "item_score": 0.7,
+            "task_score": 0.7,
+        },
+    }]
+    taxes = extract_invoice.apply_tax_matrix({"state": "OH"}, classifications, data)
+
+    rows = extract_invoice.build_line_results(
+        lines, classifications, taxes, 0.85, {"state": "OH", "tax_charged": ""}, data
+    )
+
+    assert rows[0]["mapping_conflict"] is True
+    assert rows[0]["tax_exception"] is False
+    assert rows[0]["route"] == "AUTO_POST"
+
+
 def test_grounding_accepts_equivalent_date_format_only():
     source = "Invoice Date 2/18/2025"
 

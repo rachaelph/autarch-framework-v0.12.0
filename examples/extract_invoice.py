@@ -969,7 +969,9 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
                 state = (header.get("state") or "").strip().upper()
                 llm_verdict = refdata.taxability(ref, state, llm_item)[0]
                 sem_verdict = refdata.taxability(ref, state, sem_item)[0]
-                tax_mapping_conflict = bool(llm_verdict != sem_verdict)
+                tax_mapping_conflict = bool(
+                    llm_verdict != sem_verdict and not c.get("_reference_override")
+                )
             agree = "confirmed" if not mapping_conflict else "DISAGREES"
             mapping_basis = (f"LLM pick, semantic {agree} (index nearest: item {sem_item} "
                              f"{sem.get('item_score')}, task {sem_task} {sem.get('task_score')})")
