@@ -5,8 +5,8 @@ the PDF is sent to Azure Document Intelligence's ``prebuilt-invoice`` model, whi
 structured header fields AND the line items **with a per-field confidence score**, with no
 per-vendor training. Two nice consequences that align with the tax flow:
 
-  * the **governing state** is read from the SHIPPING address (``ShippingAddress`` -> ``ServiceAddress``
-    -> ``CustomerAddress``), never the bill-to / vendor address; and
+    * the **governing state** is read from the SHIPPING or service address
+        (``ShippingAddress`` -> ``ServiceAddress``), never the customer/bill-to or vendor address; and
   * every extracted value carries DI's own confidence, which feeds the field verdict + routing.
 
 Auth mirrors the MAF path: Entra ID pinned to the resource tenant (``AZURE_DOCINTEL_TENANT_ID`` /
@@ -121,9 +121,10 @@ def analyze_invoice(pdf_path, endpoint, tenant_id=None, api_key=None):
     put("total_amount", "InvoiceTotal", numeric=True)
     put("tax_charged", "TotalTax", numeric=True)
 
-    # Governing STATE from the SHIP-TO / service address, never bill-to (tax-flow rule).
+    # Governing STATE from the SHIP-TO / service address, never bill-to/customer address.
+    # CustomerAddress is often the billed customer and cannot establish tax jurisdiction.
     state_source = ""
-    for akey in ("ShippingAddress", "ServiceAddress", "CustomerAddress"):
+    for akey in ("ShippingAddress", "ServiceAddress"):
         st, c = _state_from_address(fields.get(akey))
         if st:
             header["state"] = st

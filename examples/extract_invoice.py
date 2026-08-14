@@ -704,6 +704,33 @@ def normalize_extraction(header: dict, di_lines: list, model_lines: list,
     return normalized, primary, issues
 
 
+def detect_source_warnings(text: str) -> list[dict]:
+    """Return deterministic posting blockers printed by the source system on the invoice."""
+    normalized = re.sub(r"\s+", " ", text or "").strip()
+    project_date = re.search(
+        r"Invalid project based on PO or Invoice date\. Date must fall within project "
+        r"start and end dates\. in Line #\d+ Dist #\d+",
+        normalized,
+        re.IGNORECASE,
+    )
+    if not project_date:
+        return []
+    return [{
+        "code": "project_date_invalid",
+        "message": project_date.group(0),
+        "blocking": True,
+    }]
+
+
+def merge_source_text(ocr_text: str, text_layer: str) -> str:
+    """Keep source-system messages from the PDF text layer when OCR omits them."""
+    ocr = (ocr_text or "").strip()
+    embedded = (text_layer or "").strip()
+    if not embedded or embedded in ocr:
+        return ocr
+    return f"{ocr}\n\nPDF TEXT LAYER:\n{embedded}" if ocr else embedded
+
+
 def classify_lines(provider, header, lines, ref) -> list:
     """Diagram step 3 - classify EACH line CapEx vs OpEx and validate its task. When the governed
     reference data is present the model ALSO maps each line to one standardized ITEM TYPE (used for
@@ -1035,9 +1062,9 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
     for r in out:
         share = (r["amount"] / total_amt_all) if (total_amt_all > 0 and r["amount"]) else 0.0
         alloc = round(charged_total * share, 2)
-        exp = r["expected_tax_amount"] or 0.0
         r["charged_tax_alloc"] = alloc
-        r["tax_delta"] = round(exp - alloc, 2)
+        expected_tax = r["expected_tax_amount"]
+        r["tax_delta"] = None if expected_tax is None else round(expected_tax - alloc, 2)
         # Posting basis (step 13): where the cost lands + the use tax to self-assess on this line.
         if str(r["capex_opex"]).lower() == "capex":
             r["posting_target"] = f"capitalize to asset: {r['asset_category'] or '(asset)'}"
@@ -1045,7 +1072,9 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
             r["posting_target"] = "expense to GL"
         else:
             r["posting_target"] = "(unclassified)"
-        r["use_tax_to_allocate"] = round(max(0.0, r["tax_delta"]), 2)  # >0 = self-assess on this line
+        r["use_tax_to_allocate"] = (
+            None if r["tax_delta"] is None else round(max(0.0, r["tax_delta"]), 2)
+        )
     return out
 
 
@@ -1058,14 +1087,19 @@ def summarize_lines(line_results, header) -> dict:
     opex_total = sum(r["amount"] for r in line_results if r["amount"] and str(r["capex_opex"]).lower() == "opex")
     # Diagram step 5: a capital project at/above $100k is a MAJOR project (AFE/board approval) -> review.
     major_project = capex_total >= MAJOR_PROJECT_THRESHOLD
-    expected_tax = round(sum(r["expected_tax_amount"] for r in line_results
-                             if r["expected_tax_amount"] and r.get("taxable")), 2)
+    n_ambiguous = sum(1 for r in line_results if str(r.get("tax_verdict") or "").upper().startswith("A"))
+    expected_tax = None if n_ambiguous else round(sum(
+        r["expected_tax_amount"] for r in line_results
+        if r["expected_tax_amount"] and r.get("taxable")
+    ), 2)
     charged = round(_num(header.get("tax_charged")) or 0.0, 2)
     # Tolerance: $1 or 2% of the larger side, so tiny rounding doesn't raise a false exception.
-    tol = max(1.0, 0.02 * max(expected_tax, charged))
-    use_tax_owed = max(0.0, round(expected_tax - charged, 2))      # under-collected -> self-assess
-    over_collected = max(0.0, round(charged - expected_tax, 2))    # over-collected -> verify/credit
-    if use_tax_owed > tol:
+    tol = max(1.0, 0.02 * max(expected_tax or 0.0, charged))
+    use_tax_owed = max(0.0, round((expected_tax or 0.0) - charged, 2))
+    over_collected = max(0.0, round(charged - (expected_tax or 0.0), 2))
+    if n_ambiguous:
+        tax_status = "unresolved"
+    elif use_tax_owed > tol:
         tax_status = "under_collected"
     elif over_collected > tol:
         tax_status = "over_collected"
@@ -1077,18 +1111,19 @@ def summarize_lines(line_results, header) -> dict:
     # disagree on a taxability-driving item type) or an ambiguous matrix verdict, the over/under
     # conclusion is PROVISIONAL - resolve the classification before asserting a credit or accrual.
     n_tax_mapping_conflict = sum(1 for r in line_results if r.get("tax_mapping_conflict"))
-    n_ambiguous = sum(1 for r in line_results if str(r.get("tax_verdict") or "").upper().startswith("A"))
     # Diagram step 9: count lines where the LLM tax assessment and the tax engine DIVERGED. Any
     # divergence means the invoice's taxability itself is disputed, so the over/under-collection
     # figure is UNRESOLVED - it must go to a named analyst, not be asserted as a credit/accrual.
     n_tax_divergence = sum(1 for r in line_results if r.get("tax_divergence"))
     n_state_base_rates = sum(1 for r in line_results
                              if r.get("taxable") and r.get("tax_rate_scope") == "state_base_only")
-    tax_unresolved = bool(tax_recon_exception and n_tax_divergence)
-    tax_provisional = bool(tax_recon_exception and (
+    tax_unresolved = bool(tax_status == "unresolved" or (tax_recon_exception and n_tax_divergence))
+    tax_provisional = bool(tax_status == "unresolved" or (tax_recon_exception and (
         n_tax_mapping_conflict or n_ambiguous or n_tax_divergence or n_state_base_rates
-    ))
-    n_exc = sum(1 for r in line_results if r["tax_exception"]) + (1 if tax_recon_exception else 0)
+    )))
+    n_exc = sum(1 for r in line_results if r["tax_exception"])
+    if tax_recon_exception and not n_ambiguous:
+        n_exc += 1
     n_sme = sum(1 for r in line_results if r["route"] == "SME_REVIEW")
     return {
         "capex_total": round(capex_total, 2),
@@ -1319,7 +1354,9 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
     # Optional DETERMINISTIC semantic mapper: embed the task/item-type catalog once so line ->
     # task_code / item_type is reproducible (same input -> same answer) instead of an LLM free-pick.
     embedder, sem_index, embed_label = None, None, None
+    semantic_check = {"requested": embed_spec, "status": "not_requested", "detail": ""}
     if embed_spec:
+        semantic_check["status"] = "unavailable"
         try:
             from autarch.intelligence.factory import build_embedder
             embedder = build_embedder(embed_spec)
@@ -1327,7 +1364,11 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
             if sem_index:
                 _mode = "lexical" if "hash" in str(embed_spec).lower() else "learned"
                 embed_label = f"{embed_spec} ({_mode})"
+                semantic_check.update(status="active", detail=embed_label)
+            else:
+                semantic_check["detail"] = "semantic index could not be built"
         except Exception as exc:  # noqa: BLE001
+            semantic_check["detail"] = f"{type(exc).__name__}: {exc}"
             print(f"  (semantic mapping unavailable: {type(exc).__name__}: {exc}; using LLM pick)")
 
     # Document Intelligence results (when --doci ran): its 'prebuilt-invoice' output is authoritative
@@ -1343,6 +1384,15 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
     fields = extract_invoice_fields(provider, text)
     for k, v in di_header.items():
         fields[k] = str(v).strip()
+
+    source_warnings = detect_source_warnings(text)
+    state_source = di.get("state_source", "")
+    if di_header and not state_source:
+        source_warnings.append({
+            "code": "ship_to_state_unconfirmed",
+            "message": "Document Intelligence found no shipping or service address; tax jurisdiction is inferred and must be confirmed.",
+            "blocking": True,
+        })
 
     # Diagram steps 3-5, PER LINE ITEM: extract lines -> classify each (CapEx/OpEx + item type +
     # task code) -> apply tax rules per line -> score each line's confidence and route. Tax is
@@ -1434,7 +1484,8 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
     itypes = [r.get("item_type") for r in line_results if r.get("item_type")]
     dom_itype = Counter(itypes).most_common(1)[0][0] if itypes else ""
     prec_matches, prec_summary = refdata.precedents(
-        ref, fields.get("vendor_name", ""), dom_itype, fields.get("state", ""))
+        ref, fields.get("vendor_name", ""), dom_itype, fields.get("state", ""),
+        exclude_invoice_number=fields.get("invoice_number", ""))
 
     # Anti-hallucination: extracted header fields must be grounded in the signed source.
     ungrounded = check_grounding(fields, text, exempt=GROUNDED_EXEMPT)
@@ -1460,7 +1511,8 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
     hard_blockers = (rollup["route"] == "SME_REVIEW" or rollup.get("tax_recon_exception")
                      or bool(ungrounded) or bool(po_discrepancy_list) or multi_jurisdiction
                      or not quality_report.passed or not safety_report.passed
-                     or rollup.get("major_project"))
+                     or rollup.get("major_project")
+                     or any(warning.get("blocking") for warning in source_warnings))
     # Diagram STEP 10 - routing confidence tiers: >= 0.85 auto-approve; 0.70-0.85 auto-post WITH a
     # 48-hour review flag; < 0.70 (or any hard blocker) route to a named analyst.
     if hard_blockers or overall < AUTOPOST_FLAG_THRESHOLD:
@@ -1484,6 +1536,9 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
 
     # Per-field verdict rows: field | present | grounded | judge | reason.
     verdict_rows = []
+    jurisdiction_unconfirmed = any(
+        warning.get("code") == "ship_to_state_unconfirmed" for warning in source_warnings
+    )
     for k in INVOICE_FIELDS:
         val = str(fields.get(k, "")).strip()
         if not val:
@@ -1492,6 +1547,12 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
         ver = field_verdicts.get(k) or {}
         status = (ver.get("status") or "").upper() or "?"
         reason = ver.get("reason") or (flagged_map.get(k, "") if grounded == "NO" else "")
+        if k == "state" and jurisdiction_unconfirmed:
+            status = "WARNING"
+            reason = "State is inferred or corroborated, but no shipping/service address establishes tax jurisdiction."
+        elif k == "site_number" and jurisdiction_unconfirmed:
+            status = "WARNING"
+            reason = "Site appears in customer/bill-to content; the invoice's shipping/service address is blank."
         verdict_rows.append((k, "yes", grounded, status, reason))
 
     return {
@@ -1503,9 +1564,11 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
             "score": po_score,
             "how": po_how,
             "record": {k: po_rec.get(k) for k in ("po_number", "afe_number", "project_name",
-                        "vendor_name", "task_code", "asset_class", "location_state", "budget_amount")}
+                                                "vendor_name", "task_code", "asset_class", "location_state", "location_site",
+                                                "budget_amount", "status")}
                       if po_rec else None,
             "discrepancies": po_discrepancy_list,
+                        "independent": bool(po_rec and po_rec.get("status") != "invoice_observed"),
         },
         "multi_jurisdiction": {"flag": multi_jurisdiction, "states": sorted(states_seen)},
         "precedent": {"summary": prec_summary,
@@ -1515,7 +1578,8 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
         "reference": {"loaded": ref_gov.get("loaded", []),
                       "guarantee_read_only": ref_gov.get("guarantee_read_only"),
                       "signed_reads": len(ref_gov.get("why_ids", [])),
-                      "semantic_mapping": embed_label},
+                      "semantic_mapping": embed_label,
+                      "semantic_check": semantic_check},
         "classification_cache": cache_stats,
         "extraction": {"engine": "document_intelligence" if di_header else "ocr+llm",
                        "di_fields": sorted(di_header.keys()),
@@ -1524,6 +1588,7 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
                        "di_line_count": len(di_lines),
                        "reconciliation_issues": extraction_issues,
                        "di_pages": di.get("n_pages")},
+                "source_warnings": source_warnings,
         "confidence": {"overall": round(overall, 3), "threshold": threshold,
                        "per_line": {r["n"]: r["confidence"] for r in line_results}},
         "routing": route,
@@ -1636,6 +1701,9 @@ def print_report(rep: dict) -> None:
     n_div = roll.get("n_tax_divergence", 0)
     if status == "balanced":
         print(f"  tax reconciliation: balanced (within {_money(roll.get('tax_tolerance'))} tolerance)")
+    elif status == "unresolved":
+        print("  tax reconciliation: ** UNRESOLVED - one or more taxability rules are ambiguous; "
+              "do not treat expected tax as $0.00")
     elif unresolved:
         # Dual-validation gate diverged: the taxability itself is disputed, so the gap is NOT a firm
         # over/under-collection - it goes to a named analyst (per the flow), not a credit/accrual.
@@ -1684,6 +1752,8 @@ def print_report(rep: dict) -> None:
             print("  ** discrepancies vs the invoice:")
             for d in po["discrepancies"]:
                 print(f"       - {d}")
+        elif not po.get("independent"):
+            print("  invoice-observed reference corroborates the extracted fields; it is not independent PO validation.")
         else:
             print("  no discrepancies against the PO.")
     else:
@@ -1696,7 +1766,14 @@ def print_report(rep: dict) -> None:
             print(f"    - {flag['field']}: {flag['value']!r}")
             print(f"        ({flag['why']})")
     else:
-        print("  every extracted value is grounded in the signed source.")
+        print("  every extracted value appears in the signed source; field attribution is judged separately.")
+
+    warnings = rep.get("source_warnings") or []
+    if warnings:
+        banner("SOURCE VALIDATION WARNINGS")
+        for warning in warnings:
+            marker = "BLOCKING" if warning.get("blocking") else "WARNING"
+            print(f"  ** {marker}: {warning.get('message')}")
 
     banner("QUALITY - deterministic checks + LLM judges")
     for name, score, passed, reason in rep["quality"]["rows"]:
@@ -1743,11 +1820,15 @@ def print_report(rep: dict) -> None:
     if refm.get("loaded"):
         print(f"  reference data      : {', '.join(refm['loaded'])}  "
               f"(read-only guarantee {refm.get('guarantee_read_only')}, {refm.get('signed_reads')} signed reads)")
-    if refm.get("semantic_mapping"):
+    semantic = refm.get("semantic_check") or {}
+    if semantic.get("status") == "active":
         _auth = "learned" in str(refm["semantic_mapping"])
         _desc = ("learned second opinion; tax-relevant disagreements route to review" if _auth
                  else "lexical second opinion (offline; confirms/flags, never overrides the model)")
         print(f"  line->task check    : semantic cross-check ({refm['semantic_mapping']}) - {_desc}")
+    elif semantic.get("status") == "unavailable":
+        print(f"  line->task check    : UNAVAILABLE ({semantic.get('requested')}) - "
+              f"{semantic.get('detail') or 'no semantic index'}; classifications use model/reference mapping only")
     cache = rep.get("classification_cache")
     if cache:
         print(f"  decision cache      : {cache.get('hits', 0)} reproduced (deterministic) + "
@@ -1782,13 +1863,18 @@ def print_report(rep: dict) -> None:
         if roll.get("major_project"):
             reasons.append(f"major project (CapEx {_money(roll['capex_total'])} >= {_money(MAJOR_PROJECT_THRESHOLD)}) - AFE/board")
         if roll.get("tax_unresolved"):
-            reasons.append(f"dual-validation divergence on {roll.get('n_tax_divergence', 0)} line(s) - taxability disputed")
+            if roll.get("tax_status") == "unresolved":
+                reasons.append("taxability matrix is ambiguous - expected tax unresolved")
+            else:
+                reasons.append(f"dual-validation divergence on {roll.get('n_tax_divergence', 0)} line(s) - taxability disputed")
         elif roll.get("tax_status") == "under_collected":
             reasons.append(f"tax under-collected (use tax {_money(roll['use_tax_owed'])})")
         elif roll.get("tax_status") == "over_collected":
             reasons.append(f"tax over-collected {_money(roll['over_collected'])}")
         if (rep.get("multi_jurisdiction") or {}).get("flag"):
             reasons.append("multi-jurisdiction allocation needed")
+        if rep.get("source_warnings"):
+            reasons.append(f"{len(rep['source_warnings'])} source validation warning(s)")
         if (rep.get("po") or {}).get("discrepancies"):
             reasons.append(f"{len((rep['po'])['discrepancies'])} PO discrepancy(ies)")
         if conf["overall"] < AUTOPOST_FLAG_THRESHOLD:
@@ -1831,12 +1917,20 @@ def write_lines_csv(rep: dict, out_path: Path) -> Path:
         for r in rep["lines"]:
             w.writerow({k: r.get(k) for k in _CSV_COLUMNS})
         roll = rep["rollup"]
+        unresolved_tax = roll.get("tax_status") == "unresolved"
         w.writerow({
             "n": "ROLLUP", "description": f"{roll['n_lines']} line(s); {roll['n_exceptions']} exception(s); "
             f"{roll['n_sme']} to SME; route {roll['route']}",
             "capex_opex": f"CapEx {roll['capex_total']}", "asset_category": f"OpEx {roll['opex_total']}",
             "expected_tax_amount": roll["expected_tax_total"], "charged_tax_alloc": roll["tax_charged"],
-            "tax_delta": roll["use_tax_owed"], "route": roll["route"],
+            "tax_delta": "" if unresolved_tax else roll["use_tax_owed"],
+            "tax_basis": "UNRESOLVED - ambiguous taxability rules" if unresolved_tax else "",
+            "tax_exception": roll.get("tax_recon_exception", False),
+            "tax_exception_reason": "; ".join(
+                warning.get("message", "") for warning in rep.get("source_warnings", [])
+                if warning.get("message")
+            ),
+            "route": roll["route"],
         })
     return out_path
 
@@ -1883,6 +1977,9 @@ def _hpass(passed) -> str:
 def _tax_recon_html(roll) -> str:
     """Render the invoice-level tax reconciliation status (balanced / under / over / dual-divergence)."""
     status = roll.get("tax_status", "balanced")
+    if status == "unresolved":
+        return ("<span class='fail'>UNRESOLVED</span> &mdash; one or more taxability rules are "
+                "ambiguous; expected tax is unknown and must not be treated as $0.00")
     if roll.get("tax_unresolved") and status != "balanced":
         gap = roll['over_collected'] if status == "over_collected" else roll['use_tax_owed']
         return (f"<span class='fail'>DUAL-VALIDATION DIVERGENCE</span> on "
@@ -1992,6 +2089,8 @@ def render_report_html(rep: dict, meta: dict) -> str:
     esc = _html_escape
     f, roll, conf = rep["fields"], rep["rollup"], rep["confidence"]
     ev = rep["evidence"]
+    ext = rep.get("extraction") or {}
+    semantic = (rep.get("reference") or {}).get("semantic_check") or {}
     doc_url = meta.get("doc_url") or ""
     doc_link = f"<a class='cite' href='{esc(doc_url)}'><b>{esc(meta.get('doc_name'))}</b> &#8599;</a>" if doc_url else f"<b>{esc(meta.get('doc_name'))}</b>"
     auto = rep["routing"] == "AUTO_APPROVE"
@@ -2022,15 +2121,31 @@ def render_report_html(rep: dict, meta: dict) -> str:
         f"<tr><th>site / state</th><td>{esc(f.get('site_number') or '-')} / {esc(f.get('state') or '-')}</td></tr>",
         f"<tr><th>total / tax billed</th><td>{_money(f.get('total_amount'))} &middot; {_money(f.get('tax_charged'))}</td></tr>",
         "</table>",
+        "<h2>Extraction evidence</h2><table class='kv'>",
+        f"<tr><th>engine</th><td>{esc(ext.get('engine') or '-')}</td></tr>",
+        f"<tr><th>DI fields / lines</th><td>{len(ext.get('di_fields') or [])} / {ext.get('di_line_count') or 0}</td></tr>",
+        f"<tr><th>jurisdiction source</th><td>{esc(ext.get('di_state_source') or 'not established by shipping/service address')}</td></tr>",
+        f"<tr><th>field confidence</th><td>{esc(', '.join(f'{k} {v:.2f}' for k, v in (ext.get('di_confidence') or {}).items()) or '-')}</td></tr>",
+        f"<tr><th>semantic validator</th><td>{esc(semantic.get('status') or 'not_requested')}"
+        f"{(' - ' + esc(semantic.get('detail'))) if semantic.get('detail') else ''}</td></tr>",
+        "</table>",
         "<h2>Line-item classification &amp; tax <span class='sub'>steps 3-5: classify &rarr; tax &rarr; confidence &rarr; route</span></h2>",
         _lines_html(rep["lines"]) if rep["lines"] else "<p>(no line items extracted)</p>",
         "<h2>Invoice rollup</h2><table class='kv'>",
         f"<tr><th>CapEx / OpEx</th><td>{_money(roll['capex_total'])} / {_money(roll['opex_total'])}</td></tr>",
-        f"<tr><th>expected vs charged tax</th><td>{_money(roll['expected_tax_total'])} vs {_money(roll['tax_charged'])}</td></tr>",
+        f"<tr><th>expected vs charged tax</th><td>{'unresolved' if roll['expected_tax_total'] is None else _money(roll['expected_tax_total'])} vs {_money(roll['tax_charged'])}</td></tr>",
         f"<tr><th>tax reconciliation</th><td>{_tax_recon_html(roll)}</td></tr>",
         f"<tr><th>lines / exceptions / SME</th><td>{roll['n_lines']} / {roll['n_exceptions']} / {roll['n_sme']}</td></tr>",
         "</table>",
     ]
+    warnings = rep.get("source_warnings") or []
+    if warnings:
+        p.append("<h2>Source validation warnings</h2><ul>")
+        p.extend(
+            f"<li class='fail'><b>{'BLOCKING' if warning.get('blocking') else 'WARNING'}:</b> "
+            f"{esc(warning.get('message'))}</li>" for warning in warnings
+        )
+        p.append("</ul>")
     mj = rep.get("multi_jurisdiction") or {}
     if mj.get("flag"):
         p.append(f"<p class='warn'>&#9888; Multi-jurisdiction: states {esc(', '.join(mj.get('states') or []))} "
@@ -2056,6 +2171,8 @@ def render_report_html(rep: dict, meta: dict) -> str:
             p.append("<p class='warn'>Discrepancies vs the invoice:</p><ul>")
             p.extend(f"<li class='warn'>{esc(d)}</li>" for d in po["discrepancies"])
             p.append("</ul>")
+        elif not po.get("independent"):
+            p.append("<p class='warn'>This is an invoice-observed reference record. It corroborates extracted fields but is not independent PO validation.</p>")
         else:
             p.append("<p class='pass'>No discrepancies against the PO.</p>")
     else:
@@ -2067,7 +2184,7 @@ def render_report_html(rep: dict, meta: dict) -> str:
         p.extend(f"<li>{esc(x['field'])}: {esc(repr(x['value']))} <span class='sub'>({esc(x['why'])})</span></li>" for x in flagged)
         p.append("</ul>")
     else:
-        p.append("<p class='pass'>Every extracted value is grounded in the signed source.</p>")
+        p.append("<p class='pass'>Every extracted value appears in the signed source. Field attribution is assessed separately below.</p>")
     if rep["verdicts"]:
         p.append("<h2>Field-by-field verdict <span class='sub'>per-field judge status</span></h2>")
         p.append(_verdicts_html(rep["verdicts"]))
@@ -2141,6 +2258,7 @@ def main() -> int:
         print(f"  read was blocked: {err}")
         return 1
     text = read_result.result.output
+    text_layer = text
     print(f"  read OK: {len(text):,} characters   |   read-only guarantee holds: {guarantee_ok}")
     print(f"  signed why-record: {read_result.why_id}")
 
@@ -2177,7 +2295,7 @@ def main() -> int:
                     print(f"  governing state {di['header'].get('state', '?')} from {di['state_source']} "
                           f"(ship-to, not bill-to)")
                 if di.get("content"):
-                    text = di["content"]  # DI's OCR becomes the grounding/citation source
+                    text = merge_source_text(di["content"], text_layer)
                     print(f"  using DI OCR content ({len(text):,} chars) for grounding")
 
     if di is None and _looks_scanned(text):

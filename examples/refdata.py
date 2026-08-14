@@ -273,7 +273,7 @@ def po_discrepancies(rec, header, line_results):
     return out
 
 
-def precedents(data, vendor_name="", item_type="", state="", limit=5):
+def precedents(data, vendor_name="", item_type="", state="", limit=5, exclude_invoice_number=""):
     """Find similar PAST decisions in the processing history (step 8: 'validate against historical
     decisions'). Scores each history row by vendor + item type + ship-to state and returns the top
     matches plus a summary (count, avg confidence, routing distribution). Empty when none match."""
@@ -281,16 +281,23 @@ def precedents(data, vendor_name="", item_type="", state="", limit=5):
     v = (vendor_name or "").lower().strip()
     it = (item_type or "").lower().strip()
     st = (state or "").upper().strip()
+    excluded_invoice = str(exclude_invoice_number or "").lower().strip()
     scored = []
     for h in hist:
+        if excluded_invoice and str(h.get("invoice_number", "")).lower().strip() == excluded_invoice:
+            continue
         s = 0.0
-        if v and _sim(v, h.get("vendor_name", "")) >= 0.6:
+        vendor_match = bool(v and _sim(v, h.get("vendor_name", "")) >= 0.6)
+        item_match = bool(it and it == str(h.get("item_type", "")).lower())
+        state_match = bool(st and st == str(h.get("ship_to_state", "")).upper())
+        if vendor_match:
             s += 2.0
-        if it and it == str(h.get("item_type", "")).lower():
+        if item_match:
             s += 1.5
-        if st and st == str(h.get("ship_to_state", "")).upper():
+        if state_match:
             s += 1.0
-        if s > 0:
+        # A shared broad item type alone (for example, Professional Services) is not precedent.
+        if vendor_match or (item_match and state_match):
             scored.append((s, h))
     scored.sort(key=lambda x: -x[0])
     matches = [h for _, h in scored[:limit]]

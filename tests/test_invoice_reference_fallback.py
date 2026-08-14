@@ -274,6 +274,92 @@ def test_printed_tax_marker_conflict_routes_to_review_without_overriding_matrix(
     assert rollup["n_state_base_rates"] == 1
 
 
+def test_ambiguous_taxability_is_unresolved_instead_of_balanced():
+    data = _reference_data()
+    lines = [{"description": "SHOP SUPPLIES", "amount": "20.00", "tax_status": "T"}]
+    classifications = [{
+        "capex_opex": "OpEx",
+        "asset_category": "Maintenance and Repair",
+        "item_type": "Construction Materials",
+        "task_code": "TC-9010",
+        "confidence": 0.9,
+    }]
+    taxes = extract_invoice.apply_tax_matrix({"state": "ND"}, classifications, data)
+    rows = extract_invoice.build_line_results(
+        lines, classifications, taxes, 0.85, {"state": "ND", "tax_charged": ""}, data
+    )
+
+    rollup = extract_invoice.summarize_lines(rows, {"tax_charged": ""})
+
+    assert rows[0]["expected_tax_amount"] is None
+    assert rows[0]["tax_delta"] is None
+    assert rows[0]["use_tax_to_allocate"] is None
+    assert rollup["expected_tax_total"] is None
+    assert rollup["tax_status"] == "unresolved"
+    assert rollup["tax_recon_exception"] is True
+    assert "UNRESOLVED" in extract_invoice._tax_recon_html(rollup)
+
+
+def test_source_validation_warning_detects_project_date_error():
+    text = (
+        "Invalid project based on PO or Invoice date. Date must fall within project "
+        "start and end dates. in Line #1 Dist #1"
+    )
+
+    warnings = extract_invoice.detect_source_warnings(text)
+
+    assert warnings == [{
+        "code": "project_date_invalid",
+        "message": text,
+        "blocking": True,
+    }]
+
+
+def test_merge_source_text_preserves_warning_omitted_by_ocr():
+    ocr = "Dakota Car Wash Invoice 30938"
+    embedded = "Invalid project based on PO or Invoice date. Date must fall within project start and end dates. in Line #1 Dist #1"
+
+    merged = extract_invoice.merge_source_text(ocr, embedded)
+
+    assert ocr in merged
+    assert extract_invoice.detect_source_warnings(merged)[0]["code"] == "project_date_invalid"
+
+
+def test_precedents_exclude_the_invoice_currently_being_processed():
+    data = {
+        "history": [
+            {"invoice_number": "30938", "vendor_name": "Dakota Car Wash", "ship_to_state": "ND",
+             "item_type": "Construction Materials", "overall_confidence": 0.4,
+             "routing_result": "human_review", "taxability": "Pending"},
+            {"invoice_number": "30901", "vendor_name": "Dakota Car Wash", "ship_to_state": "ND",
+             "item_type": "Construction Materials", "overall_confidence": 0.8,
+             "routing_result": "auto_approved", "taxability": "Taxable"},
+        ]
+    }
+
+    matches, summary = refdata.precedents(
+        data, "Dakota Car Wash", "Construction Materials", "ND", exclude_invoice_number="30938"
+    )
+
+    assert [match["invoice_number"] for match in matches] == ["30901"]
+    assert summary["count"] == 1
+
+
+def test_precedents_reject_shared_item_type_without_vendor_or_state_match():
+    data = {"history": [{
+        "invoice_number": "118500", "vendor_name": "Corporate Interiors", "ship_to_state": "NC",
+        "item_type": "Professional Services", "overall_confidence": 0.933,
+        "routing_result": "auto_approved", "taxability": "Exempt",
+    }]}
+
+    matches, summary = refdata.precedents(
+        data, "Dakota Car Wash", "Professional Services", "ND", exclude_invoice_number="30938"
+    )
+
+    assert matches == []
+    assert summary == {"count": 0}
+
+
 def test_state_base_only_tax_estimate_cannot_auto_post():
     data = _reference_data()
     lines = [{"description": "VERIFONE CARD READER - UX300", "amount": "1210.59"}]
