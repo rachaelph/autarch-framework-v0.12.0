@@ -325,6 +325,30 @@ def test_merge_source_text_preserves_warning_omitted_by_ocr():
     assert extract_invoice.detect_source_warnings(merged)[0]["code"] == "project_date_invalid"
 
 
+def test_pdf_text_layer_recovers_dakota_project_warning():
+    pdf = EXAMPLES_DIR.parent / "testing" / "invoices" / "Loris_Invoices" / "Dakota Car - 30938.pdf"
+
+    text = extract_invoice.pdf_text_layer(pdf)
+
+    assert "Invalid project based on PO or Invoice date" in text
+
+
+def test_ask_retries_transient_provider_failure():
+    class FlakyProvider:
+        calls = 0
+
+        def complete(self, prompt, system=None):
+            self.calls += 1
+            if self.calls == 1:
+                raise ConnectionError("temporary connection error")
+            return '{"ok": true}'
+
+    provider = FlakyProvider()
+
+    assert extract_invoice._ask(provider, "test", "system", "prompt") == {"ok": True}
+    assert provider.calls == 2
+
+
 def test_precedents_exclude_the_invoice_currently_being_processed():
     data = {
         "history": [

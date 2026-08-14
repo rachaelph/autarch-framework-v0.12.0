@@ -510,6 +510,21 @@ def governed_read(doc: Path):
     return agent, result, report.all_hold
 
 
+def pdf_text_layer(doc: Path) -> str:
+    """Read embedded PDF text locally so source-system warnings survive OCR replacement."""
+    if doc.suffix.lower() != ".pdf":
+        return ""
+    try:
+        import pymupdf
+        pdf = pymupdf.open(str(doc))
+        try:
+            return "\n".join(page.get_text("text") for page in pdf).strip()
+        finally:
+            pdf.close()
+    except Exception:
+        return ""
+
+
 # --------------------------------------------------------------------------------------------------
 # Vision-OCR fallback. Many AP invoices are SCANNED (image-only PDFs from Laserfiche/email) with no
 # text layer, so the governed read recovers nothing. When that happens we render the page(s) and OCR
@@ -581,9 +596,16 @@ def vision_transcribe(doc: Path, provider) -> str:
 # ``STEP: <NAME>`` marker (used by the offline demo answer key) and returns parsed JSON.
 # --------------------------------------------------------------------------------------------------
 def _ask(provider, label, system, prompt) -> dict:
-    with usage_label(label):
-        raw = provider.complete(prompt, system=system)
-    return extract_json(raw) or {}
+    for attempt in range(3):
+        try:
+            with usage_label(label):
+                raw = provider.complete(prompt, system=system)
+            return extract_json(raw) or {}
+        except Exception as exc:
+            if not _is_transient_connection_error(exc) or attempt == 2:
+                raise
+            print(f"  {label} transient failure - retrying ({attempt + 2}/3) ...")
+    return {}
 
 
 def extract_invoice_fields(provider, text) -> dict:
@@ -2258,7 +2280,7 @@ def main() -> int:
         print(f"  read was blocked: {err}")
         return 1
     text = read_result.result.output
-    text_layer = text
+    text_layer = pdf_text_layer(doc)
     print(f"  read OK: {len(text):,} characters   |   read-only guarantee holds: {guarantee_ok}")
     print(f"  signed why-record: {read_result.why_id}")
 
@@ -2302,7 +2324,7 @@ def main() -> int:
         print("  no text layer found (scanned/image-only PDF) - running governed vision-OCR fallback ...")
         ocr = vision_transcribe(doc, provider)
         if ocr.strip():
-            text = ocr
+            text = merge_source_text(ocr, text_layer)
             print(f"  vision OCR recovered {len(text):,} characters")
         else:
             print("  Aborting: no invoice text could be recovered. Install document extraction "
