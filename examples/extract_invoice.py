@@ -729,19 +729,31 @@ def normalize_extraction(header: dict, di_lines: list, model_lines: list,
 def detect_source_warnings(text: str) -> list[dict]:
     """Return deterministic posting blockers printed by the source system on the invoice."""
     normalized = re.sub(r"\s+", " ", text or "").strip()
+    warnings = []
     project_date = re.search(
         r"Invalid project based on PO or Invoice date\. Date must fall within project "
         r"start and end dates\. in Line #\d+ Dist #\d+",
         normalized,
         re.IGNORECASE,
     )
-    if not project_date:
-        return []
-    return [{
-        "code": "project_date_invalid",
-        "message": project_date.group(0),
-        "blocking": True,
-    }]
+    if project_date:
+        warnings.append({
+            "code": "project_date_invalid",
+            "message": project_date.group(0),
+            "blocking": True,
+        })
+    project_status = re.search(
+        r"Error\s*-\s*review project for open status or invalid task\.?",
+        normalized,
+        re.IGNORECASE,
+    )
+    if project_status:
+        warnings.append({
+            "code": "project_status_or_task_invalid",
+            "message": project_status.group(0),
+            "blocking": True,
+        })
+    return warnings
 
 
 def merge_source_text(ocr_text: str, text_layer: str) -> str:

@@ -315,6 +315,18 @@ def test_source_validation_warning_detects_project_date_error():
     }]
 
 
+def test_source_validation_warning_detects_invalid_project_status_or_task():
+    text = "Error - review project for open status or invalid task."
+
+    warnings = extract_invoice.detect_source_warnings(text)
+
+    assert warnings == [{
+        "code": "project_status_or_task_invalid",
+        "message": text,
+        "blocking": True,
+    }]
+
+
 def test_merge_source_text_preserves_warning_omitted_by_ocr():
     ocr = "Dakota Car Wash Invoice 30938"
     embedded = "Invalid project based on PO or Invoice date. Date must fall within project start and end dates. in Line #1 Dist #1"
