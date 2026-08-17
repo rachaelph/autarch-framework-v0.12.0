@@ -1938,6 +1938,9 @@ _CSV_COLUMNS = (
     "jurisdiction_state", "expected_tax_rate", "tax_rate_scope",
     "expected_tax_amount", "charged_tax_alloc", "tax_delta", "use_tax_to_allocate", "tax_basis",
     "tax_exception", "tax_exception_reason", "posting_target", "confidence", "route",
+    # Diagram step 10 - the invoice-level confidence gate. Blank on line rows (the tier is decided
+    # once for the whole invoice); carries AUTO_APPROVE / AUTO_POST_FLAGGED / HUMAN_REVIEW on ROLLUP.
+    "routing_tier",
 )
 
 
@@ -1951,10 +1954,13 @@ def write_lines_csv(rep: dict, out_path: Path) -> Path:
         for r in rep["lines"]:
             w.writerow({k: r.get(k) for k in _CSV_COLUMNS})
         roll = rep["rollup"]
+        conf = rep["confidence"]
         unresolved_tax = roll.get("tax_status") == "unresolved"
         w.writerow({
             "n": "ROLLUP", "description": f"{roll['n_lines']} line(s); {roll['n_exceptions']} exception(s); "
-            f"{roll['n_sme']} to SME; route {roll['route']}",
+            f"{roll['n_sme']} to SME; route {roll['route']}; "
+            f"overall confidence {conf['overall']:.2f} (threshold {conf['threshold']:.2f}) "
+            f"-> {rep['routing']}",
             "capex_opex": f"CapEx {roll['capex_total']}", "asset_category": f"OpEx {roll['opex_total']}",
             "expected_tax_amount": roll["expected_tax_total"], "charged_tax_alloc": roll["tax_charged"],
             "tax_delta": "" if unresolved_tax else roll["use_tax_owed"],
@@ -1964,7 +1970,11 @@ def write_lines_csv(rep: dict, out_path: Path) -> Path:
                 warning.get("message", "") for warning in rep.get("source_warnings", [])
                 if warning.get("message")
             ),
+            # Worst-line confidence (fail-closed) + the step-10 tier it lands in, so a downstream
+            # consumer of the CSV sees the same gate the HTML report shows.
+            "confidence": round(conf["overall"], 3),
             "route": roll["route"],
+            "routing_tier": rep["routing"],
         })
     return out_path
 
