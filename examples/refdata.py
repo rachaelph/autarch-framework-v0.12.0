@@ -331,35 +331,49 @@ def precedents(data, vendor_name="", item_type="", state="", limit=5, exclude_in
 # text-embedding deployment) for richer meaning via the same interface.
 # --------------------------------------------------------------------------------------------------
 # Keyword-rich definitions per item type so even a lexical embedder disambiguates well, and so the
-# classification prompt steers each line to the right taxability bucket. Security/alarm gear is its
-# OWN taxable category (tangible personal property) - distinct from genuinely-exempt life-safety
-# "Safety Equipment" and from POS/network "IT & Electronics". Install labor / travel / freight /
-# surcharges are Professional Services (services), even when they relate to a security system.
+# classification prompt steers each line to the right taxability bucket. Hints match the ACTUAL
+# item types from the Circle K taxability matrix (seed-taxability-matrix-actual.json).
 _ITEM_TYPE_HINTS = {
-    "Fuel Equipment": "fuel dispenser pump nozzle hose tank dispensing fuel island DEF gauging pipeline",
-    "Construction Materials": "construction materials lumber steel concrete paving asphalt roofing drywall "
-                              "insulation fasteners sealant adhesive fixtures shelving countertop",
-    "Safety Equipment": "fire protection fire extinguisher fire suppression sprinkler spill containment "
-                        "eyewash first aid ppe personal protective bollard guard rail life-safety",
-    "HVAC & Mechanical": "hvac heating ventilation air conditioning refrigeration walk-in cooler freezer "
-                          "compressor ductwork thermostat rooftop unit mechanical",
-    "IT & Electronics": "point of sale pos register network switch router firewall server computer monitor "
-                        "printer barcode scanner card reader payment terminal verifone ux300 back-office electronics",
-    "Security & Surveillance Systems": "security burglar intrusion alarm system control panel motion sensor "
-                        "pir glassbreak detector door window contact siren strobe horn keypad camera cctv "
-                        "surveillance access control low-voltage security cabling wire mounting hardware "
-                        "bracket enclosure for the alarm system",
-    "Vehicles & Heavy Equipment": "vehicle truck fleet forklift excavator loader machinery heavy equipment "
-                                  "generator compressor air system",
-    "Professional Services": "installation labor install wiring labor service consulting engineering design "
-                            "freight shipping delivery handling travel mileage trip charge fuel surcharge fee permit",
-    "Environmental": "environmental remediation compliance regulatory permit spill monitoring assessment",
-    "Real Property Repair & Installation": "canopy site improvement installed real property repair erection labor "
-                                             "demolition fascia construction installation",
-    "Signage & Display": "sign signage illuminated cabinet pricer LED display shroud wordmark price sign",
-    "Equipment Rental": "rental rent portable storage container leased equipment container guard",
-    "Freight & Delivery": "freight shipping delivery handling fuel surcharge tariff surcharge retail delivery fee",
-    "Finance Charges": "interest late payment liability waiver administrative fee finance charge",
+    "ADVERTISING DIGITAL ADVERTISING SERVICES (Online Ads)": "digital advertising online ads web banner social media",
+    "ADVERTISING MATERIALS (SIGNAGE, STICKERS, ETC.)": "advertising materials signage stickers posters promotional",
+    "ADVERTISING SERVICES LABOR ONLY": "advertising services labor creative design agency",
+    "ARCHITECT/ ENGINEER SERVICES CONCEPT SKETCH, REMODEL DRAWINGS, ETC.": "architect engineer services design drawings blueprints consulting",
+    "COMPUTER HARDWARE": "computer hardware server workstation desktop laptop network equipment monitor",
+    "COMPUTER SOFTWARE MAINTENANCE CONTRACTS OPTIONAL": "software maintenance contract optional",
+    "COMPUTER SOFTWARE MAINTENANCE CONTRACTS REQUIRED": "software maintenance contract required",
+    "CUSTOM COMPUTER SOFTWARE": "custom software development programming application coding",
+    "EQUIPMENT - FOOD PREPARATION REFRIGERATOR MUST FOR FOOD & KITCHEN AND NOT FOR STORAGE OR DISPLAY, GRILL, ICE MAKER, MICROWAVES, OVENS ETC. Manufacturing States - OH-IN-MN-TX": "food preparation equipment refrigerator grill ice maker microwave oven",
+    "EQUIPMENT-FOOD SERVING SPOONS, TONGS, ETC.": "food serving equipment spoons tongs utensils",
+    "EQUIPMENT-FOOD STORAGE BINS, REFRIGERATOR, ETC.": "food storage bins refrigerator cooler freezer",
+    "FILMS & FOILS FOIL PANS/LIDS, PLASTIC WRAP": "films foils pans lids plastic wrap containers",
+    "FREIGHT": "freight shipping delivery transportation hauling",
+    "FURNITURE & FIXTURES KITCHEN, DINING & OFFICE": "furniture fixtures kitchen dining office shelving cabinets",
+    "INFRASTRUCTURE AS A SERVICE (IaaS)": "infrastructure as a service IaaS cloud computing hosting",
+    "INSPECTION SERVICES": "inspection services testing quality assurance",
+    "INTERNET ACCESS": "internet access connectivity broadband data service",
+    "INVENTORY WITHDRAWAL CUPS, PAPER TOWELS, UTENSILS, ETC.": "inventory withdrawal cups paper towels utensils supplies",
+    "LANDSCAPING - LABOR": "landscaping labor grounds maintenance lawn care",
+    "LEASE-REAL PROPERTY LEASING FROM 3RD PARTY": "real property lease leasing rent office space",
+    "LEASED EQUIPMENT LEASING FROM 3RD PARTY": "leased equipment rental storage container",
+    "MATERIAL / PARTS / TOOLS / EQUIPMENT FOR REPAIRING": "material parts tools equipment repair maintenance",
+    "PACKING / HANDLING": "packing handling packaging materials labor",
+    "PAPER PRODUCTS NAPKINS, STRAWS, STIRRERS, ETC.": "paper products napkins straws stirrers bags",
+    "PLASTIC - DISPOSABLE UTENSILS, BAGS, ETC.": "plastic disposable utensils bags containers",
+    "PLASTIC REUSABLE": "plastic reusable containers buckets bins",
+    "PLATFORM AS A SERVICE (PaaS)": "platform as a service PaaS cloud development",
+    "PLUMBING INSTALLATION SERVICES ASSUME PLUMBER PAID SALES TAX ON FIXTURES WHEN PURCHASED": "plumbing installation services fixtures",
+    "PREWRITTEN COMPUTER SOFTWARE CANNED or LICENSE": "prewritten software canned license purchased",
+    "PROFESSIONAL SERVICES ACCOUNTING & FINANCIAL, ADVERTISING, ARCHITECTS, CONSULTING, ENGINEERING, IT, LEGAL, MARKETING, ETC.": "professional services accounting financial consulting engineering legal marketing",
+    "REAL ESTATE MATERIALS PERMANENTLY AFFIXED OR INCORPORATED INTO BUILDING (CANOPY, DOOR, HVAC, PLUMBING, ROOF, WINDOW, ETC.": "real estate materials canopy door hvac plumbing roof window permanently affixed",
+    "SMALL WARES-KITCHEN PANS, METAL TRAYS, ETC.": "small wares kitchen pans metal trays cookware",
+    "SMALL WARES-TABLETOP SALT/PEPPER SHAKERS, MUSTARD, ETC.": "small wares tabletop salt pepper shakers condiment containers",
+    "SOFTWARE AS A SERVICE (SaaS)": "software as a service SaaS cloud subscription application",
+    "STORAGE SERVICES": "storage services warehousing document storage",
+    "SUPPLIES-OFFICE PAPER, PENS, ETC.": "office supplies paper pens pencils stationery",
+    "SUPPLIES-STORE REGISTER TAPE, PENS, ETC.": "store supplies register tape ink ribbons",
+    "TANGIBLE PERSONAL PROPERTY ITEMS REMAIN TANGIBLE RACK, REFRIGERATOR, STORE EQUIPMENT ETC.": "tangible personal property rack refrigerator store equipment",
+    "TANGIBLE PERSONAL PROPERTY LABOR: INSTALLATION": "tangible personal property installation labor",
+    "TANGIBLE PERSONAL PROPERTY LABOR: REPAIRS/ RESTORE/ SERVICING": "tangible personal property repair restoration servicing labor",
 }
 
 
@@ -405,3 +419,22 @@ def map_line_semantic(index, line_desc, embedder):
                 "task_score": round(best_ts, 3), "item_type": best_i, "item_score": round(best_is, 3)}
     except Exception:
         return None
+
+
+def map_line_all_item_types(index, line_desc, embedder, min_score=0.4, limit=5):
+    """Get all item type matches with scores (sorted by confidence). Returns list of
+    ``(item_type, score)`` tuples for item_types scoring >= min_score, up to limit matches."""
+    if not index or not line_desc:
+        return []
+    try:
+        from autarch.intelligence.embedding import cosine
+        v = embedder.embed(str(line_desc))
+        scored = []
+        for it, iv in index["items"]:
+            s = cosine(v, iv)
+            if s >= min_score:
+                scored.append((it, round(s, 3)))
+        scored.sort(key=lambda x: -x[1])
+        return scored[:limit]
+    except Exception:
+        return []

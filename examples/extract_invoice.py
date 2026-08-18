@@ -792,10 +792,10 @@ def classify_lines(provider, header, lines, ref) -> list:
     tc_field = ', "task_code": ""' if catalog else ""
     extra = ("map it to ONE standardized item type (for tax) and pick the best TASK CODE, "
              if (itypes or catalog) else "")
-    itype_rule = ("When choosing the item type: physical alarm/security devices and their dedicated "
-                  "cabling/hardware are 'Security & Surveillance Systems'; separately stated travel, "
-                  "survey, consulting, and non-capital installation services are 'Professional Services'; "
-                  "freight, shipping, delivery, handling, and surcharges are 'Freight & Delivery'. "
+    itype_rule = ("When choosing the item type: map the line to ONE of the item types listed above, copied verbatim. "
+                  "Use the hints and task codes as context. Freight/shipping/delivery map to FREIGHT. "
+                  "Installation labor/services map to TANGIBLE PERSONAL PROPERTY LABOR or PROFESSIONAL SERVICES. "
+                  "Computer-related items map to COMPUTER categories. Food-related items map to EQUIPMENT or FOOD categories. "
                   if itypes else "")
     po_context = ""
     if po_rec is not None and po_how in {"id", "id+vendor"}:
@@ -1014,13 +1014,18 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
         tax_divergence = (tax_dual == "diverge")
 
         conf = min(_confidence(c), _confidence(t))
+        extraction_conf = _confidence(c)
         # Semantic second opinion (validator): the model's pick stays authoritative; the embedder's
         # deterministic nearest entry either CONFIRMS it or, when it disagrees in a way that changes
         # the taxability verdict, forces the line to SME review.
         sem = c.get("_sem")
+        sem_all_items = c.get("_sem_all_items", [])
         llm_item = c.get("item_type", "")
         llm_task = str(c.get("task_code", "")).strip()
         tax_mapping_conflict = False
+        item_type_matches = ""
+        if sem_all_items:
+            item_type_matches = ", ".join(f"{it} ({score})" for it, score in sem_all_items)
         if sem:
             sem_item, sem_task = sem.get("item_type"), sem.get("task_code")
             item_conflict = bool(sem_item and llm_item and sem_item != llm_item)
@@ -1054,6 +1059,7 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
             "capex_opex": capex_opex,
             "capex_basis": capex_basis,
             "capex_conflict": capex_conflict,
+            "extraction_confidence": round(extraction_conf, 3),
             "mapping_basis": mapping_basis,
             "mapping_conflict": mapping_conflict,
             "tax_mapping_conflict": tax_mapping_conflict,
@@ -1070,6 +1076,7 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
             "existing_task_ok": c.get("existing_task_ok"),
             "class_rationale": c.get("rationale", ""),
             "item_type": t.get("item_type") or c.get("item_type", ""),
+            "item_type_matches": item_type_matches,
             "taxable": taxable,
             "tax_verdict": t.get("tax_verdict"),
             "tax_verdict_label": t.get("tax_verdict_label"),
@@ -1489,6 +1496,10 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
             c = classifications[i]
             c["_sem"] = sm
             c["_sem_mode"] = sem_mode
+            # Also get all item type matches with confidence scores
+            all_items = refdata.map_line_all_item_types(sem_index, ln.get("description", ""), embedder, min_score=0.4, limit=5)
+            if all_items:
+                c["_sem_all_items"] = all_items
 
     if lines and ref.get("taxability"):
         taxes = apply_tax_matrix(fields, classifications, ref)  # tax ENGINE (deterministic, no model call)
@@ -1934,7 +1945,7 @@ _CSV_COLUMNS = (
     "n", "description", "quantity", "amount", "tax_status", "vendor_tax_conflict",
     "capex_opex", "capex_basis", "task_code",
     "asset_category", "useful_life_months", "depreciation", "existing_task_ok",
-    "item_type", "mapping_basis", "mapping_conflict", "taxable", "tax_verdict",
+    "extraction_confidence", "item_type", "item_type_matches", "mapping_basis", "mapping_conflict", "taxable", "tax_verdict",
     "jurisdiction_state", "expected_tax_rate", "tax_rate_scope",
     "expected_tax_amount", "charged_tax_alloc", "tax_delta", "use_tax_to_allocate", "tax_basis",
     "tax_exception", "tax_exception_reason", "posting_target", "confidence", "route",
@@ -2097,9 +2108,9 @@ def _usage_calls_html(rows) -> str:
 
 
 def _lines_html(lines) -> str:
-    trs = ["<tr><th>#</th><th>line item</th><th>amount</th><th>CapEx/OpEx</th><th>item type</th>"
+    trs = ["<tr><th>#</th><th>line item</th><th>amount</th><th>CapEx/OpEx</th><th>item type</th><th>item matches</th>"
            "<th>invoice marker</th><th>taxable</th><th>rate</th><th>expected</th><th>charged~</th><th>&Delta;</th>"
-           "<th>conf</th><th>route</th></tr>"]
+           "<th>extr. conf</th><th>conf</th><th>route</th></tr>"]
     for r in lines:
         exc = " class='exc'" if r["tax_exception"] else ""
         route_cls = "pass" if r["route"] == "AUTO_POST" else "warn"
@@ -2110,19 +2121,21 @@ def _lines_html(lines) -> str:
             sub += f" &middot; <i>{_html_escape(r['capex_basis'])}</i>"
         if r.get("tax_basis"):
             sub += f"<br>tax: <i>{_html_escape(r['tax_basis'])}</i>"
+        item_matches = _html_escape(r.get("item_type_matches", "") or "-")
         trs.append(
             f"<tr{exc}><td>{r['n']}</td><td>{_html_escape(r['description'])}"
             f"<div class='sub'>{sub}</div></td>"
             f"<td class='num'>{_money(r['amount'])}</td><td>{_html_escape(r['capex_opex'] or '-')}</td>"
             f"<td>{_html_escape(r.get('item_type') or '-')}</td>"
+            f"<td style='font-size:12px'>{item_matches}</td>"
             f"<td>{_html_escape(r.get('tax_status') or '-')}</td>"
             f"<td>{_html_escape(r['taxable'])}</td><td class='num'>{_pct(r['expected_tax_rate'])}</td>"
             f"<td class='num'>{_money(r['expected_tax_amount'])}</td><td class='num'>{_money(r.get('charged_tax_alloc'))}</td>"
-            f"<td class='num'>{_money(r.get('tax_delta'))}</td><td class='num'>{r['confidence']:.2f}</td>"
+            f"<td class='num'>{_money(r.get('tax_delta'))}</td><td class='num'>{r.get('extraction_confidence', 0):.2f}</td><td class='num'>{r['confidence']:.2f}</td>"
             f"<td><span class='{route_cls}'>{route}</span></td></tr>"
         )
         if r["tax_exception"] and r["tax_exception_reason"]:
-            trs.append(f"<tr{exc}><td></td><td colspan='12' class='sub'>&#9888; {_html_escape(r['tax_exception_reason'])}</td></tr>")
+            trs.append(f"<tr{exc}><td></td><td colspan='14' class='sub'>&#9888; {_html_escape(r['tax_exception_reason'])}</td></tr>")
     return "<table class='scores'>\n" + "\n".join(trs) + "\n</table>"
 
 
