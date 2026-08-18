@@ -916,18 +916,14 @@ def _num(v):
 
 
 def build_line_results(lines, classifications, taxes, threshold: float, header: dict, ref: dict) -> list:
-    """Merge the per-line extraction + classification + tax into one result per line. RULES-FIRST:
-    when a line's TASK CODE resolves in the governed task-code master, its ``cap_eligible`` flag
-    AUTHORITATIVELY sets CapEx vs OpEx (with asset class + depreciation); the model's guess is only
-    a fallback. Expected tax = matrix rate x line amount when the matrix says taxable. Per-line
-    confidence is the worst of the two judges; the route follows (diagram step 5). Then the invoice's
-    actually-charged tax is allocated across taxable lines so each shows charged-vs-expected + delta."""
-    # Diagram STEP 5 - CAPITALIZATION RULES (logic in code, $2k / $100k thresholds). The capital
-    # ASSET/PROJECT total (cap-eligible, non-period-cost lines) decides capitalization: capitalize
-    # only when it reaches $2,000 (de-minimis expense below), and flag a MAJOR project at $100,000.
+    """Generate ONE OR MORE rows per line item. When a line has multiple plausible semantic matches
+    (score >= 0.5), output a separate row for each possibility so the reviewer can see all options."""
     cap_project_total = 0.0
     for i, ln in enumerate(lines):
         c = classifications[i] if i < len(classifications) else {}
+        sem = c.get("_sem")
+        sem_item = sem.get("item_type") if sem else None
+        item_type_to_check = sem_item or c.get("item_type", "")
         tr = refdata.task_lookup(ref, str(c.get("task_code", "")).strip())
         if tr and tr.get("cap_eligible") and not _PERIOD_COST_RE.search(ln.get("description", "") or ""):
             cap_project_total += _num(ln.get("amount")) or 0.0
@@ -939,15 +935,160 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
         c = classifications[i] if i < len(classifications) else {}
         t = taxes[i] if i < len(taxes) else {}
         amount = _num(ln.get("amount"))
-
-        # --- Diagram STEP 5: CapEx vs OpEx via capitalization rules + the task-code master -------- #
         model_capex = str(c.get("capex_opex", "")).strip()
-        task_code = str(c.get("task_code", "")).strip()
-        task_rec = refdata.task_lookup(ref, task_code)
-        asset_class = c.get("asset_category", "")
-        useful_life = depreciation = None
-        period_cost = bool(_PERIOD_COST_RE.search(ln.get("description", "") or ""))
-        if task_rec is not None:
+        tax_status = str(ln.get("tax_status") or "").strip().upper()
+        marker_taxable = True if tax_status == "T" else (False if tax_status in {"N", "E", "NT"} else None)
+
+        # Get all semantic matches (score >= 0.5)
+        sem_all_items = c.get("_sem_all_items", [])
+        matches_to_output = [(it, score) for it, score in sem_all_items if score >= 0.5]
+
+        # If no high-confidence matches, use LLM pick as fallback
+        if not matches_to_output:
+            sem = c.get("_sem")
+            if sem and sem.get("item_score", 0) >= 0.4:
+                matches_to_output = [(sem.get("item_type"), sem.get("item_score"))]
+            else:
+                llm_item = c.get("item_type", "")
+                if llm_item:
+                    matches_to_output = [(llm_item, 0.0)]
+
+        # Generate output row for each match
+        for match_idx, (item_type_match, item_match_score) in enumerate(matches_to_output):
+            # Look up task code by item type
+            task_rec = refdata.task_lookup_by_item_type(ref, item_type_match)
+            task_code = task_rec.get("code") if task_rec else ""
+            asset_class = task_rec.get("asset_class") if task_rec else ""
+            useful_life = task_rec.get("useful_life_months") if task_rec else None
+            depreciation = task_rec.get("depreciation") if task_rec else None
+
+            # Determine CapEx/OpEx
+            period_cost = bool(_PERIOD_COST_RE.search(ln.get("description", "") or ""))
+            if task_rec and task_rec.get("cap_eligible") and not period_cost:
+                if capitalize_project:
+                    capex_opex = "CapEx"
+                    capex_basis = f"task {task_code} cap-eligible; project ${cap_project_total:,.0f} >= ${int(CAP_THRESHOLD):,}"
+                else:
+                    capex_opex = "OpEx"
+                    capex_basis = f"below ${int(CAP_THRESHOLD):,} capitalization threshold (project ${cap_project_total:,.0f}) - expensed"
+            else:
+                capex_opex = "OpEx"
+                capex_basis = "period cost - expensed" if period_cost else "task not cap-eligible"
+
+            # Tax info
+            taxable = t.get("taxable")
+            rate = t.get("expected_tax_rate")
+            expected = round(rate * amount, 2) if (taxable and rate and amount) else (0.0 if taxable is False else None)
+            tax_exception = bool(t.get("exception"))
+            vendor_tax_conflict = bool(
+                marker_taxable is not None and taxable is not None and marker_taxable != bool(taxable)
+            )
+            tax_exception = tax_exception or vendor_tax_conflict
+            tax_exception_reason = t.get("exception_reason", "")
+            if vendor_tax_conflict:
+                conflict_reason = (
+                    f"Invoice line is marked {tax_status}, but the governed matrix says "
+                    f"{'taxable' if taxable else 'exempt'}; preserve both as evidence and route to review."
+                )
+                tax_exception_reason = "; ".join(filter(None, (tax_exception_reason, conflict_reason)))
+
+            # Dual validation
+            matrix_on = bool(ref.get("taxability"))
+            llm_taxable = c.get("_llm_tax_taxable")
+            tax_dual = None
+            if matrix_on and llm_taxable is not None:
+                if taxable is None:
+                    tax_dual = "ambiguous"
+                elif bool(taxable) == bool(llm_taxable):
+                    tax_dual = "agree"
+                else:
+                    tax_dual = "diverge"
+            tax_divergence = (tax_dual == "diverge")
+
+            conf = min(_confidence(c), _confidence(t))
+            extraction_conf = _confidence(c)
+            capex_conflict = bool(model_capex and model_capex.lower() != capex_opex.lower())
+            state_base_estimate = bool(taxable and t.get("tax_rate_scope") == "state_base_only")
+
+            # Mapping basis shows the semantic confidence for THIS match
+            if len(matches_to_output) > 1:
+                mapping_basis = f"Match {match_idx + 1} of {len(matches_to_output)} (score {item_match_score:.3f})"
+                mapping_conflict = True  # Flag when multiple options exist
+            else:
+                mapping_basis = f"Semantic match (score {item_match_score:.3f})"
+                mapping_conflict = False
+
+            route = ("SME_REVIEW" if (conf < threshold or tax_exception or capex_conflict or tax_divergence or state_base_estimate or len(matches_to_output) > 1)
+                     else "AUTO_POST")
+
+            # Line number with variant suffix if multiple matches
+            line_num = f"{i + 1}.{match_idx + 1}" if len(matches_to_output) > 1 else i + 1
+
+            out.append({
+                "n": line_num,
+                "description": ln.get("description", ""),
+                "quantity": ln.get("quantity", ""),
+                "tax_status": tax_status,
+                "vendor_tax_conflict": vendor_tax_conflict,
+                "amount": amount,
+                "amount_raw": ln.get("amount", ""),
+                "capex_opex": capex_opex,
+                "capex_basis": capex_basis,
+                "capex_conflict": capex_conflict,
+                "extraction_confidence": round(extraction_conf, 3),
+                "mapping_basis": mapping_basis,
+                "mapping_conflict": mapping_conflict,
+                "tax_dual": tax_dual,
+                "tax_divergence": tax_divergence,
+                "llm_tax_taxable": llm_taxable,
+                "llm_tax_reason": c.get("_llm_tax_reason", ""),
+                "cache": c.get("_cache"),
+                "asset_category": asset_class,
+                "task_code": task_code,
+                "useful_life_months": useful_life,
+                "depreciation": depreciation,
+                "suggested_task": c.get("suggested_task", ""),
+                "existing_task_ok": c.get("existing_task_ok"),
+                "class_rationale": c.get("rationale", ""),
+                "item_type": item_type_match,
+                "semantic_match_confidence": round(item_match_score, 3),
+                "taxable": taxable,
+                "tax_verdict": t.get("tax_verdict"),
+                "tax_verdict_label": t.get("tax_verdict_label"),
+                "tax_basis": t.get("tax_basis", ""),
+                "jurisdiction_state": t.get("jurisdiction_state", ""),
+                "expected_tax_rate": rate,
+                "tax_rate_scope": t.get("tax_rate_scope", ""),
+                "state_base_estimate": state_base_estimate,
+                "expected_tax_amount": expected,
+                "tax_exception": tax_exception,
+                "tax_exception_reason": tax_exception_reason,
+                "tax_rationale": t.get("rationale", ""),
+                "confidence": round(conf, 3),
+                "route": route,
+            })
+
+    # Allocate the invoice's charged tax across ALL lines pro-rata by line AMOUNT
+    charged_total = _num(header.get("tax_charged")) or 0.0
+    total_amt_all = sum(r.get("amount", 0) for r in out if r.get("amount"))
+    for r in out:
+        share = (r.get("amount", 0) / total_amt_all) if (total_amt_all > 0) else 0.0
+        alloc = round(charged_total * share, 2)
+        r["charged_tax_alloc"] = alloc
+        expected_tax = r.get("expected_tax_amount")
+        r["tax_delta"] = None if expected_tax is None else round(expected_tax - alloc, 2)
+        # Posting basis
+        capex_opex = r.get("capex_opex", "").lower()
+        if capex_opex == "capex":
+            r["posting_target"] = f"capitalize to asset: {r.get('asset_category') or '(asset)'}"
+        elif capex_opex == "opex":
+            r["posting_target"] = "expense to GL"
+        else:
+            r["posting_target"] = "(unclassified)"
+        r["use_tax_to_allocate"] = (
+            None if r.get("tax_delta") is None else round(max(0.0, r.get("tax_delta")), 2)
+        )
+    return out
             asset_class = task_rec.get("asset_class") or asset_class
             useful_life = task_rec.get("useful_life_months")
             depreciation = task_rec.get("depreciation")
@@ -1015,10 +1156,8 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
 
         conf = min(_confidence(c), _confidence(t))
         extraction_conf = _confidence(c)
-        # Semantic second opinion (validator): the model's pick stays authoritative; the embedder's
-        # deterministic nearest entry either CONFIRMS it or, when it disagrees in a way that changes
-        # the taxability verdict, forces the line to SME review.
-        sem = c.get("_sem")
+        # Semantic second opinion (validator): the semantic match is now the PRIMARY item_type;
+        # we record whether it matches the LLM's choice as a mapping_basis.
         sem_all_items = c.get("_sem_all_items", [])
         llm_item = c.get("item_type", "")
         llm_task = str(c.get("task_code", "")).strip()
@@ -1026,24 +1165,17 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
         item_type_matches = ""
         if sem_all_items:
             item_type_matches = ", ".join(f"{it} ({score})" for it, score in sem_all_items)
-        if sem:
-            sem_item, sem_task = sem.get("item_type"), sem.get("task_code")
-            item_conflict = bool(sem_item and llm_item and sem_item != llm_item)
-            task_conflict = bool(sem_task and llm_task and llm_task != sem_task)
-            mapping_conflict = item_conflict or task_conflict
-            if item_conflict:
-                state = (header.get("state") or "").strip().upper()
-                llm_verdict = refdata.taxability(ref, state, llm_item)[0]
-                sem_verdict = refdata.taxability(ref, state, sem_item)[0]
-                tax_mapping_conflict = bool(
-                    llm_verdict != sem_verdict and not c.get("_reference_override")
-                )
-            agree = "confirmed" if not mapping_conflict else "DISAGREES"
-            mapping_basis = (f"LLM pick, semantic {agree} (index nearest: item {sem_item} "
-                             f"{sem.get('item_score')}, task {sem_task} {sem.get('task_score')})")
-        else:
-            mapping_conflict = False
-            mapping_basis = "LLM pick"
+
+        mapping_basis = f"Semantic match (score {sem_item_score:.3f})" if use_semantic else "LLM pick (semantic score < 0.5)"
+        mapping_conflict = False
+        if use_semantic and sem_item != llm_item:
+            # Semantic match differs from LLM pick - flag for review
+            mapping_conflict = True
+            state = (header.get("state") or "").strip().upper()
+            sem_verdict = refdata.taxability(ref, state, sem_item)[0]
+            llm_verdict = refdata.taxability(ref, state, llm_item)[0]
+            tax_mapping_conflict = bool(sem_verdict != llm_verdict and not c.get("_reference_override"))
+            mapping_basis = f"Semantic match {sem_item} (score {sem_item_score:.3f}) differs from LLM pick {llm_item}"
         state_base_estimate = bool(taxable and t.get("tax_rate_scope") == "state_base_only")
         route = ("SME_REVIEW" if (conf < threshold or tax_exception or capex_conflict
                       or tax_mapping_conflict or tax_divergence or state_base_estimate)
@@ -1075,7 +1207,7 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
             "suggested_task": c.get("suggested_task", ""),
             "existing_task_ok": c.get("existing_task_ok"),
             "class_rationale": c.get("rationale", ""),
-            "item_type": t.get("item_type") or c.get("item_type", ""),
+            "item_type": item_type_for_classification,
             "item_type_matches": item_type_matches,
             "taxable": taxable,
             "tax_verdict": t.get("tax_verdict"),
@@ -1945,7 +2077,7 @@ _CSV_COLUMNS = (
     "n", "description", "quantity", "amount", "tax_status", "vendor_tax_conflict",
     "capex_opex", "capex_basis", "task_code",
     "asset_category", "useful_life_months", "depreciation", "existing_task_ok",
-    "extraction_confidence", "item_type", "item_type_matches", "mapping_basis", "mapping_conflict", "taxable", "tax_verdict",
+    "extraction_confidence", "item_type", "semantic_match_confidence", "mapping_basis", "mapping_conflict", "taxable", "tax_verdict",
     "jurisdiction_state", "expected_tax_rate", "tax_rate_scope",
     "expected_tax_amount", "charged_tax_alloc", "tax_delta", "use_tax_to_allocate", "tax_basis",
     "tax_exception", "tax_exception_reason", "posting_target", "confidence", "route",

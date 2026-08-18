@@ -126,6 +126,17 @@ def task_lookup(data, code):
     return None
 
 
+def task_lookup_by_item_type(data, item_type):
+    """Return the first task-code record that matches the given item_type, or ``None``."""
+    item_type = (item_type or "").strip()
+    if not item_type:
+        return None
+    for t in (data.get("task_codes") or []):
+        if str(t.get("item_type", "")).strip() == item_type:
+            return t
+    return None
+
+
 _FREIGHT_RE = re.compile(
     r"\b(freight|shipping|tracking|skid charge|delivery fee|handling|fuel surcharge|tariff surcharge)\b",
     re.I,
