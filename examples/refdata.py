@@ -5,7 +5,7 @@ Four reference files live in ``examples/reference/`` (illustrative *seed* data �
 tax advice; in production these come from Circle K's tax-dept taxability matrix, Avalara for live
 rates, and the ERP task/PO masters):
 
-  * ``seed-taxability-matrix.json`` — ``matrix[state][item_type] -> "T"|"E"|"A"`` (Taxable / Exempt /
+  * ``seed-taxability-matrix-actual.json`` — ``matrix[state][item_type] -> "T"|"E"|"A"`` (Taxable / Exempt /
     Ambiguous-review) plus ``tax_rates[state]``. Drives step 4 (tax). ``A`` routes to SME by design.
   * ``seed-task-codes.json``       — 50 task codes with ``cap_eligible`` (CapEx vs OpEx), ``asset_class``,
     ``useful_life_months``, ``depreciation``. Drives step 3 (classify).
@@ -32,7 +32,7 @@ from autarch.adapters.filesystem import FileSystemAdapter
 
 _REF_DIR = Path(__file__).resolve().parent / "reference"
 _FILES = {
-    "taxability": "seed-taxability-matrix.json",
+    "taxability": "seed-taxability-matrix-actual.json",
     "task_codes": "seed-task-codes.json",
     "po_records": "seed-po-records.json",
     "history": "seed-history.json",
