@@ -207,5 +207,62 @@
     "model": "maf",
     "state": "MO",
     "vendor": "CBE"
+  },
+  "masonways|CO|double sided amenity unit hooded trash bin 20 x 34 x 47 inner liner 2 paper towel dispensers 2 3 gallon water buckets and 2 squeegees": {
+    "decision": {
+      "_llm_tax_reason": "The primary item (trash bin and accessories) qualifies as tangible personal property, which is taxable in Colorado.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Store Fixtures",
+      "capex_opex": "CapEx",
+      "confidence": 1.0,
+      "existing_task_ok": true,
+      "item_type": "Construction Materials",
+      "rationale": "The description and PO reference confirm this is a double-sided amenity unit with trash bins, towel dispensers, buckets, and squeegees as part of a fixed store furnishing, aligning with TC-6020.",
+      "suggested_task": "TC-6020",
+      "task_code": "TC-6020"
+    },
+    "description": "DOUBLE SIDED AMENITY UNIT- HOODED\nTRASH BIN-20\" X 34\" X 47\"- INNER LINER -\n2 PAPER TOWEL DISPENSERS- 2 - 3\nGALLON WATER BUCKETS AND 2\nSQUEEGEES",
+    "first_seen": "2026-08-18T14:03:24+00:00",
+    "model": "maf",
+    "state": "CO",
+    "vendor": "MASONWAYS"
+  },
+  "masonways|CO|skid charge kristina stern": {
+    "decision": {
+      "_llm_tax_reason": "Skid charges typically constitute taxable tangible personal property when delivered in the state.",
+      "_llm_tax_taxable": true,
+      "asset_category": "Freight and Delivery",
+      "capex_opex": "OpEx",
+      "confidence": 0.9,
+      "existing_task_ok": false,
+      "item_type": "Freight & Delivery",
+      "rationale": "The skid charge is a common delivery-related fee, fitting under Freight & Delivery and aligning with TC-9050.",
+      "suggested_task": "Freight, Shipping, Delivery, Fuel Surcharges and Retail Delivery Fees",
+      "task_code": "TC-9050"
+    },
+    "description": "SKID CHARGE\nKRISTINA STERN",
+    "first_seen": "2026-08-18T14:03:24+00:00",
+    "model": "maf",
+    "state": "CO",
+    "vendor": "MASONWAYS"
+  },
+  "masonways|CO|tracking 545785834b": {
+    "decision": {
+      "_llm_tax_reason": "Tracking charges are generally considered exempt in CO if separately stated.",
+      "_llm_tax_taxable": false,
+      "asset_category": "Freight and Delivery",
+      "capex_opex": "OpEx",
+      "confidence": 0.9,
+      "existing_task_ok": false,
+      "item_type": "Freight & Delivery",
+      "rationale": "The line describes a tracking charge, which is most likely related to shipping or handling. This falls under the Freight & Delivery item type and matches TC-9050.",
+      "suggested_task": "Freight, Shipping, Delivery, Fuel Surcharges and Retail Delivery Fees",
+      "task_code": "TC-9050"
+    },
+    "description": "TRACKING # 545785834B",
+    "first_seen": "2026-08-18T14:03:24+00:00",
+    "model": "maf",
+    "state": "CO",
+    "vendor": "MASONWAYS"
   }
 }
