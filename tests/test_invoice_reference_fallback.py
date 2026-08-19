@@ -151,9 +151,9 @@ def test_dakota_ocr_motor_typo_uses_po_repair_task():
         _reference_data(),
     )
 
-    assert rows[0]["task_code"] == "TC-9010"
-    assert rows[0]["asset_category"] == "Maintenance and Repair"
-    assert rows[0]["item_type"] == "Construction Materials"
+    assert rows[0]["task_code"] == "TC-3020"
+    assert rows[0]["asset_category"] == "CONSTRUCTION CONTRACTS"
+    assert rows[0]["item_type"] == "MATERIAL / PARTS / TOOLS / EQUIPMENT FOR REPAIRING"
     assert rows[0]["_reference_override"] is True
 
 
@@ -165,9 +165,9 @@ def test_installation_keeps_asset_task_but_uses_service_tax_type():
         [{"description": "INSTALL ALARM"}],
     )
 
-    assert rows[0]["task_code"] == "TC-5020"
+    assert rows[0]["task_code"] == "TC-5030"
     assert rows[0]["capex_opex"] == "CapEx"
-    assert rows[0]["item_type"] == "Professional Services"
+    assert rows[0]["item_type"] == "TANGIBLE PERSONAL PROPERTY LABOR: INSTALLATION"
     assert rows[0]["_reference_override"] is True
 
 

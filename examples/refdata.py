@@ -183,29 +183,29 @@ def reference_classifications(data, header, lines) -> list:
         if _FINANCE_RE.search(description):
             code = "TC-9060"
         elif _FREIGHT_RE.search(description):
-            code = "TC-9050"
-        elif _SERVICE_RE.search(description):
-            code = "TC-9030"
+            code = "TC-7010"
         elif _CONSUMABLE_RE.search(description):
-            code = "TC-9010"
-            item_type_override = "Construction Materials"
+            code = "TC-9020"
         elif _FIXTURE_RE.search(description):
-            code = "TC-6020"
+            code = "TC-5010"
         elif _MATERIAL_RE.search(description):
             code = primary_code
-            item_type_override = "Construction Materials"
             override = True
         elif _INSTALL_RE.search(description):
-            code = primary_code
+            code = "TC-5030"
+        elif _SERVICE_RE.search(description) and primary_code in {
+            "TC-3010", "TC-3020", "TC-5020"
+        }:
+            code = "TC-5040"
+        elif _SERVICE_RE.search(description):
+            code = "TC-9030"
         elif _RENTAL_CHARGE_RE.search(description):
             code = primary_code
         else:
             code = primary_code
             override = False
         task = task_lookup(data, code)
-        item_type = (item_type_override or
-                 ("Professional Services" if _INSTALL_RE.search(description)
-                  else str((task or {}).get("item_type") or "").strip()))
+        item_type = item_type_override or str((task or {}).get("item_type") or "").strip()
         if task is None or not item_type:
             out.append({})
             continue
