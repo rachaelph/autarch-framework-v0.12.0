@@ -70,9 +70,6 @@ matrix[service_state][item_type]
 
 The matrix codes mean:
 
-- `T`: Taxable; include the line in the taxable base.
-- `E`: Exempt; exclude the line from the taxable base.
-- `A`: Ambiguous; require human review.
 
 Get the available state rate with:
 
@@ -92,15 +89,6 @@ The seed matrix contains base state rates only. A complete determination may als
 
 Route the invoice to human review when any of these conditions applies:
 
-- The printed PO has no reliable PO-record match.
-- An alternate identifier matches but invoice facts contradict the candidate PO.
-- The PO task code does not agree with the invoice work.
-- A line cannot be classified reliably.
-- The matrix returns `A`.
-- The required local jurisdiction rate is unavailable.
-- The invoice contains mixed taxable and exempt lines that cannot be separated.
-- Expected and charged tax differ beyond the configured tolerance.
-- Grounding or confidence checks fail.
 
 ## CBE Invoice Example
 
