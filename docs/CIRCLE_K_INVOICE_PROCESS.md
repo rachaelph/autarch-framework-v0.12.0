@@ -385,8 +385,14 @@ For a `HUMAN_REVIEW` result:
 ## Operational Limitations
 
 - Seed PO and task records are incomplete and must be replaced by approved ERP data.
+- Records marked `invoice_observed` corroborate invoice text only. They cannot validate a PO/task,
+  supply deterministic classifications, or permit automatic posting.
+- CapEx/OpEx, task, and asset outputs remain advisory until an independent ERP PO/project record is
+  matched. A printed PO takes precedence over invoice-number aliases and similar-looking identifiers.
 - The matrix may not contain every jurisdiction-specific exception.
 - State base rates are insufficient where city, county, district, ZIP, or special rates apply.
+- Per-line expected tax is future-state advisory analysis. The current operational posting process is
+  invoice-level, so line results require reviewer validation and are not direct posting instructions.
 - Semantic similarity is supporting evidence and may produce multiple candidates.
 - Historical records are precedent, not tax authority.
 - Human approval remains required for ambiguity, contradictory evidence, or missing governed data.

@@ -110,6 +110,7 @@ REQUIRED_FIELDS = ("vendor_name", "invoice_number", "total_amount", "description
 
 DEFAULT_MODEL = "azure:gpt-5.4"
 DEFAULT_THRESHOLD = 0.85  # "anything below ~85% confidence routes to a human"
+SOUNDNESS_THRESHOLD = 0.85
 
 # Diagram step 5 - CAPITALIZATION RULES (logic in code, $2k / $100k thresholds):
 CAP_THRESHOLD = 2000.0             # capitalize an asset/project at/above this; below is a de-minimis expense
@@ -624,6 +625,20 @@ def extract_invoice_fields(provider, text) -> dict:
     return {k: str(data.get(k, "")).strip() for k in INVOICE_FIELDS}
 
 
+def extract_labeled_po_number(text: str) -> str:
+    """Extract a PO only from an explicit customer work-order/PO label."""
+    normalized = re.sub(r"[ \t]+", " ", text or "")
+    patterns = (
+        r"CUSTOMER\s+W\.?O\.?\s*/\s*P\.?O\.?#?\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{3,})",
+        r"CUSTOMER\s+(?:PURCHASE\s+ORDER|P\.?O\.?)\s*(?:NO\.?|NUMBER|#)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{3,})",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, normalized, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
 def classify_asset(provider, fields) -> dict:
     prompt = (
         "STEP: ASSET_CATEGORY\n"
@@ -798,7 +813,8 @@ def classify_lines(provider, header, lines, ref) -> list:
                   "Computer-related items map to COMPUTER categories. Food-related items map to EQUIPMENT or FOOD categories. "
                   if itypes else "")
     po_context = ""
-    if po_rec is not None and po_how in {"id", "id+vendor"}:
+    if (po_rec is not None and po_how in {"id", "id+vendor"}
+            and po_rec.get("status") != "invoice_observed"):
         po_context = ("\n\nMATCHED PO REFERENCE (use as context; invoice facts still control):\n"
                       + json.dumps({
                           "po_number": po_rec.get("po_number"),
@@ -918,6 +934,12 @@ def _num(v):
 def build_line_results(lines, classifications, taxes, threshold: float, header: dict, ref: dict) -> list:
     """Generate ONE OR MORE rows per line item. When a line has multiple plausible semantic matches
     (score >= 0.5), output a separate row for each possibility so the reviewer can see all options."""
+    po_rec, _, po_how = refdata.match_po(
+        ref, header.get("invoice_number", ""), header.get("po_number", ""), header.get("vendor_name", "")
+    )
+    po_independent = bool(
+        po_rec and po_how in {"id", "id+vendor"} and po_rec.get("status") != "invoice_observed"
+    )
     cap_project_total = 0.0
     for i, ln in enumerate(lines):
         c = classifications[i] if i < len(classifications) else {}
@@ -941,7 +963,10 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
 
         # Get all semantic matches (score >= 0.5)
         sem_all_items = c.get("_sem_all_items", [])
-        matches_to_output = [(it, score) for it, score in sem_all_items if score >= 0.5]
+        if c.get("_reference_override") and c.get("item_type"):
+            matches_to_output = [(c["item_type"], 1.0)]
+        else:
+            matches_to_output = [(it, score) for it, score in sem_all_items if score >= 0.5]
 
         # If no high-confidence matches, use LLM pick as fallback
         if not matches_to_output:
@@ -974,6 +999,8 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
             else:
                 capex_opex = "OpEx"
                 capex_basis = "period cost - expensed" if period_cost else "task not cap-eligible"
+            if not po_independent:
+                capex_basis += "; advisory only - PO/task not independently validated"
 
             # Tax info
             taxable = t.get("taxable")
@@ -1016,9 +1043,18 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
                 mapping_conflict = True  # Flag when multiple options exist
             else:
                 mapping_basis = f"Semantic match (score {item_match_score:.3f})"
-                mapping_conflict = False
+                semantic_item = (c.get("_sem") or {}).get("item_type")
+                mapping_conflict = bool(semantic_item and semantic_item != item_type_match)
+            selected_verdict = refdata.taxability(
+                ref, header.get("state", ""), item_type_match
+            )[0]
+            semantic_item = (c.get("_sem") or {}).get("item_type")
+            semantic_verdict = refdata.taxability(
+                ref, header.get("state", ""), semantic_item
+            )[0] if semantic_item else selected_verdict
+            tax_mapping_conflict = bool(mapping_conflict and selected_verdict != semantic_verdict)
 
-            route = ("SME_REVIEW" if (conf < threshold or tax_exception or capex_conflict or tax_divergence or state_base_estimate or len(matches_to_output) > 1)
+            route = ("SME_REVIEW" if (not po_independent or conf < threshold or tax_exception or capex_conflict or tax_divergence or tax_mapping_conflict or state_base_estimate or len(matches_to_output) > 1)
                      else "AUTO_POST")
 
             # Line number with variant suffix if multiple matches
@@ -1034,10 +1070,13 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
                 "amount_raw": ln.get("amount", ""),
                 "capex_opex": capex_opex,
                 "capex_basis": capex_basis,
+                "capex_provisional": not po_independent,
+                "tax_analysis_scope": "line_level_advisory",
                 "capex_conflict": capex_conflict,
                 "extraction_confidence": round(extraction_conf, 3),
                 "mapping_basis": mapping_basis,
                 "mapping_conflict": mapping_conflict,
+                "tax_mapping_conflict": tax_mapping_conflict,
                 "tax_dual": tax_dual,
                 "tax_divergence": tax_divergence,
                 "llm_tax_taxable": llm_taxable,
@@ -1080,9 +1119,9 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
         # Posting basis
         capex_opex = r.get("capex_opex", "").lower()
         if capex_opex == "capex":
-            r["posting_target"] = f"capitalize to asset: {r.get('asset_category') or '(asset)'}"
+            r["posting_target"] = f"proposed capitalization: {r.get('asset_category') or '(asset)'}"
         elif capex_opex == "opex":
-            r["posting_target"] = "expense to GL"
+            r["posting_target"] = "proposed expense to GL"
         else:
             r["posting_target"] = "(unclassified)"
         r["use_tax_to_allocate"] = (
@@ -1138,6 +1177,7 @@ def summarize_lines(line_results, header) -> dict:
     if tax_recon_exception and not n_ambiguous:
         n_exc += 1
     n_sme = sum(1 for r in line_results if r["route"] == "SME_REVIEW")
+    capex_provisional = any(r.get("capex_provisional") for r in line_results)
     return {
         "capex_total": round(capex_total, 2),
         "opex_total": round(opex_total, 2),
@@ -1154,6 +1194,8 @@ def summarize_lines(line_results, header) -> dict:
         "n_tax_divergence": n_tax_divergence,
         "n_tax_mapping_conflict": n_tax_mapping_conflict,
         "n_state_base_rates": n_state_base_rates,
+        "capex_provisional": capex_provisional,
+        "tax_analysis_scope": "line_level_advisory",
         "tax_tolerance": round(tol, 2),
         "tax_shortfall": bool(use_tax_owed > 0.01),
         "n_lines": len(line_results),
@@ -1189,7 +1231,7 @@ def evaluate_quality(provider, fields: dict, line_results: list, rollup: dict, t
         required=REQUIRED_FIELDS,
         judges={
             "accuracy": RubricJudge(provider, threshold=0.6, name="accuracy", rubric=_ACCURACY_RUBRIC),
-            "soundness": RubricJudge(provider, threshold=0.6, name="soundness", rubric=_SOUNDNESS_RUBRIC),
+            "soundness": RubricJudge(provider, threshold=SOUNDNESS_THRESHOLD, name="soundness", rubric=_SOUNDNESS_RUBRIC),
         },
         extra={
             "format": AssertionEvaluator([
@@ -1397,6 +1439,9 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
     fields = extract_invoice_fields(provider, text)
     for k, v in di_header.items():
         fields[k] = str(v).strip()
+    labeled_po = extract_labeled_po_number(text)
+    if labeled_po:
+        fields["po_number"] = labeled_po
 
     source_warnings = detect_source_warnings(text)
     state_source = di.get("state_source", "")
@@ -1418,6 +1463,8 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
     fields, lines, extraction_issues = normalize_extraction(
         fields, structured_lines, model_lines, authoritative_header=di_header if di_header else None
     )
+    if labeled_po:
+        extraction_issues.append("used_explicit_customer_po_label")
     classifications = classify_lines(provider, fields, lines, ref) if lines else []
 
     # Diagram STEP 8 - INDEPENDENT LLM tax assessment. The tax ENGINE (matrix, below) is the rules
@@ -1712,7 +1759,10 @@ def print_report(rep: dict) -> None:
     print(f"  capitalization  : project {_money(roll['capex_total'])} vs ${int(roll.get('cap_threshold', CAP_THRESHOLD)):,} "
           f"threshold -> {'CAPITALIZE' if roll['capex_total'] >= roll.get('cap_threshold', CAP_THRESHOLD) else 'expense (de minimis)'}"
           + ("   ** MAJOR PROJECT (AFE/board)" if roll.get('major_project') else ""))
-    print(f"  expected tax    : {_money(roll['expected_tax_total'])}   vs charged {_money(roll['tax_charged'])}")
+    if roll.get("capex_provisional"):
+        print("  ** CapEx/OpEx and task results are advisory until the PO/project task is independently validated.")
+    print(f"  advisory line tax: {_money(roll['expected_tax_total'])}   vs charged {_money(roll['tax_charged'])}")
+    print("  ** Current posting is invoice-level; line tax is analysis for reviewer validation, not a posting instruction.")
     status = roll.get("tax_status", "balanced")
     unresolved = roll.get("tax_unresolved")
     n_div = roll.get("n_tax_divergence", 0)
@@ -1894,6 +1944,8 @@ def print_report(rep: dict) -> None:
             reasons.append(f"{len(rep['source_warnings'])} source validation warning(s)")
         if (rep.get("po") or {}).get("discrepancies"):
             reasons.append(f"{len((rep['po'])['discrepancies'])} PO discrepancy(ies)")
+        if not (rep.get("po") or {}).get("independent"):
+            reasons.append("PO/project task not independently validated")
         if conf["overall"] < AUTOPOST_FLAG_THRESHOLD:
             reasons.append(f"worst-line confidence {conf['overall']:.2f} < {AUTOPOST_FLAG_THRESHOLD:.2f}")
         if not rep["grounding"]["all_grounded"]:
@@ -1915,12 +1967,12 @@ def _wrap(s, width):
 # Per-line CSV columns for downstream posting / SME triage.
 _CSV_COLUMNS = (
     "n", "description", "quantity", "amount", "tax_status", "vendor_tax_conflict",
-    "capex_opex", "capex_basis", "task_code",
+    "capex_opex", "capex_basis", "capex_provisional", "task_code",
     "asset_category", "useful_life_months", "depreciation", "existing_task_ok",
     "extraction_confidence", "item_type", "semantic_match_confidence", "mapping_basis", "mapping_conflict", "taxable", "tax_verdict",
     "jurisdiction_state", "expected_tax_rate", "tax_rate_scope",
     "expected_tax_amount", "charged_tax_alloc", "tax_delta", "use_tax_to_allocate", "tax_basis",
-    "tax_exception", "tax_exception_reason", "posting_target", "confidence", "route",
+    "tax_exception", "tax_exception_reason", "tax_analysis_scope", "posting_target", "confidence", "route",
     # Diagram step 10 - the invoice-level confidence gate. Blank on line rows (the tier is decided
     # once for the whole invoice); carries AUTO_APPROVE / AUTO_POST_FLAGGED / HUMAN_REVIEW on ROLLUP.
     "routing_tier",
@@ -2162,11 +2214,14 @@ def render_report_html(rep: dict, meta: dict) -> str:
         _lines_html(rep["lines"]) if rep["lines"] else "<p>(no line items extracted)</p>",
         "<h2>Invoice rollup</h2><table class='kv'>",
         f"<tr><th>CapEx / OpEx</th><td>{_money(roll['capex_total'])} / {_money(roll['opex_total'])}</td></tr>",
-        f"<tr><th>expected vs charged tax</th><td>{'unresolved' if roll['expected_tax_total'] is None else _money(roll['expected_tax_total'])} vs {_money(roll['tax_charged'])}</td></tr>",
+        f"<tr><th>advisory line tax vs charged</th><td>{'unresolved' if roll['expected_tax_total'] is None else _money(roll['expected_tax_total'])} vs {_money(roll['tax_charged'])}</td></tr>",
+        "<tr><th>posting scope</th><td>Current process posts tax at invoice level. Line-level tax is advisory reviewer analysis, not a posting instruction.</td></tr>",
         f"<tr><th>tax reconciliation</th><td>{_tax_recon_html(roll)}</td></tr>",
         f"<tr><th>lines / exceptions / SME</th><td>{roll['n_lines']} / {roll['n_exceptions']} / {roll['n_sme']}</td></tr>",
         "</table>",
     ]
+    if roll.get("capex_provisional"):
+        p.append("<p class='warn'>CapEx/OpEx, task, and asset results are provisional until the PO/project task is independently validated.</p>")
     warnings = rep.get("source_warnings") or []
     if warnings:
         p.append("<h2>Source validation warnings</h2><ul>")

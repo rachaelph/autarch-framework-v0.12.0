@@ -171,7 +171,8 @@ def reference_classifications(data, header, lines) -> list:
         po_number=header.get("po_number", ""),
         vendor_name=header.get("vendor_name", ""),
     )
-    if rec is None or how not in {"id", "id+vendor"}:
+    if (rec is None or how not in {"id", "id+vendor"}
+            or rec.get("status") == "invoice_observed"):
         return [{} for _ in lines]
 
     primary_code = str(rec.get("task_code") or "").strip()
@@ -242,11 +243,15 @@ def match_po(data, invoice_number="", po_number="", vendor_name="", min_score=0.
     (incl. ``vendor_aliases``). Returns ``(record, score, how)`` or ``(None, score, how)`` below
     ``min_score``. ``how`` describes which signals matched (id / vendor / id+vendor)."""
     records = data.get("po_records") or []
-    ids = [s for s in (str(po_number).strip(), str(invoice_number).strip()) if s]
+    printed_po = str(po_number).strip()
+    ids = [printed_po] if printed_po else [str(invoice_number).strip()]
+    ids = [value for value in ids if value]
     best, best_score, how = None, 0.0, "none"
     for rec in records:
         rec_ids = [str(rec.get("po_number", ""))] + [str(x) for x in (rec.get("alt_po_numbers") or [])]
         id_score = max((_sim(k, rid) for k in ids for rid in rec_ids), default=0.0)
+        if printed_po and id_score < 0.85:
+            id_score = 0.0
         names = [str(rec.get("vendor_name", ""))] + [str(x) for x in (rec.get("vendor_aliases") or [])]
         v_score = max((_sim(vendor_name, n) for n in names), default=0.0) if vendor_name else 0.0
         # weight ids heavily; vendor is a corroborating signal
@@ -262,7 +267,7 @@ def match_po(data, invoice_number="", po_number="", vendor_name="", min_score=0.
 def po_discrepancies(rec, header, line_results):
     """Compare a matched PO record against the extracted invoice header + line classifications;
     return a list of human-readable discrepancy strings (empty when everything lines up)."""
-    if not rec:
+    if not rec or rec.get("status") == "invoice_observed":
         return []
     out = []
     inv_state = (header.get("state") or "").strip().upper()

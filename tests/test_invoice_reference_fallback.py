@@ -88,6 +88,39 @@ def test_reference_classifications_do_not_guess_without_po_match():
     ) == [{}]
 
 
+def test_reference_classifications_do_not_trust_invoice_observed_po():
+    data = _reference_data()
+
+    rows = refdata.reference_classifications(
+        data,
+        {"invoice_number": "108007", "po_number": "FWKD3152143", "vendor_name": "Fox Glass"},
+        [{"description": "3-0 x 7-0 Steel door"}],
+    )
+
+    assert rows == [{}]
+
+
+def test_explicit_customer_po_label_wins_over_job_number():
+    text = """
+    Job No. FWKD3152143
+    CUSTOMER W.O./P.O.# FUKT3152KJ
+    Invoice No. 108007
+    """
+
+    assert extract_invoice.extract_labeled_po_number(text) == "FUKT3152KJ"
+
+
+def test_printed_po_mismatch_cannot_fall_back_to_invoice_number():
+    record, _, _ = refdata.match_po(
+        _reference_data(),
+        invoice_number="108007",
+        po_number="FUKT3152KJ",
+        vendor_name="FOX GLASS ORLANDO, INC.",
+    )
+
+    assert record is None
+
+
 def test_classify_lines_fills_empty_model_response_from_reference_data():
     class EmptyProvider:
         def complete(self, prompt, system=None):
@@ -128,7 +161,7 @@ def test_classify_lines_keeps_task_item_type_consistent():
     assert rows[0]["item_type"] == "Construction Materials"
 
 
-def test_dakota_ocr_motor_typo_uses_po_repair_task():
+def test_invoice_observed_dakota_record_does_not_override_model():
     class RefrigerationProvider:
         def complete(self, prompt, system=None):
             return json.dumps({"lines": [{
@@ -151,10 +184,10 @@ def test_dakota_ocr_motor_typo_uses_po_repair_task():
         _reference_data(),
     )
 
-    assert rows[0]["task_code"] == "TC-3020"
-    assert rows[0]["asset_category"] == "CONSTRUCTION CONTRACTS"
-    assert rows[0]["item_type"] == "MATERIAL / PARTS / TOOLS / EQUIPMENT FOR REPAIRING"
-    assert rows[0]["_reference_override"] is True
+    assert rows[0]["task_code"] == "TC-1060"
+    assert rows[0]["asset_category"] == "Refrigeration Equipment"
+    assert rows[0]["item_type"] == "HVAC & Mechanical"
+    assert rows[0].get("_reference_override") is not True
 
 
 def test_installation_keeps_asset_task_but_uses_service_tax_type():
@@ -171,7 +204,7 @@ def test_installation_keeps_asset_task_but_uses_service_tax_type():
     assert rows[0]["_reference_override"] is True
 
 
-def test_loris_invoice_descriptions_use_deterministic_po_overrides():
+def test_loris_invoice_observed_records_do_not_supply_po_overrides():
     data = _reference_data()
     cases = [
         (
@@ -197,7 +230,7 @@ def test_loris_invoice_descriptions_use_deterministic_po_overrides():
         rows = refdata.reference_classifications(
             data, header, [{"description": description} for description in descriptions]
         )
-        assert [(row["task_code"], row["item_type"]) for row in rows] == expected
+        assert rows == [{} for _ in expected]
 
 
 def test_normalize_extraction_rejects_subtotal_as_tax_and_prefers_reconciled_lines():
@@ -442,7 +475,9 @@ def test_governed_description_override_is_not_blocked_by_semantic_neighbor():
 
     assert rows[0]["mapping_conflict"] is True
     assert rows[0]["tax_exception"] is False
-    assert rows[0]["route"] == "AUTO_POST"
+    assert rows[0]["capex_provisional"] is True
+    assert "advisory only" in rows[0]["capex_basis"]
+    assert rows[0]["route"] == "SME_REVIEW"
 
 
 def test_grounding_accepts_equivalent_date_format_only():
