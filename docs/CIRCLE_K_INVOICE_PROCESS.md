@@ -393,6 +393,15 @@ For a `HUMAN_REVIEW` result:
 - State base rates are insufficient where city, county, district, ZIP, or special rates apply.
 - Per-line expected tax is future-state advisory analysis. The current operational posting process is
   invoice-level, so line results require reviewer validation and are not direct posting instructions.
+- Reports keep extraction, classification, semantic-validator, and tax-rule confidence separate. The
+  decision confidence is the weakest applicable dimension; unavailable semantic evidence is shown as
+  `n/a`, not as a misleading zero.
+- Monetary citations require both the expected field label and an equivalent amount. When that
+  evidence is absent, the report says `UNVERIFIED` instead of citing a nearby number.
+- Processed line amounts must reconcile to the invoice subtotal or total within 2%. A partial line set
+  is identified as incomplete and blocks posting.
+- Expected tax is suppressed when shipping/service jurisdiction is absent or when address evidence
+  contains conflicting states. These cases are hard exceptions, not rate estimates.
 - Semantic similarity is supporting evidence and may produce multiple candidates.
 - Historical records are precedent, not tax authority.
 - Human approval remains required for ambiguity, contradictory evidence, or missing governed data.

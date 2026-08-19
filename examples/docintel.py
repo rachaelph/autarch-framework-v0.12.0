@@ -56,6 +56,19 @@ def _state_from_address(field):
     return (m.group(1) if m else ""), conf
 
 
+def _states_from_address(field):
+    """Return every structured or printed state candidate on an address field."""
+    if field is None:
+        return []
+    states = []
+    addr = getattr(field, "value_address", None)
+    if addr is not None and getattr(addr, "state", None):
+        states.append(str(addr.state).strip().upper())
+    content = getattr(field, "content", "") or ""
+    states.extend(re.findall(r"\b([A-Z]{2})\s+\d{5}(?:-\d{4})?\b", content.upper()))
+    return list(dict.fromkeys(state for state in states if state))
+
+
 def analyze_invoice(pdf_path, endpoint, tenant_id=None, api_key=None):
     """Analyze the invoice PDF with DI ``prebuilt-invoice``. Returns a dict:
     ``{header, confidence, lines, content, n_pages, state_source}`` on success, ``{"error": ...}`` on
@@ -124,7 +137,11 @@ def analyze_invoice(pdf_path, endpoint, tenant_id=None, api_key=None):
     # Governing STATE from the SHIP-TO / service address, never bill-to/customer address.
     # CustomerAddress is often the billed customer and cannot establish tax jurisdiction.
     state_source = ""
+    state_candidates = {}
     for akey in ("ShippingAddress", "ServiceAddress"):
+        candidates = _states_from_address(fields.get(akey))
+        if candidates:
+            state_candidates[akey] = candidates
         st, c = _state_from_address(fields.get(akey))
         if st:
             header["state"] = st
@@ -144,11 +161,19 @@ def analyze_invoice(pdf_path, endpoint, tenant_id=None, api_key=None):
 
         desc = cell("Description")
         if desc and str(desc).strip():
+            cell_confidences = [
+                getattr(obj.get(key), "confidence", None)
+                for key in ("Description", "Quantity", "UnitPrice", "Amount")
+                if obj.get(key) is not None
+            ]
             lines.append({
                 "description": str(desc).strip(),
                 "quantity": _num(cell("Quantity")),
                 "unit_price": _num(cell("UnitPrice")),
                 "amount": _num(cell("Amount")),
+                "extraction_confidence": round(min(
+                    float(value) for value in cell_confidences if value is not None
+                ), 3) if any(value is not None for value in cell_confidences) else None,
             })
 
     return {
@@ -158,4 +183,5 @@ def analyze_invoice(pdf_path, endpoint, tenant_id=None, api_key=None):
         "content": result.content or "",
         "n_pages": len(result.pages or []),
         "state_source": state_source,
+        "state_candidates": state_candidates,
     }

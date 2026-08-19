@@ -387,10 +387,22 @@ _ITEM_TYPE_HINTS = {
     "STORAGE SERVICES": "storage services warehousing document storage",
     "SUPPLIES-OFFICE PAPER, PENS, ETC.": "office supplies paper pens pencils stationery",
     "SUPPLIES-STORE REGISTER TAPE, PENS, ETC.": "store supplies register tape ink ribbons",
-    "TANGIBLE PERSONAL PROPERTY ITEMS REMAIN TANGIBLE RACK, REFRIGERATOR, STORE EQUIPMENT ETC.": "tangible personal property rack refrigerator store equipment",
+    "TANGIBLE PERSONAL PROPERTY ITEMS REMAIN TANGIBLE RACK, REFRIGERATOR, STORE EQUIPMENT ETC.": "tangible personal property rack refrigerator store equipment amenity unit trash bin dispenser station",
     "TANGIBLE PERSONAL PROPERTY LABOR: INSTALLATION": "tangible personal property installation labor",
     "TANGIBLE PERSONAL PROPERTY LABOR: REPAIRS/ RESTORE/ SERVICING": "tangible personal property repair restoration servicing labor",
 }
+
+_AMENITY_UNIT_ITEM_TYPE = (
+    "TANGIBLE PERSONAL PROPERTY ITEMS REMAIN TANGIBLE RACK, REFRIGERATOR, STORE EQUIPMENT ETC."
+)
+
+
+def deterministic_item_type(line_desc: str) -> str:
+    """Return a high-precision item type for descriptions that embeddings commonly confuse."""
+    description = str(line_desc or "")
+    if re.search(r"\b(?:double[- ]sided\s+)?amenity\s+unit\b", description, re.IGNORECASE):
+        return _AMENITY_UNIT_ITEM_TYPE
+    return ""
 
 
 def build_semantic_index(data, embedder):
@@ -424,10 +436,11 @@ def map_line_semantic(index, line_desc, embedder):
             s = cosine(v, tv)
             if s > best_ts:
                 best_ts, best_t = s, rec
-        best_i, best_is = None, -1.0
+        deterministic_item = deterministic_item_type(line_desc)
+        best_i, best_is = (deterministic_item, 1.0) if deterministic_item else (None, -1.0)
         for it, iv in index["items"]:
             s = cosine(v, iv)
-            if s > best_is:
+            if s > best_is and not deterministic_item:
                 best_is, best_i = s, it
         if best_t is None or best_i is None:
             return None
@@ -442,6 +455,9 @@ def map_line_all_item_types(index, line_desc, embedder, min_score=0.4, limit=5):
     ``(item_type, score)`` tuples for item_types scoring >= min_score, up to limit matches."""
     if not index or not line_desc:
         return []
+    deterministic_item = deterministic_item_type(line_desc)
+    if deterministic_item:
+        return [(deterministic_item, 1.0)]
     try:
         from autarch.intelligence.embedding import cosine
         v = embedder.embed(str(line_desc))

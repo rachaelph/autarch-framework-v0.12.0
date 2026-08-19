@@ -265,6 +265,45 @@ def test_normalize_extraction_enriches_di_lines_with_printed_tax_status():
     assert lines[0]["tax_status"] == "N"
 
 
+def test_normalize_extraction_does_not_replace_more_complete_di_scope():
+    header = {"total_amount": "300.00", "tax_charged": ""}
+    di_lines = [
+        {"description": "Material", "amount": "100.00"},
+        {"description": "Hardware", "amount": "100.00"},
+        {"description": "Labor", "amount": "50.00"},
+        {"description": "Freight", "amount": "25.00"},
+    ]
+    model_lines = [
+        {"description": "Labor", "amount": "150.00"},
+        {"description": "Trip", "amount": "150.00"},
+    ]
+
+    _, lines, issues = extract_invoice.normalize_extraction(header, di_lines, model_lines)
+
+    assert len(lines) == 4
+    assert "retained_more_complete_di_lines" in issues
+
+
+def test_line_results_separate_confidence_dimensions():
+    data = _reference_data()
+    lines = [{"description": "Equipment", "amount": "100.00", "extraction_confidence": 0.72}]
+    classifications = [{
+        "capex_opex": "OpEx", "asset_category": "Equipment", "item_type": "IT & Electronics",
+        "task_code": "TC-5030", "confidence": 0.91,
+    }]
+    taxes = extract_invoice.apply_tax_matrix({"state": "OH"}, classifications, data)
+
+    rows = extract_invoice.build_line_results(
+        lines, classifications, taxes, 0.85,
+        {"state": "OH", "tax_charged": "", "po_number": "UNKNOWN"}, data,
+    )
+
+    assert rows[0]["extraction_confidence"] == 0.72
+    assert rows[0]["classification_confidence"] == 0.91
+    assert rows[0]["tax_rule_confidence"] == 0.97
+    assert rows[0]["semantic_match_confidence"] is None
+
+
 def test_normalize_extraction_clears_model_tax_absent_from_authoritative_header():
     header = {"total_amount": "267.15", "tax_charged": "54.87"}
 
@@ -448,6 +487,77 @@ def test_state_base_only_tax_estimate_cannot_auto_post():
     assert rows[0]["tax_rate_scope"] == "state_base_only"
     assert rows[0]["state_base_estimate"] is True
     assert rows[0]["route"] == "SME_REVIEW"
+
+
+def test_unconfirmed_jurisdiction_suppresses_expected_tax():
+    data = _reference_data()
+    classifications = [{
+        "item_type": "IT & Electronics", "task_code": "TC-5030", "confidence": 0.95,
+    }]
+    header = {
+        "state": "OH", "_jurisdiction_supported": False,
+        "_jurisdiction_reason": "No shipping/service address establishes jurisdiction.",
+    }
+
+    taxes = extract_invoice.apply_tax_matrix(header, classifications, data)
+    rows = extract_invoice.build_line_results(
+        [{"description": "Card reader", "amount": "100.00"}], classifications, taxes, 0.85,
+        header, data,
+    )
+    rollup = extract_invoice.summarize_lines(rows, header)
+
+    assert rows[0]["expected_tax_rate"] is None
+    assert rows[0]["expected_tax_amount"] is None
+    assert rows[0]["tax_rate_scope"] == "unsupported"
+    assert rows[0]["route"] == "SME_REVIEW"
+    assert rollup["expected_tax_total"] is None
+    assert rollup["tax_status"] == "unresolved"
+
+
+def test_conflicting_service_address_states_are_unsupported():
+    supported, reason, states = extract_invoice.assess_jurisdiction({
+        "state_source": "ServiceAddress",
+        "state_candidates": {"ServiceAddress": ["OH", "KY"]},
+    })
+
+    assert supported is False
+    assert states == {"OH", "KY"}
+    assert "Expected tax is unsupported" in reason
+
+
+def test_rollup_flags_partial_invoice_amount_scope():
+    rows = [
+        {"n": 1, "amount": 400.0, "capex_opex": "OpEx", "tax_verdict": "E",
+         "expected_tax_amount": 0.0, "taxable": False, "tax_exception": False,
+         "route": "AUTO_POST", "capex_provisional": False},
+        {"n": 2, "amount": 100.0, "capex_opex": "OpEx", "tax_verdict": "E",
+         "expected_tax_amount": 0.0, "taxable": False, "tax_exception": False,
+         "route": "AUTO_POST", "capex_provisional": False},
+    ]
+
+    rollup = extract_invoice.summarize_lines(rows, {"total_amount": "1000.00", "tax_charged": "0"})
+
+    assert rollup["processed_line_count"] == 2
+    assert rollup["processed_amount"] == 500.0
+    assert rollup["amount_coverage"] == 0.5
+    assert rollup["scope_complete"] is False
+
+
+def test_amenity_unit_maps_to_tangible_store_equipment():
+    expected = "TANGIBLE PERSONAL PROPERTY ITEMS REMAIN TANGIBLE RACK, REFRIGERATOR, STORE EQUIPMENT ETC."
+
+    assert refdata.deterministic_item_type("DOUBLE-SIDED AMENITY UNIT") == expected
+    assert refdata.deterministic_item_type("Paper towels and utensils") == ""
+
+
+def test_numeric_field_citation_requires_matching_label_and_amount():
+    text = "Completed 6/5/2024\nSubtotal 2,446.77\nSales Tax 80.00\nInvoice Total $2,526.77"
+
+    total = extract_invoice._numeric_field_citation(text, "total_amount", "2526.77")
+    zero_tax = extract_invoice._numeric_field_citation(text, "tax_charged", "0.00")
+
+    assert total["quote"] == "Invoice Total $2,526.77"
+    assert zero_tax is None
 
 
 def test_governed_description_override_is_not_blocked_by_semantic_neighbor():
