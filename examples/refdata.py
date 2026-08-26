@@ -415,7 +415,7 @@ def build_semantic_index(data, embedder):
             tasks.append((t, embedder.embed(text)))
         itypes = []
         for it in item_types(data):
-            itypes.append((it, embedder.embed(f"{it} {_ITEM_TYPE_HINTS.get(it, '')}")))
+            itypes.append((it, embedder.embed(it)))
         if not tasks or not itypes:
             return None
         return {"tasks": tasks, "items": itypes}
@@ -436,28 +436,24 @@ def map_line_semantic(index, line_desc, embedder):
             s = cosine(v, tv)
             if s > best_ts:
                 best_ts, best_t = s, rec
-        deterministic_item = deterministic_item_type(line_desc)
-        best_i, best_is = (deterministic_item, 1.0) if deterministic_item else (None, -1.0)
+        best_i, best_is = None, -1.0
         for it, iv in index["items"]:
             s = cosine(v, iv)
-            if s > best_is and not deterministic_item:
+            if s > best_is:
                 best_is, best_i = s, it
         if best_t is None or best_i is None:
             return None
         return {"task_code": best_t.get("code"), "task_desc": best_t.get("description"),
-                "task_score": round(best_ts, 3), "item_type": best_i, "item_score": round(best_is, 3)}
+                "task_score": round(best_ts, 4), "item_type": best_i, "item_score": round(best_is, 4)}
     except Exception:
         return None
 
 
-def map_line_all_item_types(index, line_desc, embedder, min_score=0.4, limit=5):
+def map_line_all_item_types(index, line_desc, embedder, min_score=0.4, limit=None):
     """Get all item type matches with scores (sorted by confidence). Returns list of
     ``(item_type, score)`` tuples for item_types scoring >= min_score, up to limit matches."""
     if not index or not line_desc:
         return []
-    deterministic_item = deterministic_item_type(line_desc)
-    if deterministic_item:
-        return [(deterministic_item, 1.0)]
     try:
         from autarch.intelligence.embedding import cosine
         v = embedder.embed(str(line_desc))
@@ -465,8 +461,8 @@ def map_line_all_item_types(index, line_desc, embedder, min_score=0.4, limit=5):
         for it, iv in index["items"]:
             s = cosine(v, iv)
             if s >= min_score:
-                scored.append((it, round(s, 3)))
+                scored.append((it, round(s, 4)))
         scored.sort(key=lambda x: -x[1])
-        return scored[:limit]
+        return scored[:limit] if limit is not None else scored
     except Exception:
         return []

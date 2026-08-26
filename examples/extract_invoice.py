@@ -21,9 +21,8 @@ What this program does, per invoice, governed end to end by autarch:
   4. APPLY TAX RULES PER LINE (flow step 4) — each line gets its taxability, expected rate/amount for
      the ship-to state, and a per-line EXCEPTION flag when the tax treatment looks MISCLASSIFIED
      (e.g. taxable tangible property treated as exempt, or bundled labor taxable in that state).
-  5. PER-LINE CONFIDENCE + ROUTE (flow step 5) — extraction, classification, semantic-validator,
-      and tax-rule confidence remain visible separately; decision confidence is the weakest applicable
-      dimension. Low confidence, partial invoice scope, unsupported jurisdiction, or another exception
+  5. PER-LINE CONFIDENCE + ROUTE (flow step 5) — extraction and semantic-match confidence remain
+      visible separately. Low confidence, partial invoice scope, unsupported jurisdiction, or another exception
       routes to SME review. Invoice-level status is the worst line.
   6. GROUNDING + PANELS — header values are checked against the signed source (anti-hallucination);
      accuracy / per-line-soundness / harmful-content LLM judges plus deterministic completeness,
@@ -975,8 +974,7 @@ def _num(v):
 
 
 def build_line_results(lines, classifications, taxes, threshold: float, header: dict, ref: dict) -> list:
-    """Generate ONE OR MORE rows per line item. When a line has multiple plausible semantic matches
-    (score >= 0.5), output a separate row for each possibility so the reviewer can see all options."""
+    """Generate at least one row per line item, plus rows for semantic matches scoring >= 0.5."""
     po_rec, _, po_how = refdata.match_po(
         ref, header.get("invoice_number", ""), header.get("po_number", ""), header.get("vendor_name", "")
     )
@@ -1006,20 +1004,19 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
 
         # Get all semantic matches (score >= 0.5)
         sem_all_items = c.get("_sem_all_items", [])
-        if c.get("_reference_override") and c.get("item_type"):
-            matches_to_output = [(c["item_type"], 1.0)]
-        else:
-            matches_to_output = [(it, score) for it, score in sem_all_items if score >= 0.5]
+        matches_to_output = [(it, score) for it, score in sem_all_items if score >= 0.5]
 
-        # If no high-confidence matches, use LLM pick as fallback
+        # If no match clears the multi-row threshold, retain the best available mapping so the
+        # invoice line remains visible; its low confidence will route it to review.
         if not matches_to_output:
             sem = c.get("_sem")
-            if sem and sem.get("item_score", 0) >= 0.4:
+            if c.get("_reference_override") and c.get("item_type"):
+                matches_to_output = [(c["item_type"], None)]
+            elif sem and sem.get("item_type"):
                 matches_to_output = [(sem.get("item_type"), sem.get("item_score"))]
             else:
                 llm_item = c.get("item_type", "")
-                if llm_item:
-                    matches_to_output = [(llm_item, 0.0)]
+                matches_to_output = [(llm_item, None)]
 
         # Generate output row for each match
         for match_idx, (item_type_match, item_match_score) in enumerate(matches_to_output):
@@ -1079,27 +1076,26 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
                 _confidence({"confidence": ln.get("extraction_confidence")})
                 if ln.get("extraction_confidence") is not None else None
             )
-            model_classification_conf = _confidence(c)
             semantic_score = item_match_score if c.get("_sem") or c.get("_sem_all_items") else None
-            classification_conf = (
-                min(model_classification_conf, semantic_score)
-                if semantic_score is not None and not c.get("_reference_override")
-                else model_classification_conf
-            )
-            tax_rule_conf = _confidence(t)
-            confidence_dimensions = [classification_conf, tax_rule_conf]
+            confidence_signals = []
             if extraction_conf is not None:
-                confidence_dimensions.append(extraction_conf)
-            conf = min(confidence_dimensions)
+                confidence_signals.append(extraction_conf)
+            if semantic_score is not None:
+                confidence_signals.append(semantic_score)
+            low_confidence = not confidence_signals or any(score < threshold for score in confidence_signals)
             capex_conflict = bool(model_capex and model_capex.lower() != capex_opex.lower())
             state_base_estimate = bool(taxable and t.get("tax_rate_scope") == "state_base_only")
 
             # Mapping basis shows the semantic confidence for THIS match
-            if len(matches_to_output) > 1:
-                mapping_basis = f"Match {match_idx + 1} of {len(matches_to_output)} (score {item_match_score:.3f})"
+            if item_match_score is None:
+                mapping_basis = "Reference override; no cosine match >= 0.5"
+                semantic_item = (c.get("_sem") or {}).get("item_type")
+                mapping_conflict = bool(semantic_item and semantic_item != item_type_match)
+            elif len(matches_to_output) > 1:
+                mapping_basis = f"Match {match_idx + 1} of {len(matches_to_output)} (score {item_match_score:.4f})"
                 mapping_conflict = True  # Flag when multiple options exist
             else:
-                mapping_basis = f"Semantic match (score {item_match_score:.3f})"
+                mapping_basis = f"Semantic match (score {item_match_score:.4f})"
                 semantic_item = (c.get("_sem") or {}).get("item_type")
                 mapping_conflict = bool(semantic_item and semantic_item != item_type_match)
             selected_verdict = refdata.taxability(
@@ -1111,7 +1107,7 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
             )[0] if semantic_item else selected_verdict
             tax_mapping_conflict = bool(mapping_conflict and selected_verdict != semantic_verdict)
 
-            route = ("SME_REVIEW" if (not po_independent or conf < threshold or tax_exception or capex_conflict or tax_divergence or tax_mapping_conflict or state_base_estimate or len(matches_to_output) > 1)
+            route = ("SME_REVIEW" if (not po_independent or low_confidence or tax_exception or capex_conflict or tax_divergence or tax_mapping_conflict or state_base_estimate or len(matches_to_output) > 1)
                      else "AUTO_POST")
 
             # Line number with variant suffix if multiple matches
@@ -1131,8 +1127,6 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
                 "tax_analysis_scope": "line_level_advisory",
                 "capex_conflict": capex_conflict,
                 "extraction_confidence": round(extraction_conf, 3) if extraction_conf is not None else None,
-                "classification_confidence": round(classification_conf, 3),
-                "tax_rule_confidence": round(tax_rule_conf, 3),
                 "mapping_basis": mapping_basis,
                 "mapping_conflict": mapping_conflict,
                 "tax_mapping_conflict": tax_mapping_conflict,
@@ -1149,7 +1143,7 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
                 "existing_task_ok": c.get("existing_task_ok"),
                 "class_rationale": c.get("rationale", ""),
                 "item_type": item_type_match,
-                "semantic_match_confidence": round(semantic_score, 3) if semantic_score is not None else None,
+                "semantic_match_confidence": round(semantic_score, 4) if semantic_score is not None else None,
                 "taxable": taxable,
                 "tax_verdict": t.get("tax_verdict"),
                 "tax_verdict_label": t.get("tax_verdict_label"),
@@ -1162,7 +1156,6 @@ def build_line_results(lines, classifications, taxes, threshold: float, header: 
                 "tax_exception": tax_exception,
                 "tax_exception_reason": tax_exception_reason,
                 "tax_rationale": t.get("rationale", ""),
-                "confidence": round(conf, 3),
                 "route": route,
             })
 
@@ -1641,7 +1634,9 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
             c["_sem"] = sm
             c["_sem_mode"] = sem_mode
             # Also get all item type matches with confidence scores
-            all_items = refdata.map_line_all_item_types(sem_index, ln.get("description", ""), embedder, min_score=0.4, limit=5)
+            all_items = refdata.map_line_all_item_types(
+                sem_index, ln.get("description", ""), embedder, min_score=0.5
+            )
             if all_items:
                 c["_sem_all_items"] = all_items
 
@@ -1691,11 +1686,12 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
     # Per-field verdict (one judge call): present / grounded / judge status + reason.
     field_verdicts = evaluate_field_verdicts(provider, fields, text)
 
-    # Confidence: worst LINE wins (fail-closed). Invoice routes to review if any line does, or a
-    # tax-reconciliation exception, ungrounded value, failed panel, PO discrepancy, or a
-    # multi-jurisdiction allocation need is present.
-    line_confs = [r["confidence"] for r in line_results]
-    overall = min(line_confs) if line_confs else 0.0
+    confidence_signals = [
+        score
+        for row in line_results
+        for score in (row.get("extraction_confidence"), row.get("semantic_match_confidence"))
+        if score is not None
+    ]
     # Hard blockers force a named analyst regardless of confidence.
     hard_blockers = (rollup["route"] == "SME_REVIEW" or rollup.get("tax_recon_exception")
                      or bool(ungrounded) or bool(po_discrepancy_list) or multi_jurisdiction
@@ -1704,9 +1700,10 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
                      or any(warning.get("blocking") for warning in source_warnings))
     # Diagram STEP 10 - routing confidence tiers: >= 0.85 auto-approve; 0.70-0.85 auto-post WITH a
     # 48-hour review flag; < 0.70 (or any hard blocker) route to a named analyst.
-    if hard_blockers or overall < AUTOPOST_FLAG_THRESHOLD:
+    if hard_blockers or not confidence_signals or any(
+            score < AUTOPOST_FLAG_THRESHOLD for score in confidence_signals):
         route = "HUMAN_REVIEW"
-    elif overall < threshold:
+    elif any(score < threshold for score in confidence_signals):
         route = "AUTO_POST_FLAGGED"
     else:
         route = "AUTO_APPROVE"
@@ -1799,8 +1796,7 @@ def run(provider, text: str, agent, read_result, guarantee_ok: bool, threshold: 
                        "reconciliation_issues": extraction_issues,
                        "di_pages": di.get("n_pages")},
                 "source_warnings": source_warnings,
-        "confidence": {"overall": round(overall, 3), "threshold": threshold,
-                       "per_line": {r["n"]: r["confidence"] for r in line_results}},
+        "confidence_threshold": threshold,
         "routing": route,
         "grounding": {"all_grounded": not ungrounded,
                       "flagged": [{"field": f, "value": v, "why": w} for f, v, w in ungrounded]},
@@ -1903,11 +1899,8 @@ def print_report(rep: dict) -> None:
         semantic_confidence = r.get("semantic_match_confidence")
         extraction_label = "n/a" if extraction_confidence is None else format(extraction_confidence, ".2f")
         semantic_label = "n/a" if semantic_confidence is None else format(semantic_confidence, ".2f")
-        print(
-            f"        step5  confidence: extraction {extraction_label}; classification "
-            f"{r['classification_confidence']:.2f}; semantic validator {semantic_label}; "
-            f"tax rule {r['tax_rule_confidence']:.2f}; decision {r['confidence']:.2f}  ->  {arrow}"
-        )
+        print(f"        step5  confidence: extraction {extraction_label}; "
+              f"semantic match {semantic_label}  ->  {arrow}")
 
     banner("INVOICE ROLLUP")
     print(f"  CapEx total     : {_money(roll['capex_total'])}      OpEx total: {_money(roll['opex_total'])}")
@@ -2041,7 +2034,7 @@ def print_report(rep: dict) -> None:
         print("  (no populated fields to cite)")
 
     banner("GOVERNANCE & CONFIDENCE")
-    ev, conf = rep["evidence"], rep["confidence"]
+    ev = rep["evidence"]
     print(f"  read-only guarantee : {ev['guarantee_read_only']}  (agent cannot write or delete)")
     print(f"  signed why-record   : {ev['why_id']}  (provenance verifies: {ev['provenance_verifies']})")
     refm = rep.get("reference") or {}
@@ -2064,8 +2057,12 @@ def print_report(rep: dict) -> None:
     print(f"  all values grounded : {rep['grounding']['all_grounded']}")
     print(f"  quality panel       : {'PASS' if rep['quality']['passed'] else 'FAIL'}  (mean {rep['quality']['score']})")
     print(f"  safety panel        : {'PASS' if rep['safety']['passed'] else 'FAIL'}  (mean {rep['safety']['score']})")
-    per_line = "  ".join(f"L{n}:{c:.2f}" for n, c in conf["per_line"].items())
-    print(f"  per-line confidence : {per_line or '(none)'}   ->  worst {conf['overall']:.2f}")
+    for row in rep["lines"]:
+        extraction = row.get("extraction_confidence")
+        semantic = row.get("semantic_match_confidence")
+        print(f"  line {row['n']} confidence : extraction "
+              f"{'n/a' if extraction is None else format(extraction, '.2f')}; semantic match "
+              f"{'n/a' if semantic is None else format(semantic, '.2f')}")
 
     banner("TOKEN USAGE & COST - per model (cost estimated from list prices)")
     usage = rep.get("usage") or {}
@@ -2078,11 +2075,11 @@ def print_report(rep: dict) -> None:
 
     banner("DECISION")
     if rep["routing"] == "AUTO_APPROVE":
-        print(f"  AUTO-APPROVE & POST  (worst-line confidence {conf['overall']:.2f} >= {conf['threshold']:.2f},"
-              f" no exceptions) - validated BEFORE payment.")
+          print(f"  AUTO-APPROVE & POST  (extraction and semantic confidence meet "
+              f"{rep['confidence_threshold']:.2f}; no exceptions) - validated BEFORE payment.")
     elif rep["routing"] == "AUTO_POST_FLAGGED":
-        print(f"  AUTO-POST + 48H REVIEW FLAG  (worst-line confidence {conf['overall']:.2f} in the "
-              f"{AUTOPOST_FLAG_THRESHOLD:.2f}-{conf['threshold']:.2f} tier, no hard exceptions) - posts now, "
+          print(f"  AUTO-POST + 48H REVIEW FLAG  (an extraction or semantic confidence is in the "
+              f"{AUTOPOST_FLAG_THRESHOLD:.2f}-{rep['confidence_threshold']:.2f} tier, no hard exceptions) - posts now, "
               f"queued for a 48-hour spot review.")
     else:
         reasons = []
@@ -2109,8 +2106,16 @@ def print_report(rep: dict) -> None:
             reasons.append("PO/project task not independently validated")
         if not roll.get("scope_complete"):
             reasons.append("processed line scope does not reconcile to invoice amount")
-        if conf["overall"] < AUTOPOST_FLAG_THRESHOLD:
-            reasons.append(f"worst-line confidence {conf['overall']:.2f} < {AUTOPOST_FLAG_THRESHOLD:.2f}")
+        confidence_signals = [
+            score
+            for row in rep["lines"]
+            for score in (row.get("extraction_confidence"), row.get("semantic_match_confidence"))
+            if score is not None
+        ]
+        if not confidence_signals:
+            reasons.append("no extraction or semantic confidence available")
+        elif any(score < AUTOPOST_FLAG_THRESHOLD for score in confidence_signals):
+            reasons.append(f"extraction or semantic confidence below {AUTOPOST_FLAG_THRESHOLD:.2f}")
         if not rep["grounding"]["all_grounded"]:
             reasons.append("ungrounded value(s)")
         if not rep["quality"]["passed"]:
@@ -2132,10 +2137,10 @@ _CSV_COLUMNS = (
     "n", "description", "quantity", "amount", "tax_status", "vendor_tax_conflict",
     "capex_opex", "capex_basis", "capex_provisional", "task_code",
     "asset_category", "useful_life_months", "depreciation", "existing_task_ok",
-    "extraction_confidence", "classification_confidence", "semantic_match_confidence", "item_type", "mapping_basis", "mapping_conflict", "taxable", "tax_verdict", "tax_rule_confidence",
+    "extraction_confidence", "semantic_match_confidence", "item_type", "mapping_basis", "mapping_conflict", "taxable", "tax_verdict",
     "jurisdiction_state", "expected_tax_rate", "tax_rate_scope",
     "expected_tax_amount", "charged_tax_alloc", "tax_delta", "use_tax_to_allocate", "tax_basis",
-    "tax_exception", "tax_exception_reason", "tax_analysis_scope", "posting_target", "confidence", "route",
+    "tax_exception", "tax_exception_reason", "tax_analysis_scope", "posting_target", "route",
     # Diagram step 10 - the invoice-level confidence gate. Blank on line rows (the tier is decided
     # once for the whole invoice); carries AUTO_APPROVE / AUTO_POST_FLAGGED / HUMAN_REVIEW on ROLLUP.
     "routing_tier",
@@ -2152,13 +2157,10 @@ def write_lines_csv(rep: dict, out_path: Path) -> Path:
         for r in rep["lines"]:
             w.writerow({k: r.get(k) for k in _CSV_COLUMNS})
         roll = rep["rollup"]
-        conf = rep["confidence"]
         unresolved_tax = roll.get("tax_status") == "unresolved"
         w.writerow({
             "n": "ROLLUP", "description": f"{roll['n_lines']} line(s); {roll['n_exceptions']} exception(s); "
-            f"{roll['n_sme']} to SME; route {roll['route']}; "
-            f"overall confidence {conf['overall']:.2f} (threshold {conf['threshold']:.2f}) "
-            f"-> {rep['routing']}",
+            f"{roll['n_sme']} to SME; route {roll['route']} -> {rep['routing']}",
             "capex_opex": f"CapEx {roll['capex_total']}", "asset_category": f"OpEx {roll['opex_total']}",
             "expected_tax_amount": roll["expected_tax_total"], "charged_tax_alloc": roll["tax_charged"],
             "tax_delta": "" if unresolved_tax else roll["use_tax_owed"],
@@ -2168,9 +2170,6 @@ def write_lines_csv(rep: dict, out_path: Path) -> Path:
                 warning.get("message", "") for warning in rep.get("source_warnings", [])
                 if warning.get("message")
             ),
-            # Worst-line confidence (fail-closed) + the step-10 tier it lands in, so a downstream
-            # consumer of the CSV sees the same gate the HTML report shows.
-            "confidence": round(conf["overall"], 3),
             "route": roll["route"],
             "routing_tier": rep["routing"],
         })
@@ -2298,7 +2297,7 @@ def _usage_calls_html(rows) -> str:
 def _lines_html(lines) -> str:
     trs = ["<tr><th>#</th><th>line item</th><th>amount</th><th>CapEx/OpEx</th><th>item type</th><th>item matches</th>"
            "<th>invoice marker</th><th>taxable</th><th>rate</th><th>expected</th><th>charged~</th><th>&Delta;</th>"
-           "<th>extract</th><th>classify</th><th>semantic validator</th><th>tax rule</th><th>decision</th><th>route</th></tr>"]
+           "<th>extraction confidence</th><th>semantic match confidence</th><th>route</th></tr>"]
     for r in lines:
         exc = " class='exc'" if r["tax_exception"] else ""
         route_cls = "pass" if r["route"] == "AUTO_POST" else "warn"
@@ -2321,13 +2320,11 @@ def _lines_html(lines) -> str:
             f"<td class='num'>{_money(r['expected_tax_amount'])}</td><td class='num'>{_money(r.get('charged_tax_alloc'))}</td>"
             f"<td class='num'>{_money(r.get('tax_delta'))}</td>"
             f"<td class='num'>{'n/a' if r.get('extraction_confidence') is None else format(r['extraction_confidence'], '.2f')}</td>"
-            f"<td class='num'>{r.get('classification_confidence', 0):.2f}</td>"
-            f"<td class='num'>{'n/a' if r.get('semantic_match_confidence') is None else format(r['semantic_match_confidence'], '.2f')}</td>"
-            f"<td class='num'>{r.get('tax_rule_confidence', 0):.2f}</td><td class='num'>{r['confidence']:.2f}</td>"
+            f"<td class='num'>{'n/a' if r.get('semantic_match_confidence') is None else format(r['semantic_match_confidence'], '.4f')}</td>"
             f"<td><span class='{route_cls}'>{route}</span></td></tr>"
         )
         if r["tax_exception"] and r["tax_exception_reason"]:
-            trs.append(f"<tr{exc}><td></td><td colspan='17' class='sub'>&#9888; {_html_escape(r['tax_exception_reason'])}</td></tr>")
+            trs.append(f"<tr{exc}><td></td><td colspan='14' class='sub'>&#9888; {_html_escape(r['tax_exception_reason'])}</td></tr>")
     return "<table class='scores'>\n" + "\n".join(trs) + "\n</table>"
 
 
@@ -2336,7 +2333,7 @@ def render_report_html(rep: dict, meta: dict) -> str:
     panels, citations, and cost - the HTML twin of print_report()."""
     import datetime
     esc = _html_escape
-    f, roll, conf = rep["fields"], rep["rollup"], rep["confidence"]
+    f, roll = rep["fields"], rep["rollup"]
     ev = rep["evidence"]
     ext = rep.get("extraction") or {}
     semantic = (rep.get("reference") or {}).get("semantic_check") or {}
@@ -2360,8 +2357,7 @@ def render_report_html(rep: dict, meta: dict) -> str:
         f"{meta.get('chars', 0):,} chars &middot; generated {datetime.datetime.now():%Y-%m-%d %H:%M}</p>",
         f"<p class='meta'>Signed why-record: <code>{esc(ev['why_id'])}</code> &middot; provenance verifies: "
         f"{esc(ev['provenance_verifies'])} &middot; read-only guarantee: {esc(ev['guarantee_read_only'])}</p>",
-        f"<div class='banner {banner_cls}'>{banner_txt} &nbsp;&middot;&nbsp; worst-line confidence "
-        f"{conf['overall']:.2f} (threshold {conf['threshold']:.2f}) &middot; {roll['n_exceptions']} exception(s) "
+        f"<div class='banner {banner_cls}'>{banner_txt} &nbsp;&middot;&nbsp; {roll['n_exceptions']} exception(s) "
         f"&middot; {roll['n_sme']} line(s) to SME</div>",
         "<h2>Invoice</h2><table class='kv'>",
         f"<tr><th>vendor</th><td>{esc(f.get('vendor_name') or '-')}</td></tr>",

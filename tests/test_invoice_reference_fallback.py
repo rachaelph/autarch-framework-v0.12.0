@@ -284,7 +284,7 @@ def test_normalize_extraction_does_not_replace_more_complete_di_scope():
     assert "retained_more_complete_di_lines" in issues
 
 
-def test_line_results_separate_confidence_dimensions():
+def test_line_results_expose_only_extraction_and_semantic_confidence():
     data = _reference_data()
     lines = [{"description": "Equipment", "amount": "100.00", "extraction_confidence": 0.72}]
     classifications = [{
@@ -299,9 +299,10 @@ def test_line_results_separate_confidence_dimensions():
     )
 
     assert rows[0]["extraction_confidence"] == 0.72
-    assert rows[0]["classification_confidence"] == 0.91
-    assert rows[0]["tax_rule_confidence"] == 0.97
     assert rows[0]["semantic_match_confidence"] is None
+    assert "classification_confidence" not in rows[0]
+    assert "tax_rule_confidence" not in rows[0]
+    assert "confidence" not in rows[0]
 
 
 def test_normalize_extraction_clears_model_tax_absent_from_authoritative_header():
@@ -548,6 +549,127 @@ def test_amenity_unit_maps_to_tangible_store_equipment():
 
     assert refdata.deterministic_item_type("DOUBLE-SIDED AMENITY UNIT") == expected
     assert refdata.deterministic_item_type("Paper towels and utensils") == ""
+
+
+def test_amenity_unit_semantic_matches_use_cosine_scores_without_result_cap():
+    line = "DOUBLE-SIDED AMENITY UNIT"
+    vectors = {
+        line: [1.0, 0.0],
+        "task": [1.0, 0.0],
+        refdata._AMENITY_UNIT_ITEM_TYPE: [0.0, 1.0],
+    }
+    qualifying_items = [f"Item {index}" for index in range(6)]
+    vectors.update({item: [0.8, 0.6] for item in qualifying_items})
+
+    class Embedder:
+        def embed(self, text):
+            return vectors[text]
+
+    index = {
+        "tasks": [({"code": "TASK", "description": "Task"}, vectors["task"])],
+        "items": [
+            (refdata._AMENITY_UNIT_ITEM_TYPE, vectors[refdata._AMENITY_UNIT_ITEM_TYPE]),
+            *((item, vectors[item]) for item in qualifying_items),
+        ],
+    }
+
+    best = refdata.map_line_semantic(index, line, Embedder())
+    matches = refdata.map_line_all_item_types(index, line, Embedder(), min_score=0.5)
+
+    assert best["item_type"] == "Item 0"
+    assert best["item_score"] == 0.8
+    assert matches == [(item, 0.8) for item in qualifying_items]
+
+
+def test_semantic_index_embeds_exact_item_type_text():
+    embedded_texts = []
+
+    class Embedder:
+        def embed(self, text):
+            embedded_texts.append(text)
+            return [1.0]
+
+    item_type = "INVENTORY WITHDRAWAL CUPS, PAPER TOWELS, UTENSILS, ETC."
+    index = refdata.build_semantic_index({
+        "task_codes": [{"description": "Task", "category": "", "asset_class": ""}],
+        "taxability": {"item_types": [item_type]},
+    }, Embedder())
+
+    assert index is not None
+    assert embedded_texts[-1] == item_type
+
+
+def test_line_results_output_all_cosine_matches_and_semantic_confidence(tmp_path):
+    lines = [{"description": "Amenity unit", "amount": "100.00", "extraction_confidence": 0.99}]
+    classifications = [{
+        "item_type": refdata._AMENITY_UNIT_ITEM_TYPE,
+        "confidence": 1.0,
+        "_reference_override": True,
+        "_sem": {"item_type": "Inventory", "item_score": 0.5344},
+        "_sem_all_items": [
+            ("Inventory", 0.5344),
+            ("Food storage", 0.5335),
+            ("Office supplies", 0.4785),
+        ],
+    }]
+    taxes = [{"confidence": 0.97, "taxable": False, "tax_verdict": "E"}]
+
+    rows = extract_invoice.build_line_results(
+        lines, classifications, taxes, 0.85, {"state": "OH", "tax_charged": ""}, {}
+    )
+
+    assert [row["item_type"] for row in rows] == ["Inventory", "Food storage"]
+    assert [row["semantic_match_confidence"] for row in rows] == [0.5344, 0.5335]
+    assert [row["n"] for row in rows] == ["1.1", "1.2"]
+    assert all("classification_confidence" not in row for row in rows)
+    assert all("tax_rule_confidence" not in row for row in rows)
+    assert all("confidence" not in row for row in rows)
+
+    csv_path = tmp_path / "lines.csv"
+    extract_invoice.write_lines_csv({
+        "lines": rows,
+        "rollup": {
+            "n_lines": 2, "n_exceptions": 0, "n_sme": 2, "route": "SME_REVIEW",
+            "capex_total": 0.0, "opex_total": 200.0, "expected_tax_total": 0.0,
+            "tax_charged": 0.0, "use_tax_owed": 0.0,
+        },
+        "routing": "HUMAN_REVIEW",
+    }, csv_path)
+    csv_text = csv_path.read_text(encoding="utf-8-sig")
+    html = extract_invoice._lines_html(rows)
+    csv_header = csv_text.splitlines()[0]
+
+    assert "Inventory" in csv_text and "0.534" in csv_text
+    assert "Food storage" in csv_text and "0.533" in csv_text
+    assert "classification_confidence" not in csv_header
+    assert "tax_rule_confidence" not in csv_header
+    assert ",confidence," not in f",{csv_header},"
+    assert "Inventory" in html and ">0.5344</td>" in html
+    assert "Food storage" in html
+    assert "<th>classify</th>" not in html
+    assert "<th>tax rule</th>" not in html
+    assert "<th>decision</th>" not in html
+
+
+def test_line_results_keep_line_when_best_cosine_match_is_below_threshold():
+    lines = [{"description": "Custom glass hardware", "amount": "100.00"}]
+    classifications = [{
+        "confidence": 0.9,
+        "_sem": {"item_type": "Construction Materials", "item_score": 0.3125},
+        "_sem_all_items": [],
+    }]
+    taxes = [{"confidence": 0.4, "taxable": None, "exception": True}]
+
+    rows = extract_invoice.build_line_results(
+        lines, classifications, taxes, 0.85, {"state": "FL", "tax_charged": ""}, {}
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["n"] == 1
+    assert rows[0]["description"] == "Custom glass hardware"
+    assert rows[0]["item_type"] == "Construction Materials"
+    assert rows[0]["semantic_match_confidence"] == 0.3125
+    assert rows[0]["route"] == "SME_REVIEW"
 
 
 def test_numeric_field_citation_requires_matching_label_and_amount():
