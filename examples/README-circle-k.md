@@ -69,6 +69,47 @@ Auth is **Microsoft Entra ID (AAD)** — no API keys. The signed-in identity nee
 Document Intelligence resource). Because these resources live in a tenant where the runner may be a
 guest, the credential is **tenant-pinned** via `AZURE_OPENAI_TENANT_ID`.
 
+### Azure AI Search taxability-category index
+
+[`taxability_search.py`](taxability_search.py) creates a vector index, embeds the positive category
+text in [`reference/seed-taxability-matrix-descriptive.json`](reference/seed-taxability-matrix-descriptive.json),
+uploads all categories, and runs hybrid keyword + vector retrieval. The `exclusions` arrays are stored
+as retrievable metadata but are never included in embedding inputs.
+
+Install the optional clients and configure Microsoft Entra ID authentication:
+
+```powershell
+pip install -e ".[search]"
+
+$env:AZURE_SEARCH_ENDPOINT = "https://<search-service>.search.windows.net"
+$env:AZURE_SEARCH_INDEX = "taxability-categories"
+$env:AZURE_OPENAI_ENDPOINT = "https://circlektesting.openai.azure.com/"
+$env:AZURE_OPENAI_EMBEDDING_DEPLOYMENT = "invoice-embeddings"
+$env:AZURE_OPENAI_EMBEDDING_DIMENSIONS = "1536"
+$env:AZURE_OPENAI_API_VERSION = "2024-12-01-preview"
+$env:AZURE_OPENAI_TENANT_ID = "3e41b164-59e6-4ce9-8c15-767e2c81431c"
+```
+
+The signed-in identity needs `Search Service Contributor` to create the index, `Search Index Data
+Contributor` to upload documents, and `Search Index Data Reader` to query it. It also needs
+`Cognitive Services OpenAI User` on the embedding resource.
+
+Create the index and upload the 40 categories:
+
+```powershell
+python examples/taxability_search.py setup
+```
+
+Retrieve the five strongest candidates for an invoice line:
+
+```powershell
+python examples/taxability_search.py query "Microsoft 365 monthly user licenses" --top 5
+```
+
+The JSON result includes each candidate's score, positive description, and exclusions for a later
+rules or LLM classification stage. Index and query vectors must always use the same embedding
+deployment and dimensions. Changing dimensions requires recreating the index.
+
 ---
 
 ## Run it

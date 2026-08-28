@@ -1,0 +1,202 @@
+[
+  {
+    "item_type": "ADVERTISING DIGITAL ADVERTISING SERVICES (Online Ads)",
+    "embedding_description": "Digital advertising and online promotional services used to market a business, brand, product, store, or offer through internet-based channels. Includes paid search and pay-per-click campaigns, display and banner ads, social media advertising, sponsored posts, video and mobile ads, programmatic media buying, retargeting, affiliate advertising, web marketing, campaign placement, and online ad management. The primary purchase is electronic advertising exposure, digital media placement, or online campaign execution.",
+    "exclusions": ["printed advertising materials", "physical signage", "general consulting", "software licensing"]
+  },
+  {
+    "item_type": "ADVERTISING MATERIALS (SIGNAGE, STICKERS, ETC.)",
+    "embedding_description": "Physical advertising and promotional materials produced for branding, customer communication, or sales promotion. Includes indoor and outdoor signs, banners, posters, decals, stickers, window graphics, point-of-sale displays, menu boards, printed promotional pieces, branded placards, shelf signs, and similar marketing collateral.",
+    "exclusions": ["digital advertising", "creative advertising labor without tangible materials", "permanent building components"]
+  },
+  {
+    "item_type": "ADVERTISING SERVICES LABOR ONLY",
+    "embedding_description": "Professional advertising, marketing, and creative labor. Includes campaign planning, copywriting, graphic design, art direction, branding, creative development, advertising production labor, and preparation of advertising concepts or layouts. The primary deliverable is human creative or marketing work.",
+    "exclusions": ["online media spend", "digital ad placement", "finished signs", "printed advertising materials", "software subscriptions", "unrelated consulting"]
+  },
+  {
+    "item_type": "ARCHITECT/ ENGINEER SERVICES CONCEPT SKETCH, REMODEL DRAWINGS, ETC.",
+    "embedding_description": "Professional architectural or engineering services for planning, designing, documenting, evaluating, or modifying buildings, sites, and systems. Includes concept sketches, feasibility studies, floor plans, remodel and construction drawings, blueprints, specifications, CAD or BIM design, structural analysis, MEP engineering, site plans, stamped drawings, and design review. The primary deliverable is specialized design expertise, plans, drawings, specifications, or engineering analysis.",
+    "exclusions": ["construction labor", "physical construction materials", "routine inspections", "general consulting without a design deliverable"]
+  },
+  {
+    "item_type": "COMPUTER HARDWARE",
+    "embedding_description": "Tangible computer and information-technology equipment, components, accessories, and peripherals. Includes desktops, laptops, servers, workstations, computing tablets, monitors, keyboards, mice, docking stations, drives, memory, processors, networking appliances, routers, switches, printers, scanners, cables, and replacement hardware parts. The purchase is a physical computing device, peripheral, network appliance, or hardware component.",
+    "exclusions": ["computer software", "SaaS", "cloud infrastructure", "maintenance services", "internet access", "non-computer store equipment"]
+  },
+  {
+    "item_type": "COMPUTER SOFTWARE MAINTENANCE CONTRACTS OPTIONAL",
+    "embedding_description": "Elective software maintenance, support, or assurance agreements purchased separately at the customer's choice. Includes optional help-desk access, troubleshooting, patches, bug fixes, version updates, upgrades, enhancements, and software assurance. The agreement is an independently selectable addition to the underlying software license.",
+    "exclusions": ["mandatory software maintenance", "original software licenses", "SaaS subscriptions", "custom software development", "hardware support"]
+  },
+  {
+    "item_type": "COMPUTER SOFTWARE MAINTENANCE CONTRACTS REQUIRED",
+    "embedding_description": "Mandatory software maintenance, support, upgrade, or assurance charges purchased with, or as a condition of using, computer software. Includes compulsory technical support, update rights, bundled patches and upgrades, required annual maintenance, and fees inseparably tied to a software license.",
+    "exclusions": ["elective software support", "standalone software licenses", "SaaS access", "custom programming", "hardware service agreements"]
+  },
+  {
+    "item_type": "CUSTOM COMPUTER SOFTWARE",
+    "embedding_description": "Software designed, programmed, configured, or substantially modified for the unique requirements of a specific customer. Includes bespoke applications, customer-specific modules and integrations, tailored source code, commissioned scripts, unique database solutions, and significant modifications where custom development is the primary deliverable.",
+    "exclusions": ["canned software", "prewritten software", "ordinary SaaS configuration", "software maintenance", "IT consulting without a custom software deliverable"]
+  },
+  {
+    "item_type": "EQUIPMENT - FOOD PREPARATION REFRIGERATOR MUST FOR FOOD & KITCHEN AND NOT FOR STORAGE OR DISPLAY, GRILL, ICE MAKER, MICROWAVES, OVENS ETC. Manufacturing States - OH-IN-MN-TX",
+    "embedding_description": "Machinery used directly to prepare, process, cook, chill, freeze, heat, mix, manufacture, or transform food or beverages, with special relevance to manufacturing treatment in Ohio, Indiana, Minnesota, and Texas. Includes food-preparation refrigerators integrated into production, grills, ovens, microwaves, fryers, ice makers, mixers, slicers, processors, and cooking appliances. The defining purpose is direct kitchen production or transformation of food.",
+    "exclusions": ["display coolers", "storage-only refrigerators", "serving utensils", "food storage bins", "repair parts", "ordinary fixtures"]
+  },
+  {
+    "item_type": "EQUIPMENT-FOOD SERVING SPOONS, TONGS, ETC.",
+    "embedding_description": "Utensils and equipment primarily used to portion, handle, present, or serve prepared food. Includes serving spoons, ladles, tongs, scoops, spatulas, serving forks, portion servers, and buffet utensils. These are durable food-service implements used during plating, buffet service, or customer service.",
+    "exclusions": ["food-preparation machinery", "disposable cutlery", "tabletop condiment ware", "food storage equipment", "cookware", "pans"]
+  },
+  {
+    "item_type": "EQUIPMENT-FOOD STORAGE BINS, REFRIGERATOR, ETC.",
+    "embedding_description": "Equipment and containers used primarily to store, preserve, organize, refrigerate, or freeze food and ingredients before use or sale. Includes food-storage bins, ingredient containers, storage shelving, walk-in or reach-in refrigerators, freezers, cold-storage units, and storage-only refrigeration. The defining purpose is passive food holding, preservation, or inventory storage.",
+    "exclusions": ["direct food-production machinery", "customer display equipment", "serving utensils", "disposable packaging", "general store fixtures"]
+  },
+  {
+    "item_type": "FILMS & FOILS FOIL PANS/LIDS, PLASTIC WRAP",
+    "embedding_description": "Thin-film, foil, and flexible wrapping products used to cover, contain, protect, prepare, package, or transport food and other items. Includes aluminum foil, foil pans and lids, plastic wrap, cling film, stretch film, and food-service film. These are lightweight consumable wrapping or covering products.",
+    "exclusions": ["paper products", "plastic bags", "disposable utensils", "reusable containers", "packing labor", "durable kitchen pans", "metal trays"]
+  },
+  {
+    "item_type": "FREIGHT",
+    "embedding_description": "Charges for transporting, shipping, or delivering purchased goods from a seller, manufacturer, warehouse, distributor, or carrier to a destination. Includes inbound freight, common-carrier charges, trucking, parcel shipping, delivery fees, and transportation fuel surcharges. The primary service is physical movement of goods between locations.",
+    "exclusions": ["packing and handling", "warehousing", "installation", "underlying merchandise"]
+  },
+  {
+    "item_type": "FURNITURE & FIXTURES KITCHEN, DINING & OFFICE",
+    "embedding_description": "Furniture, furnishings, and movable fixtures used in kitchens, dining areas, offices, break rooms, or administrative spaces. Includes desks, chairs, tables, stools, cabinets, freestanding counters, shelving, bookcases, workstations, and filing cabinets. These items furnish a space and retain their identity as furniture.",
+    "exclusions": ["permanent building components", "specialized store equipment", "computer hardware", "food-preparation machinery", "separately billed installation labor"]
+  },
+  {
+    "item_type": "INFRASTRUCTURE AS A SERVICE (IaaS)",
+    "embedding_description": "Cloud services providing on-demand virtualized infrastructure and foundational computing capacity. Includes virtual machines, cloud servers, compute instances, virtual networks, load balancers, infrastructure storage, backup infrastructure, containers, and scalable processing capacity from providers such as Azure, AWS, or Google Cloud. The customer controls or deploys operating systems, workloads, or applications on rented infrastructure.",
+    "exclusions": ["SaaS applications", "PaaS platforms", "standalone internet access", "physical computer hardware", "simple storage without broader compute infrastructure"]
+  },
+  {
+    "item_type": "INSPECTION SERVICES",
+    "embedding_description": "Services that examine, test, assess, verify, or certify the condition, quality, safety, functionality, or regulatory compliance of property, equipment, facilities, or completed work. Includes building, fire, safety, health, equipment, construction, code-compliance, and quality-control inspections. The primary deliverable is an inspection finding, report, approval, or certification.",
+    "exclusions": ["repair services", "architectural or engineering design", "maintenance", "installation", "general consulting"]
+  },
+  {
+    "item_type": "INTERNET ACCESS",
+    "embedding_description": "Telecommunications services connecting a location, device, or network to the public internet. Includes broadband, fiber, cable, DSL, fixed wireless, mobile data, dedicated internet access, circuit charges, bandwidth, and internet service provider fees. The primary service is network connectivity and data transmission access.",
+    "exclusions": ["web hosting", "cloud infrastructure", "SaaS", "managed storage", "networking hardware", "IT support"]
+  },
+  {
+    "item_type": "INVENTORY WITHDRAWAL CUPS, PAPER TOWELS, UTENSILS, ETC.",
+    "embedding_description": "Items removed from resale inventory for internal business use, employee use, store operations, food service, sampling, or consumption. Includes cups, paper towels, napkins, utensils, food-service disposables, cleaning supplies, and other stock diverted from resale. Applies to inventory withdrawal, use-tax withdrawal, stock consumption, and self-use transactions.",
+    "exclusions": ["items sold to customers", "direct vendor purchases not withdrawn from resale inventory"]
+  },
+  {
+    "item_type": "LANDSCAPING - LABOR",
+    "embedding_description": "Labor and services for maintaining, improving, installing, or caring for outdoor grounds and vegetation. Includes mowing, trimming, pruning, edging, weeding, planting, mulching, fertilizing, irrigation labor, leaf removal, lawn treatment, tree service, and general grounds maintenance. The primary purchase is landscaping labor or grounds-care service.",
+    "exclusions": ["separately stated plants", "soil", "mulch materials", "landscaping tools", "landscaping equipment", "permanent construction materials"]
+  },
+  {
+    "item_type": "LEASE-REAL PROPERTY LEASING FROM 3RD PARTY",
+    "embedding_description": "Rental or lease payments to an unrelated third party for the right to occupy or use real property. Includes land, retail stores, offices, warehouses, parking areas, buildings, base rent, and charges treated as additional rent. The leased subject is land, a building, or another interest in real estate.",
+    "exclusions": ["movable equipment leases", "vehicle rentals", "furniture rentals", "real-estate purchases", "construction services", "utilities", "separately identified property-management services"]
+  },
+  {
+    "item_type": "LEASED EQUIPMENT LEASING FROM 3RD PARTY",
+    "embedding_description": "Rental or lease payments to an unrelated third party for temporary possession or use of movable equipment or tangible personal property. Includes leased machinery, copiers, printers, kitchen and refrigeration equipment, tools, vehicles, office equipment, and store equipment. Ownership remains with the lessor while the customer receives temporary use of the equipment.",
+    "exclusions": ["real-property rent", "financed equipment purchases", "software subscriptions", "cloud services", "separately stated labor", "separately stated maintenance"]
+  },
+  {
+    "item_type": "MATERIAL / PARTS / TOOLS / EQUIPMENT FOR REPAIRING",
+    "embedding_description": "Physical materials, replacement parts, tools, and equipment purchased to repair, restore, service, or maintain buildings, machinery, fixtures, vehicles, or store equipment. Includes components, fasteners, fittings, repair kits, hand and power tools, electrical parts, plumbing parts, and consumable repair materials. The purchase consists of tangible repair inputs used during maintenance or restoration work.",
+    "exclusions": ["repair labor", "permanent capital-improvement materials", "standalone new equipment"]
+  },
+  {
+    "item_type": "PACKING / HANDLING",
+    "embedding_description": "Charges for preparing, packaging, processing, loading, handling, or readying goods for shipment, storage, delivery, or pickup. Includes packing, crating, palletizing, order handling, processing, materials handling, loading, and fulfillment preparation fees. The primary service is shipment preparation or physical handling of goods.",
+    "exclusions": ["transportation freight", "packaging products sold as goods", "warehousing", "installation", "underlying merchandise"]
+  },
+  {
+    "item_type": "PAPER PRODUCTS NAPKINS, STRAWS, STIRRERS, ETC.",
+    "embedding_description": "Disposable paper, fiber, or paper-like food-service and operating products. Includes napkins, paper straws and stirrers, paper cups and plates, paper bags, tissues, paper towels, placemats, and similar single-use articles. The items are primarily paper-based consumables used in food service or store operations.",
+    "exclusions": ["office paper", "register tape", "plastic disposable products", "films and foils", "reusable wares", "inventory-withdrawal transactions"]
+  },
+  {
+    "item_type": "PLASTIC - DISPOSABLE UTENSILS, BAGS, ETC.",
+    "embedding_description": "Single-use plastic food-service, packaging, and operating products. Includes plastic forks, knives, spoons, cutlery kits, bags, takeout sacks, disposable cups and lids, straws, stirrers, and portion containers. The items are predominantly plastic and intended to be discarded after one or limited uses.",
+    "exclusions": ["reusable plastic products", "plastic film", "plastic wrap", "durable serving utensils", "paper products", "resale-inventory withdrawals"]
+  },
+  {
+    "item_type": "PLASTIC REUSABLE",
+    "embedding_description": "Durable plastic products designed and constructed for repeated use. Includes reusable food containers, storage tubs, trays, bins, pitchers, serving pieces, refillable bottles, washable utensils, and other long-life plastic wares. Product durability, washability, or refillability indicates a multiple-use article.",
+    "exclusions": ["disposable plastic utensils", "disposable plastic bags", "flexible plastic film", "plastic wrap", "refrigerators", "non-plastic small wares"]
+  },
+  {
+    "item_type": "PLATFORM AS A SERVICE (PaaS)",
+    "embedding_description": "Cloud services providing a managed platform for building, deploying, integrating, hosting, or running applications while the provider manages servers and operating systems. Includes managed runtimes, database platforms, serverless execution, application hosting, integration platforms, development environments, API management, and managed containers. The customer deploys applications or code onto a provider-operated development platform.",
+    "exclusions": ["SaaS end-user applications", "IaaS virtual machines", "custom software development labor", "internet access"]
+  },
+  {
+    "item_type": "PLUMBING INSTALLATION SERVICES ASSUME PLUMBER PAID SALES TAX ON FIXTURES WHEN PURCHASED",
+    "embedding_description": "Contracted plumbing installation labor under the assumption that the plumber paid sales tax when purchasing incorporated fixtures and materials. Includes installation or permanent connection of sinks, toilets, faucets, pipes, drains, water lines, pumps, water heaters, and related plumbing components. The plumber supplies and permanently installs the plumbing system or fixture.",
+    "exclusions": ["separately purchased plumbing parts", "routine plumbing repair labor", "architectural design", "inspection services", "customer-purchased fixtures"]
+  },
+  {
+    "item_type": "PREWRITTEN COMPUTER SOFTWARE CANNED or LICENSE",
+    "embedding_description": "Standardized, canned, off-the-shelf, or prewritten software offered to multiple customers through download, physical media, license key, or electronic transfer. Includes perpetual and term licenses for packaged applications, operating systems, databases, security software, and productivity software. The customer acquires rights to use an existing software product distributed in substantially similar form to other customers.",
+    "exclusions": ["hosted SaaS", "custom software", "separately stated software maintenance", "PaaS", "IaaS"]
+  },
+  {
+    "item_type": "PROFESSIONAL SERVICES ACCOUNTING & FINANCIAL, ADVERTISING, ARCHITECTS, CONSULTING, ENGINEERING, IT, LEGAL, MARKETING, ETC.",
+    "embedding_description": "Professional, advisory, analytical, or specialized knowledge services performed by accountants, financial advisers, consultants, attorneys, marketers, advertising professionals, architects, engineers, and IT specialists. Includes audit, tax, financial analysis, management consulting, legal advice, IT consulting, strategy, research, advisory projects, and retainers. This is the broad category for expert services when the engagement is primarily advice, analysis, or professional expertise.",
+    "exclusions": ["architectural or engineering design drawings covered by a specific category", "advertising labor covered by a specific category", "inspection services", "custom software deliverables", "digital advertising placement", "tangible goods"]
+  },
+  {
+    "item_type": "REAL ESTATE MATERIALS PERMANENTLY AFFIXED OR INCORPORATED INTO BUILDING (CANOPY, DOOR, HVAC, PLUMBING, ROOF, WINDOW, ETC.",
+    "embedding_description": "Construction materials, fixtures, systems, and components intended to be permanently installed in or incorporated into land or a building. Includes canopies, doors, windows, roofing, HVAC units and ductwork, plumbing, electrical systems, walls, flooring, structural components, and built-in fixtures. These items become part of the real property and normally remain with the building.",
+    "exclusions": ["movable furniture", "movable store equipment", "repair tools", "separately billed installation labor", "property designed to remain removable"]
+  },
+  {
+    "item_type": "SMALL WARES-KITCHEN PANS, METAL TRAYS, ETC.",
+    "embedding_description": "Small, durable kitchen tools and wares used for food preparation, cooking, baking, or back-of-house handling. Includes pots, pans, baking sheets, metal trays, mixing bowls, cooking racks, and strainers. These are reusable kitchen articles that support cooking and preparation activities.",
+    "exclusions": ["foil pans", "disposable films", "major food-preparation appliances", "serving utensils", "tabletop condiment items", "food-storage equipment"]
+  },
+  {
+    "item_type": "SMALL WARES-TABLETOP SALT/PEPPER SHAKERS, MUSTARD, ETC.",
+    "embedding_description": "Small, reusable tabletop service articles used for condiments, seasoning, presentation, or consumption in customer dining and service areas. Includes salt and pepper shakers, mustard and ketchup dispensers, condiment bottles, sugar holders, tabletop organizers, and napkin holders. These durable articles sit on dining or service surfaces for customer use.",
+    "exclusions": ["disposable condiment packets", "food serving utensils", "kitchen pans", "condiment food contents", "furniture"]
+  },
+  {
+    "item_type": "SOFTWARE AS A SERVICE (SaaS)",
+    "embedding_description": "Hosted software applications accessed remotely over the internet through a browser, mobile application, or API, commonly for a recurring subscription or usage fee. Includes cloud productivity, accounting, CRM, HR, collaboration, analytics, security, and point-of-sale applications operated by the provider. The customer uses a finished application while the provider operates the software and infrastructure.",
+    "exclusions": ["installed software licenses", "custom software development", "PaaS", "IaaS", "internet access", "optional software maintenance"]
+  },
+  {
+    "item_type": "STORAGE SERVICES",
+    "embedding_description": "Services for storing, warehousing, retaining, archiving, or safeguarding physical goods or digital data. Includes warehouse storage, records storage, document retention, self-storage, inventory holding, cloud object or file storage, backup storage, and archival services. Storage capacity, custody, preservation, or retention is the principal service.",
+    "exclusions": ["freight transportation", "packing services", "real-property leases", "IaaS compute packages", "physical storage bins", "storage racks", "refrigerators", "computer drives"]
+  },
+  {
+    "item_type": "SUPPLIES-OFFICE PAPER, PENS, ETC.",
+    "embedding_description": "Consumable supplies used in administrative, clerical, corporate, or back-office activities. Includes copier and printer paper, notebooks, pens, pencils, markers, folders, envelopes, labels, staples, toner treated as a supply, desk accessories, and stationery. The supplies support general office work and administrative tasks.",
+    "exclusions": ["computer hardware", "office furniture", "store register tape", "advertising materials", "food-service paper products"]
+  },
+  {
+    "item_type": "SUPPLIES-STORE REGISTER TAPE, PENS, ETC.",
+    "embedding_description": "Consumable supplies used directly in retail-store, checkout, point-of-sale, or front-of-house operations. Includes cash-register and receipt tape, POS paper rolls, store-use pens and markers, price labels, tagging supplies, and cashier supplies. The supplies support daily retail sales, cashier, pricing, or checkout functions.",
+    "exclusions": ["corporate office supplies", "POS computer hardware", "advertising signage", "food-service paper products", "resale-inventory withdrawals"]
+  },
+  {
+    "item_type": "TANGIBLE PERSONAL PROPERTY ITEMS REMAIN TANGIBLE RACK, REFRIGERATOR, STORE EQUIPMENT ETC.",
+    "embedding_description": "Movable tangible personal property that retains its identity after placement or installation. Includes retail racks, shelving, display cases, refrigerators, coolers, store equipment, movable fixtures, and freestanding machinery. These physical business assets remain independently identifiable and removable, making this the general category for movable store and business equipment.",
+    "exclusions": ["permanent building materials", "furniture", "computer hardware", "qualifying food-production equipment", "installation labor", "repair labor"]
+  },
+  {
+    "item_type": "TANGIBLE PERSONAL PROPERTY LABOR: INSTALLATION",
+    "embedding_description": "Labor to assemble, set up, mount, connect, configure, or install tangible personal property that remains movable after installation. Includes equipment, appliance, rack, display, machinery, electronics, and store-fixture setup or assembly when separately stated. The primary charge is installation labor associated with an identifiable movable item.",
+    "exclusions": ["permanent building improvements", "specialized plumbing installation", "installed tangible property", "repair labor", "routine servicing labor"]
+  },
+  {
+    "item_type": "TANGIBLE PERSONAL PROPERTY LABOR: REPAIRS/ RESTORE/ SERVICING",
+    "embedding_description": "Labor to diagnose, repair, restore, maintain, tune, service, or return tangible personal property to proper operating condition. Includes technician labor for machinery, refrigeration, appliances, store equipment, electronics, furniture, other movable assets, preventive maintenance, and service calls. The primary charge is technician time spent servicing an existing movable asset.",
+    "exclusions": ["replacement parts", "software maintenance", "real-property construction", "inspection-only services", "installation labor", "new equipment"]
+  }
+]
