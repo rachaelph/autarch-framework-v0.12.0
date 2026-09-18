@@ -88,11 +88,15 @@ def compile_condition(cond: Optional[dict]) -> Callable[[dict], bool]:
 
 def compile_policy(spec: dict) -> Policy:
     """Turn one declarative policy dict into a kernel ``Policy``."""
+    condition = spec.get("when")
     return Policy(
         name=spec["name"],
         effect=spec["effect"],
         capability=spec.get("capability", "*"),
-        when=compile_condition(spec.get("when")),
+        # Keep an absent/null condition as None. Static guarantee analysis may
+        # then soundly rely on the policy as unconditional; wrapping it in an
+        # always-true callable makes that fact impossible to prove.
+        when=compile_condition(condition) if condition is not None else None,
         reason=spec.get("reason", ""),
     )
 

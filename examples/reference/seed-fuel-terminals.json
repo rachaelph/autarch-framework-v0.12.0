@@ -1,0 +1,10 @@
+{
+  "_comment": "Illustrative PDI 'fuel terminals' reference (origin of a bill of lading). terminal_id -> state/city. NOT production data.",
+  "terminals": {
+    "T-ATL-01": { "name": "Atlanta Fuel Terminal", "state": "GA", "city": "Atlanta" },
+    "T-CLT-01": { "name": "Charlotte Fuel Terminal", "state": "NC", "city": "Charlotte" },
+    "T-PHX-01": { "name": "Phoenix Fuel Terminal", "state": "AZ", "city": "Phoenix" },
+    "T-PDX-01": { "name": "Portland Fuel Terminal", "state": "OR", "city": "Portland" },
+    "T-DAL-01": { "name": "Dallas Fuel Terminal", "state": "TX", "city": "Dallas" }
+  }
+}

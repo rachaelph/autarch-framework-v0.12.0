@@ -5,7 +5,7 @@ Four reference files live in ``examples/reference/`` (illustrative *seed* data �
 tax advice; in production these come from Circle K's tax-dept taxability matrix, Avalara for live
 rates, and the ERP task/PO masters):
 
-  * ``seed-taxability-matrix-actual.json`` — ``matrix[state][item_type] -> "T"|"E"|"A"`` (Taxable / Exempt /
+  * ``seed-taxability-matrix.json`` — ``matrix[state][item_type] -> "T"|"E"|"A"`` (Taxable / Exempt /
     Ambiguous-review) plus ``tax_rates[state]``. Drives step 4 (tax). ``A`` routes to SME by design.
   * ``seed-task-codes.json``       — 50 task codes with ``cap_eligible`` (CapEx vs OpEx), ``asset_class``,
     ``useful_life_months``, ``depreciation``. Drives step 3 (classify).
@@ -21,7 +21,6 @@ falls back to the model-only path.
 from __future__ import annotations
 
 import json
-import re
 import shutil
 import tempfile
 from difflib import SequenceMatcher
@@ -32,7 +31,7 @@ from autarch.adapters.filesystem import FileSystemAdapter
 
 _REF_DIR = Path(__file__).resolve().parent / "reference"
 _FILES = {
-    "taxability": "seed-taxability-matrix-actual.json",
+    "taxability": "seed-taxability-matrix.json",
     "task_codes": "seed-task-codes.json",
     "po_records": "seed-po-records.json",
     "history": "seed-history.json",
@@ -93,8 +92,8 @@ def task_code_catalog(data) -> list:
 
 def taxability(data, state, item_type):
     """Look up ``(verdict, verdict_label, rate)`` for a ship-to state + item type. ``verdict`` is
-    ``T``/``E``/``A`` (or ``None`` when unknown); ``rate`` is the state rate plus a configured local
-    add-on. Callers must treat it as a state-base estimate when no local rate is configured."""
+    ``T``/``E``/``A`` (or ``None`` when unknown); ``rate`` is the EFFECTIVE rate = state rate + the
+    representative local (county/city) add-on (diagram step 7), or ``None`` when unknown."""
     tx = data.get("taxability") or {}
     matrix = tx.get("matrix") or {}
     rates = tx.get("tax_rates") or {}
@@ -126,106 +125,6 @@ def task_lookup(data, code):
     return None
 
 
-def task_lookup_by_item_type(data, item_type):
-    """Return the first task-code record that matches the given item_type, or ``None``."""
-    item_type = (item_type or "").strip()
-    if not item_type:
-        return None
-    for t in (data.get("task_codes") or []):
-        if str(t.get("item_type", "")).strip() == item_type:
-            return t
-    return None
-
-
-_FREIGHT_RE = re.compile(
-    r"\b(freight|shipping|tracking|skid charge|delivery fee|handling|fuel surcharge|tariff surcharge)\b",
-    re.I,
-)
-_SERVICE_RE = re.compile(
-    r"\b(labou?r|trip|travel|mileage|site survey|consulting|engineering|design fee)\b", re.I
-)
-_FINANCE_RE = re.compile(
-    r"\b(interest|late[- ]?payment|administrative fee|document process(?:ing)? fee)\b", re.I
-)
-_CONSUMABLE_RE = re.compile(r"\b(environmental fee|consumables? fee|shop supplies?)\b", re.I)
-_MATERIAL_RE = re.compile(
-    r"\b(steel door|hinge|closer|exit hardware|detex|door sweep|weather strip|rain guard|kick plate|"
-    r"paint|motoe?r|impeller|contactor|parts?)\b",
-    re.I,
-)
-_FIXTURE_RE = re.compile(r"\b(cabinet|cabinetry|store fixture|casework)\b", re.I)
-_INSTALL_RE = re.compile(r"\b(install|installation)\b", re.I)
-_RENTAL_CHARGE_RE = re.compile(r"\b(liability waiver|personal property expense)\b", re.I)
-
-
-def reference_classifications(data, header, lines) -> list:
-    """Classify lines from an exact PO match when model classifications are unavailable.
-
-    Explicit freight, service, and finance lines use their dedicated task codes. All other lines
-    inherit the matched PO's primary task. Records without a valid task/item-type pair remain empty
-    so callers route them to review instead of inventing a determination.
-    """
-    rec, score, how = match_po(
-        data,
-        invoice_number=header.get("invoice_number", ""),
-        po_number=header.get("po_number", ""),
-        vendor_name=header.get("vendor_name", ""),
-    )
-    if (rec is None or how not in {"id", "id+vendor"}
-            or rec.get("status") == "invoice_observed"):
-        return [{} for _ in lines]
-
-    primary_code = str(rec.get("task_code") or "").strip()
-    out = []
-    for line in lines:
-        description = str(line.get("description") or "")
-        override = True
-        item_type_override = ""
-        if _FINANCE_RE.search(description):
-            code = "TC-9060"
-        elif _FREIGHT_RE.search(description):
-            code = "TC-7010"
-        elif _CONSUMABLE_RE.search(description):
-            code = "TC-9020"
-        elif _FIXTURE_RE.search(description):
-            code = "TC-5010"
-        elif _MATERIAL_RE.search(description):
-            code = primary_code
-            override = True
-        elif _INSTALL_RE.search(description):
-            code = "TC-5030"
-        elif _SERVICE_RE.search(description) and primary_code in {
-            "TC-3010", "TC-3020", "TC-5020"
-        }:
-            code = "TC-5040"
-        elif _SERVICE_RE.search(description):
-            code = "TC-9030"
-        elif _RENTAL_CHARGE_RE.search(description):
-            code = primary_code
-        else:
-            code = primary_code
-            override = False
-        task = task_lookup(data, code)
-        item_type = item_type_override or str((task or {}).get("item_type") or "").strip()
-        if task is None or not item_type:
-            out.append({})
-            continue
-        capex = "CapEx" if task.get("cap_eligible") else "OpEx"
-        out.append({
-            "capex_opex": capex,
-            "asset_category": task.get("asset_class", ""),
-            "suggested_task": task.get("description", ""),
-            "existing_task_ok": code == primary_code,
-            "item_type": item_type,
-            "task_code": code,
-            "confidence": round(0.9 if score >= 0.9 else 0.85, 2),
-            "rationale": f"Reference fallback from matched PO {rec.get('po_number')} and task {code}.",
-            "_reference_fallback": True,
-            "_reference_override": override,
-        })
-    return out
-
-
 def _sim(a, b) -> float:
     """Fuzzy similarity in [0,1] with a containment boost — for PO ids and vendor names."""
     a, b = str(a).lower().strip(), str(b).lower().strip()
@@ -243,15 +142,11 @@ def match_po(data, invoice_number="", po_number="", vendor_name="", min_score=0.
     (incl. ``vendor_aliases``). Returns ``(record, score, how)`` or ``(None, score, how)`` below
     ``min_score``. ``how`` describes which signals matched (id / vendor / id+vendor)."""
     records = data.get("po_records") or []
-    printed_po = str(po_number).strip()
-    ids = [printed_po] if printed_po else [str(invoice_number).strip()]
-    ids = [value for value in ids if value]
+    ids = [s for s in (str(po_number).strip(), str(invoice_number).strip()) if s]
     best, best_score, how = None, 0.0, "none"
     for rec in records:
         rec_ids = [str(rec.get("po_number", ""))] + [str(x) for x in (rec.get("alt_po_numbers") or [])]
         id_score = max((_sim(k, rid) for k in ids for rid in rec_ids), default=0.0)
-        if printed_po and id_score < 0.85:
-            id_score = 0.0
         names = [str(rec.get("vendor_name", ""))] + [str(x) for x in (rec.get("vendor_aliases") or [])]
         v_score = max((_sim(vendor_name, n) for n in names), default=0.0) if vendor_name else 0.0
         # weight ids heavily; vendor is a corroborating signal
@@ -267,7 +162,7 @@ def match_po(data, invoice_number="", po_number="", vendor_name="", min_score=0.
 def po_discrepancies(rec, header, line_results):
     """Compare a matched PO record against the extracted invoice header + line classifications;
     return a list of human-readable discrepancy strings (empty when everything lines up)."""
-    if not rec or rec.get("status") == "invoice_observed":
+    if not rec:
         return []
     out = []
     inv_state = (header.get("state") or "").strip().upper()
@@ -289,7 +184,7 @@ def po_discrepancies(rec, header, line_results):
     return out
 
 
-def precedents(data, vendor_name="", item_type="", state="", limit=5, exclude_invoice_number=""):
+def precedents(data, vendor_name="", item_type="", state="", limit=5):
     """Find similar PAST decisions in the processing history (step 8: 'validate against historical
     decisions'). Scores each history row by vendor + item type + ship-to state and returns the top
     matches plus a summary (count, avg confidence, routing distribution). Empty when none match."""
@@ -297,23 +192,16 @@ def precedents(data, vendor_name="", item_type="", state="", limit=5, exclude_in
     v = (vendor_name or "").lower().strip()
     it = (item_type or "").lower().strip()
     st = (state or "").upper().strip()
-    excluded_invoice = str(exclude_invoice_number or "").lower().strip()
     scored = []
     for h in hist:
-        if excluded_invoice and str(h.get("invoice_number", "")).lower().strip() == excluded_invoice:
-            continue
         s = 0.0
-        vendor_match = bool(v and _sim(v, h.get("vendor_name", "")) >= 0.6)
-        item_match = bool(it and it == str(h.get("item_type", "")).lower())
-        state_match = bool(st and st == str(h.get("ship_to_state", "")).upper())
-        if vendor_match:
+        if v and _sim(v, h.get("vendor_name", "")) >= 0.6:
             s += 2.0
-        if item_match:
+        if it and it == str(h.get("item_type", "")).lower():
             s += 1.5
-        if state_match:
+        if st and st == str(h.get("ship_to_state", "")).upper():
             s += 1.0
-        # A shared broad item type alone (for example, Professional Services) is not precedent.
-        if vendor_match or (item_match and state_match):
+        if s > 0:
             scored.append((s, h))
     scored.sort(key=lambda x: -x[0])
     matches = [h for _, h in scored[:limit]]
@@ -347,62 +235,30 @@ def precedents(data, vendor_name="", item_type="", state="", limit=5, exclude_in
 # text-embedding deployment) for richer meaning via the same interface.
 # --------------------------------------------------------------------------------------------------
 # Keyword-rich definitions per item type so even a lexical embedder disambiguates well, and so the
-# classification prompt steers each line to the right taxability bucket. Hints match the ACTUAL
-# item types from the Circle K taxability matrix (seed-taxability-matrix-actual.json).
+# classification prompt steers each line to the right taxability bucket. Security/alarm gear is its
+# OWN taxable category (tangible personal property) - distinct from genuinely-exempt life-safety
+# "Safety Equipment" and from POS/network "IT & Electronics". Install labor / travel / freight /
+# surcharges are Professional Services (services), even when they relate to a security system.
 _ITEM_TYPE_HINTS = {
-    "ADVERTISING DIGITAL ADVERTISING SERVICES (Online Ads)": "digital advertising online ads web banner social media",
-    "ADVERTISING MATERIALS (SIGNAGE, STICKERS, ETC.)": "advertising materials signage stickers posters promotional",
-    "ADVERTISING SERVICES LABOR ONLY": "advertising services labor creative design agency",
-    "ARCHITECT/ ENGINEER SERVICES CONCEPT SKETCH, REMODEL DRAWINGS, ETC.": "architect engineer services design drawings blueprints consulting",
-    "COMPUTER HARDWARE": "computer hardware server workstation desktop laptop network equipment monitor",
-    "COMPUTER SOFTWARE MAINTENANCE CONTRACTS OPTIONAL": "software maintenance contract optional",
-    "COMPUTER SOFTWARE MAINTENANCE CONTRACTS REQUIRED": "software maintenance contract required",
-    "CUSTOM COMPUTER SOFTWARE": "custom software development programming application coding",
-    "EQUIPMENT - FOOD PREPARATION REFRIGERATOR MUST FOR FOOD & KITCHEN AND NOT FOR STORAGE OR DISPLAY, GRILL, ICE MAKER, MICROWAVES, OVENS ETC. Manufacturing States - OH-IN-MN-TX": "food preparation equipment refrigerator grill ice maker microwave oven",
-    "EQUIPMENT-FOOD SERVING SPOONS, TONGS, ETC.": "food serving equipment spoons tongs utensils",
-    "EQUIPMENT-FOOD STORAGE BINS, REFRIGERATOR, ETC.": "food storage bins refrigerator cooler freezer",
-    "FILMS & FOILS FOIL PANS/LIDS, PLASTIC WRAP": "films foils pans lids plastic wrap containers",
-    "FREIGHT": "freight shipping delivery transportation hauling",
-    "FURNITURE & FIXTURES KITCHEN, DINING & OFFICE": "furniture fixtures kitchen dining office shelving cabinets",
-    "INFRASTRUCTURE AS A SERVICE (IaaS)": "infrastructure as a service IaaS cloud computing hosting",
-    "INSPECTION SERVICES": "inspection services testing quality assurance",
-    "INTERNET ACCESS": "internet access connectivity broadband data service",
-    "INVENTORY WITHDRAWAL CUPS, PAPER TOWELS, UTENSILS, ETC.": "inventory withdrawal cups paper towels utensils supplies",
-    "LANDSCAPING - LABOR": "landscaping labor grounds maintenance lawn care",
-    "LEASE-REAL PROPERTY LEASING FROM 3RD PARTY": "real property lease leasing rent office space",
-    "LEASED EQUIPMENT LEASING FROM 3RD PARTY": "leased equipment rental storage container",
-    "MATERIAL / PARTS / TOOLS / EQUIPMENT FOR REPAIRING": "material parts tools equipment repair maintenance",
-    "PACKING / HANDLING": "packing handling packaging materials labor",
-    "PAPER PRODUCTS NAPKINS, STRAWS, STIRRERS, ETC.": "paper products napkins straws stirrers bags",
-    "PLASTIC - DISPOSABLE UTENSILS, BAGS, ETC.": "plastic disposable utensils bags containers",
-    "PLASTIC REUSABLE": "plastic reusable containers buckets bins",
-    "PLATFORM AS A SERVICE (PaaS)": "platform as a service PaaS cloud development",
-    "PLUMBING INSTALLATION SERVICES ASSUME PLUMBER PAID SALES TAX ON FIXTURES WHEN PURCHASED": "plumbing installation services fixtures",
-    "PREWRITTEN COMPUTER SOFTWARE CANNED or LICENSE": "prewritten software canned license purchased",
-    "PROFESSIONAL SERVICES ACCOUNTING & FINANCIAL, ADVERTISING, ARCHITECTS, CONSULTING, ENGINEERING, IT, LEGAL, MARKETING, ETC.": "professional services accounting financial consulting engineering legal marketing",
-    "REAL ESTATE MATERIALS PERMANENTLY AFFIXED OR INCORPORATED INTO BUILDING (CANOPY, DOOR, HVAC, PLUMBING, ROOF, WINDOW, ETC.": "real estate materials canopy door hvac plumbing roof window permanently affixed",
-    "SMALL WARES-KITCHEN PANS, METAL TRAYS, ETC.": "small wares kitchen pans metal trays cookware",
-    "SMALL WARES-TABLETOP SALT/PEPPER SHAKERS, MUSTARD, ETC.": "small wares tabletop salt pepper shakers condiment containers",
-    "SOFTWARE AS A SERVICE (SaaS)": "software as a service SaaS cloud subscription application",
-    "STORAGE SERVICES": "storage services warehousing document storage",
-    "SUPPLIES-OFFICE PAPER, PENS, ETC.": "office supplies paper pens pencils stationery",
-    "SUPPLIES-STORE REGISTER TAPE, PENS, ETC.": "store supplies register tape ink ribbons",
-    "TANGIBLE PERSONAL PROPERTY ITEMS REMAIN TANGIBLE RACK, REFRIGERATOR, STORE EQUIPMENT ETC.": "tangible personal property rack refrigerator store equipment amenity unit trash bin dispenser station",
-    "TANGIBLE PERSONAL PROPERTY LABOR: INSTALLATION": "tangible personal property installation labor",
-    "TANGIBLE PERSONAL PROPERTY LABOR: REPAIRS/ RESTORE/ SERVICING": "tangible personal property repair restoration servicing labor",
+    "Fuel Equipment": "fuel dispenser pump nozzle hose tank dispensing fuel island DEF gauging pipeline",
+    "Construction Materials": "construction materials lumber steel concrete paving asphalt roofing drywall "
+                              "insulation fasteners sealant adhesive fixtures shelving countertop",
+    "Safety Equipment": "fire protection fire extinguisher fire suppression sprinkler spill containment "
+                        "eyewash first aid ppe personal protective bollard guard rail life-safety",
+    "HVAC & Mechanical": "hvac heating ventilation air conditioning refrigeration walk-in cooler freezer "
+                          "compressor ductwork thermostat rooftop unit mechanical",
+    "IT & Electronics": "point of sale pos register network switch router firewall server computer monitor "
+                        "printer barcode scanner card reader payment terminal back-office electronics",
+    "Security & Surveillance Systems": "security burglar intrusion alarm system control panel motion sensor "
+                        "pir glassbreak detector door window contact siren strobe horn keypad camera cctv "
+                        "surveillance access control low-voltage security cabling wire mounting hardware "
+                        "bracket enclosure for the alarm system",
+    "Vehicles & Heavy Equipment": "vehicle truck fleet forklift excavator loader machinery heavy equipment "
+                                  "generator compressor air system",
+    "Professional Services": "installation labor install wiring labor service consulting engineering design "
+                            "freight shipping delivery handling travel mileage trip charge fuel surcharge fee permit",
+    "Environmental": "environmental remediation compliance regulatory permit spill monitoring assessment",
 }
-
-_AMENITY_UNIT_ITEM_TYPE = (
-    "TANGIBLE PERSONAL PROPERTY ITEMS REMAIN TANGIBLE RACK, REFRIGERATOR, STORE EQUIPMENT ETC."
-)
-
-
-def deterministic_item_type(line_desc: str) -> str:
-    """Return a high-precision item type for descriptions that embeddings commonly confuse."""
-    description = str(line_desc or "")
-    if re.search(r"\b(?:double[- ]sided\s+)?amenity\s+unit\b", description, re.IGNORECASE):
-        return _AMENITY_UNIT_ITEM_TYPE
-    return ""
 
 
 def build_semantic_index(data, embedder):
@@ -415,7 +271,7 @@ def build_semantic_index(data, embedder):
             tasks.append((t, embedder.embed(text)))
         itypes = []
         for it in item_types(data):
-            itypes.append((it, embedder.embed(it)))
+            itypes.append((it, embedder.embed(f"{it} {_ITEM_TYPE_HINTS.get(it, '')}")))
         if not tasks or not itypes:
             return None
         return {"tasks": tasks, "items": itypes}
@@ -444,25 +300,6 @@ def map_line_semantic(index, line_desc, embedder):
         if best_t is None or best_i is None:
             return None
         return {"task_code": best_t.get("code"), "task_desc": best_t.get("description"),
-                "task_score": round(best_ts, 4), "item_type": best_i, "item_score": round(best_is, 4)}
+                "task_score": round(best_ts, 3), "item_type": best_i, "item_score": round(best_is, 3)}
     except Exception:
         return None
-
-
-def map_line_all_item_types(index, line_desc, embedder, min_score=0.4, limit=None):
-    """Get all item type matches with scores (sorted by confidence). Returns list of
-    ``(item_type, score)`` tuples for item_types scoring >= min_score, up to limit matches."""
-    if not index or not line_desc:
-        return []
-    try:
-        from autarch.intelligence.embedding import cosine
-        v = embedder.embed(str(line_desc))
-        scored = []
-        for it, iv in index["items"]:
-            s = cosine(v, iv)
-            if s >= min_score:
-                scored.append((it, round(s, 4)))
-        scored.sort(key=lambda x: -x[1])
-        return scored[:limit] if limit is not None else scored
-    except Exception:
-        return []

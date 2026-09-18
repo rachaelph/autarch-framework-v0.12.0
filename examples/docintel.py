@@ -5,8 +5,8 @@ the PDF is sent to Azure Document Intelligence's ``prebuilt-invoice`` model, whi
 structured header fields AND the line items **with a per-field confidence score**, with no
 per-vendor training. Two nice consequences that align with the tax flow:
 
-    * the **governing state** is read from the SHIPPING or service address
-        (``ShippingAddress`` -> ``ServiceAddress``), never the customer/bill-to or vendor address; and
+  * the **governing state** is read from the SHIPPING address (``ShippingAddress`` -> ``ServiceAddress``
+    -> ``CustomerAddress``), never the bill-to / vendor address; and
   * every extracted value carries DI's own confidence, which feeds the field verdict + routing.
 
 Auth mirrors the MAF path: Entra ID pinned to the resource tenant (``AZURE_DOCINTEL_TENANT_ID`` /
@@ -54,19 +54,6 @@ def _state_from_address(field):
     content = getattr(field, "content", "") or ""
     m = re.search(r"\b([A-Z]{2})\s+\d{5}", content)
     return (m.group(1) if m else ""), conf
-
-
-def _states_from_address(field):
-    """Return every structured or printed state candidate on an address field."""
-    if field is None:
-        return []
-    states = []
-    addr = getattr(field, "value_address", None)
-    if addr is not None and getattr(addr, "state", None):
-        states.append(str(addr.state).strip().upper())
-    content = getattr(field, "content", "") or ""
-    states.extend(re.findall(r"\b([A-Z]{2})\s+\d{5}(?:-\d{4})?\b", content.upper()))
-    return list(dict.fromkeys(state for state in states if state))
 
 
 def analyze_invoice(pdf_path, endpoint, tenant_id=None, api_key=None):
@@ -130,18 +117,12 @@ def analyze_invoice(pdf_path, endpoint, tenant_id=None, api_key=None):
     put("invoice_number", "InvoiceId")
     put("invoice_date", "InvoiceDate")
     put("po_number", "PurchaseOrder")
-    put("subtotal", "SubTotal", numeric=True)
     put("total_amount", "InvoiceTotal", numeric=True)
     put("tax_charged", "TotalTax", numeric=True)
 
-    # Governing STATE from the SHIP-TO / service address, never bill-to/customer address.
-    # CustomerAddress is often the billed customer and cannot establish tax jurisdiction.
+    # Governing STATE from the SHIP-TO / service address, never bill-to (tax-flow rule).
     state_source = ""
-    state_candidates = {}
-    for akey in ("ShippingAddress", "ServiceAddress"):
-        candidates = _states_from_address(fields.get(akey))
-        if candidates:
-            state_candidates[akey] = candidates
+    for akey in ("ShippingAddress", "ServiceAddress", "CustomerAddress"):
         st, c = _state_from_address(fields.get(akey))
         if st:
             header["state"] = st
@@ -161,19 +142,11 @@ def analyze_invoice(pdf_path, endpoint, tenant_id=None, api_key=None):
 
         desc = cell("Description")
         if desc and str(desc).strip():
-            cell_confidences = [
-                getattr(obj.get(key), "confidence", None)
-                for key in ("Description", "Quantity", "UnitPrice", "Amount")
-                if obj.get(key) is not None
-            ]
             lines.append({
                 "description": str(desc).strip(),
                 "quantity": _num(cell("Quantity")),
                 "unit_price": _num(cell("UnitPrice")),
                 "amount": _num(cell("Amount")),
-                "extraction_confidence": round(min(
-                    float(value) for value in cell_confidences if value is not None
-                ), 3) if any(value is not None for value in cell_confidences) else None,
             })
 
     return {
@@ -183,5 +156,4 @@ def analyze_invoice(pdf_path, endpoint, tenant_id=None, api_key=None):
         "content": result.content or "",
         "n_pages": len(result.pages or []),
         "state_source": state_source,
-        "state_candidates": state_candidates,
     }

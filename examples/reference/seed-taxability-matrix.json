@@ -1,40 +1,54 @@
 {
   "item_types": [
-    "Security & Surveillance Systems",
-    "IT & Electronics",
-    "Real Property Repair & Installation",
-    "Signage & Display",
+    "Fuel Equipment",
     "Construction Materials",
+    "Safety Equipment",
     "HVAC & Mechanical",
-    "Equipment Rental",
+    "IT & Electronics",
+    "Security & Surveillance Systems",
+    "Vehicles & Heavy Equipment",
     "Professional Services",
-    "Freight & Delivery",
-    "Finance Charges"
+    "Environmental"
   ],
-  "states": ["MO", "FL", "IL", "AK", "CO", "OH", "TN", "ND"],
+  "states": ["AZ","NC","TX","GA","TN","FL","LA","OK","IN","CA","CO","IL","PA","WA","NV","OH","NY","MN","MI","MA","MO","AK"],
   "matrix": {
-    "MO": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
-    "FL": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "E", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "E", "Finance Charges": "E" },
-    "IL": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
-    "AK": { "Security & Surveillance Systems": "A", "IT & Electronics": "A", "Real Property Repair & Installation": "A", "Signage & Display": "A", "Construction Materials": "A", "HVAC & Mechanical": "A", "Equipment Rental": "A", "Professional Services": "E", "Freight & Delivery": "A", "Finance Charges": "E" },
-    "CO": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "E", "Finance Charges": "E" },
-    "OH": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
-    "TN": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "T", "Finance Charges": "E" },
-    "ND": { "Security & Surveillance Systems": "T", "IT & Electronics": "T", "Real Property Repair & Installation": "A", "Signage & Display": "T", "Construction Materials": "T", "HVAC & Mechanical": "T", "Equipment Rental": "T", "Professional Services": "E", "Freight & Delivery": "E", "Finance Charges": "E" }
+    "AZ": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "NC": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "TX": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "GA": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "TN": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "FL": { "Fuel Equipment": "T", "Construction Materials": "A", "Safety Equipment": "E", "HVAC & Mechanical": "A", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "LA": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "A", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "OK": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "IN": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "A", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "A" },
+    "CA": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "A", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "CO": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "IL": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "PA": { "Fuel Equipment": "T", "Construction Materials": "A", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "WA": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "NV": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "OH": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "A", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "NY": { "Fuel Equipment": "T", "Construction Materials": "A", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "MN": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "MI": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "MA": { "Fuel Equipment": "T", "Construction Materials": "T", "Safety Equipment": "E", "HVAC & Mechanical": "A", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "MO": { "Fuel Equipment": "T", "Construction Materials": "A", "Safety Equipment": "E", "HVAC & Mechanical": "T", "IT & Electronics": "T", "Security & Surveillance Systems": "T", "Vehicles & Heavy Equipment": "T", "Professional Services": "E", "Environmental": "E" },
+    "AK": { "Fuel Equipment": "E", "Construction Materials": "E", "Safety Equipment": "E", "HVAC & Mechanical": "E", "IT & Electronics": "A", "Security & Surveillance Systems": "E", "Vehicles & Heavy Equipment": "E", "Professional Services": "E", "Environmental": "E" }
   },
-  "legend": {
-    "T": "Taxable",
-    "E": "Exempt",
-    "A": "Ambiguous - requires review"
-  },
+  "legend": { "T": "Taxable", "E": "Exempt", "A": "Ambiguous — requires review" },
   "tax_rates": {
-    "MO": 0.04225,
-    "FL": 0.06,
-    "IL": 0.0625,
-    "AK": 0.0,
-    "CO": 0.029,
-    "OH": 0.0575,
-    "TN": 0.07,
-    "ND": 0.05
+    "AZ": 0.056, "NC": 0.0475, "TX": 0.0625, "GA": 0.04, "TN": 0.07,
+    "FL": 0.06, "LA": 0.0445, "OK": 0.045, "IN": 0.07, "CA": 0.0725,
+    "CO": 0.029, "IL": 0.0625, "PA": 0.06, "WA": 0.065, "NV": 0.0685,
+    "OH": 0.0575, "NY": 0.04, "MN": 0.06875, "MI": 0.06, "MA": 0.0625,
+    "MO": 0.04225, "AK": 0.0
+  },
+  "local_rates": {
+    "_comment": "Illustrative representative county/city add-on applied ON TOP of the state rate (diagram step 7: 'state rate from file, county/city in code'). Effective rate = state + local. Real deployments resolve the exact jurisdiction rate from Avalara by ship-to address.",
+    "AZ": 0.028, "NC": 0.022, "TX": 0.0194, "GA": 0.033, "TN": 0.0255,
+    "FL": 0.01, "LA": 0.05, "OK": 0.045, "IN": 0.0, "CA": 0.016,
+    "CO": 0.047, "IL": 0.026, "PA": 0.003, "WA": 0.027, "NV": 0.013,
+    "OH": 0.015, "NY": 0.045, "MN": 0.012, "MI": 0.0, "MA": 0.0,
+    "MO": 0.0221, "AK": 0.018
   }
 }

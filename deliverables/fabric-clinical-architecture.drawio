@@ -1,0 +1,740 @@
+<mxfile host="app.diagrams.net" agent="GitHub Copilot" version="24.7.17" type="device">
+  <diagram id="page-l0" name="01 · TARGET · L0 Context (Exec)">
+    <mxGraphModel dx="1800" dy="1000" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0" background="#F7F4EC">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="l0-accent" value="" style="rounded=0;fillColor=#1A7A1A;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="10" height="840" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-eyebrow" value="TARGET STATE · LEVEL 0 · CONTEXT" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#1A7A1A;letterSpacing=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="36" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-badge" value="TO-BE — NOT WHAT EXISTS TODAY" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#D4FF3F;letterSpacing=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="36" width="290" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-title" value="Clinical data on Microsoft Fabric — end to end" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Georgia;fontSize=38;fontStyle=1;fontColor=#111111;" vertex="1" parent="1">
+          <mxGeometry x="78" y="62" width="1100" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-sub" value="One governed path from source systems to sponsors, study teams and agents. Every layer has an owner, a contract and a service level." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=15;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="80" y="118" width="1180" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l0-clin" value="CLINICAL SYSTEMS" style="swimlane;html=1;startSize=34;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="180" width="300" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-c1" value="Veeva EDC&#10;REST API · 15-min micro-batch" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-clin">
+          <mxGeometry x="16" y="46" width="268" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-c2" value="Medidata Rave&#10;SOAP · CDISC ODM" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-clin">
+          <mxGeometry x="16" y="96" width="268" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-c3" value="Veeva CTMS / UCV&#10;Direct Data API · 15-min" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-clin">
+          <mxGeometry x="16" y="146" width="268" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-c4" value="Labs · IRT/RTSM · ePRO · Safety · eTMF" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=12;verticalAlign=middle;fontColor=#777777;dashed=1;" vertex="1" parent="l0-clin">
+          <mxGeometry x="16" y="196" width="268" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l0-ent" value="ENTERPRISE SYSTEMS" style="swimlane;html=1;startSize=34;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="430" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-e1" value="Salesforce · Conga · HubSpot · Responsive&#10;Workday · Adaptive · BlackLine" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-ent">
+          <mxGeometry x="16" y="46" width="268" height="56" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l0-leg" value="LEGACY — DECOMMISSIONING" style="swimlane;html=1;startSize=34;fillColor=#EDEAE3;strokeColor=#B9B2A2;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#8A7F66;align=left;spacingLeft=14;letterSpacing=1;rounded=0;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="570" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-l1" value="On-prem SQL · Informatica · MuleSoft&#10;TIBCO · Matillion · Snowflake · ODW · SDW" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=12;verticalAlign=middle;fontColor=#777777;dashed=1;" vertex="1" parent="l0-leg">
+          <mxGeometry x="16" y="46" width="268" height="56" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l0-fab" value="MICROSOFT FABRIC · ONELAKE" style="swimlane;html=1;startSize=38;fillColor=#0B0B0B;strokeColor=#0B0B0B;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#D4FF3F;align=left;spacingLeft=16;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="450" y="180" width="420" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-bronze" value="BRONZE — raw, immutable, replayable" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=12;fontColor=#FFFFFF;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-fab">
+          <mxGeometry x="20" y="56" width="380" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-silver" value="SILVER — conformed clinical model&#10;CDISC-aligned · contracts · DQ gates" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=12;fontColor=#FFFFFF;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-fab">
+          <mxGeometry x="20" y="126" width="380" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-gold" value="GOLD — PERSISTED tables, not views&#10;star schemas · one metric canon" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=12;fontColor=#D4FF3F;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-fab">
+          <mxGeometry x="20" y="204" width="380" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-mdm" value="Conformed masters — Study · Site · Investigator · Subject" style="rounded=0;html=1;fillColor=none;strokeColor=#5A5A5A;dashed=1;fontFamily=Helvetica;fontSize=11;fontColor=#BBBBBB;align=center;verticalAlign=middle;" vertex="1" parent="l0-fab">
+          <mxGeometry x="20" y="278" width="380" height="34" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l0-txn" value="TRANSACTIONAL SERVING PLANE" style="swimlane;html=1;startSize=34;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="450" y="545" width="420" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-sb" value="Azure Service Bus — event backbone" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-txn">
+          <mxGeometry x="20" y="46" width="380" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-edsl" value="Azure SQL — EDSL · near real-time · ~50k concurrent&#10;operational apps and agent state" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-txn">
+          <mxGeometry x="20" y="90" width="380" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l0-ai" value="GOVERNED INTELLIGENCE" style="swimlane;html=1;startSize=34;fillColor=#0B0B0B;strokeColor=#0B0B0B;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#D4FF3F;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="940" y="180" width="300" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-ai1" value="Agent factory — certified, reusable agents&#10;Fabric IQ · ontologies · memory&#10;Digital Twin of a Study" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=12;fontColor=#FFFFFF;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-ai">
+          <mxGeometry x="16" y="46" width="268" height="86" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l0-cons" value="CONSUMERS" style="swimlane;html=1;startSize=34;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="940" y="355" width="300" height="335" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-k1" value="Sponsors — contracted data shares&#10;confidentiality boundary per sponsor" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-cons">
+          <mxGeometry x="16" y="46" width="268" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-k2" value="Study teams — DM, CRA, medical monitor" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-cons">
+          <mxGeometry x="16" y="106" width="268" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-k3" value="Biostatistics — submission datasets" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-cons">
+          <mxGeometry x="16" y="160" width="268" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-k4" value="Commercial &amp; finance — Power BI" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-cons">
+          <mxGeometry x="16" y="214" width="268" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-k5" value="Regulators &amp; auditors — evidence on demand" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="l0-cons">
+          <mxGeometry x="16" y="268" width="268" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l0-gov" value="GOVERNANCE" style="swimlane;html=1;startSize=34;fillColor=none;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="180" width="250" height="510" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-g1" value="Entra ID · Zero Trust&#10;RBAC · PIM" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="l0-gov">
+          <mxGeometry x="14" y="48" width="222" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-g2" value="Purview — catalog, lineage&#10;sensitivity labels, DLP" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="l0-gov">
+          <mxGeometry x="14" y="104" width="222" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-g3" value="Key Vault · Defender&#10;CMK · Private Link" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="l0-gov">
+          <mxGeometry x="14" y="160" width="222" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-g4" value="GxP — 21 CFR Part 11&#10;ALCOA+ · audit trail · CSA" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="l0-gov">
+          <mxGeometry x="14" y="216" width="222" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-g5" value="SOX — finance path&#10;segregation of duties" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="l0-gov">
+          <mxGeometry x="14" y="272" width="222" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-g6" value="Data contracts &amp; DQ gates&#10;blocking, not advisory" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="l0-gov">
+          <mxGeometry x="14" y="328" width="222" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-g7" value="Capacity isolation&#10;serving never shares with ETL" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;fontFamily=Helvetica;fontSize=11;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="l0-gov">
+          <mxGeometry x="14" y="384" width="222" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-g8" value="One named owner per domain&#10;and per Gold object" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="l0-gov">
+          <mxGeometry x="14" y="440" width="222" height="46" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l0-ed1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=2;endArrow=block;endFill=1;" edge="1" parent="1" source="l0-clin" target="l0-fab">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-ed2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=2;endArrow=block;endFill=1;" edge="1" parent="1" source="l0-ent" target="l0-fab">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-ed3" value="retire" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B9B2A2;strokeWidth=2;dashed=1;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#8A7F66;" edge="1" parent="1" source="l0-leg" target="l0-txn">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-ed4" value="events" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#1A7A1A;" edge="1" parent="1" source="l0-ent" target="l0-txn">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-ed5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=2;endArrow=block;endFill=1;" edge="1" parent="1" source="l0-fab" target="l0-ai">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-ed6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;" edge="1" parent="1" source="l0-fab" target="l0-cons">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l0-ed7" value="agent state" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#999999;strokeWidth=2;dashed=1;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#777777;" edge="1" parent="1" source="l0-txn" target="l0-cons">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l0-foot" value="This is the TARGET architecture. Persisted Gold, blocking contracts, conformed masters, capacity isolation and governed agents do not exist today — see page 03 for current state and page 04 for the transition. Dashed boxes are in scope but not yet evidenced. Volumes, SKUs and concurrency on page 02 are planning assumptions for a CRO of this size and must be confirmed with Fortrea before use in any commitment." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#8A7F66;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="715" width="1180" height="55" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="page-phys" name="02 · TARGET · Physical Fabric Topology">
+    <mxGraphModel dx="1800" dy="1000" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0" background="#F7F4EC">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="ph-accent" value="" style="rounded=0;fillColor=#D4FF3F;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="10" height="840" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-eyebrow" value="TARGET STATE · LEVEL 2 · PHYSICAL TOPOLOGY" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#1A7A1A;letterSpacing=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="36" width="560" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-badge" value="TO-BE — CAPACITY SPLIT IS PROPOSED, NOT CURRENT" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#D4FF3F;letterSpacing=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="36" width="380" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-title" value="Capacities, workspaces and the isolation boundary" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Georgia;fontSize=36;fontStyle=1;fontColor=#111111;" vertex="1" parent="1">
+          <mxGeometry x="78" y="62" width="1200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-sub" value="The logical medallion says nothing about blast radius. This is the view that prevents the Roche incident recurring — sponsor-facing reads must never share a capacity with transformation." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=15;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="80" y="116" width="1250" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph-tenant" value="FABRIC TENANT · Entra ID · Purview · Private Link / managed VNet · CMK" style="swimlane;html=1;startSize=36;fillColor=none;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="175" width="1050" height="640" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph-capa" value="CAPACITY A · INGEST &amp; TRANSFORM   —   assumed F64, autoscale on, background-heavy" style="swimlane;html=1;startSize=32;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#333333;align=left;spacingLeft=12;rounded=0;" vertex="1" parent="ph-tenant">
+          <mxGeometry x="24" y="52" width="1000" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wsl" value="ws-clinical-landing&#10;Pipelines · Notebooks&#10;Lakehouse lh_bronze" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capa">
+          <mxGeometry x="20" y="44" width="220" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wsc" value="ws-clinical-conform&#10;Spark notebooks · Dataflows&#10;Lakehouse lh_silver" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capa">
+          <mxGeometry x="264" y="44" width="220" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wsq" value="ws-clinical-quality&#10;DQ rules · quarantine&#10;contract validation" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capa">
+          <mxGeometry x="508" y="44" width="220" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-note-a" value="Throttling here delays&#10;data. It must not&#10;degrade a live report." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=10;fontColor=#8A7F66;fontStyle=2;" vertex="1" parent="ph-capa">
+          <mxGeometry x="752" y="44" width="230" height="62" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph-capb" value="CAPACITY B · SERVING   —   ISOLATED · assumed F128 · interactive SLA · surge headroom" style="swimlane;html=1;startSize=32;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=3;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#D4FF3F;align=left;spacingLeft=12;rounded=0;" vertex="1" parent="ph-tenant">
+          <mxGeometry x="24" y="192" width="1000" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wsg" value="ws-clinical-gold&#10;Warehouse wh_gold&#10;PERSISTED marts · incremental MERGE" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#D4FF3F;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capb">
+          <mxGeometry x="20" y="44" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wss" value="ws-clinical-semantic&#10;Direct Lake models&#10;Reports · Power BI apps" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capb">
+          <mxGeometry x="284" y="44" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wse" value="ws-clinical-rti&#10;Eventhouse / KQL&#10;operational monitoring" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capb">
+          <mxGeometry x="548" y="44" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-note-b" value="No Spark jobs.&#10;No ad-hoc SQL.&#10;No exploration." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=10;fontColor=#D4FF3F;fontStyle=2;" vertex="1" parent="ph-capb">
+          <mxGeometry x="812" y="44" width="170" height="62" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph-capc" value="CAPACITY C · SPONSOR SHARE   —   ISOLATED per sponsor tier · confidentiality boundary" style="swimlane;html=1;startSize=32;fillColor=#0B0B0B;strokeColor=#1A7A1A;strokeWidth=3;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#8FCE00;align=left;spacingLeft=12;rounded=0;" vertex="1" parent="ph-tenant">
+          <mxGeometry x="24" y="332" width="1000" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wsp1" value="ws-share-roche&#10;read-only shortcuts&#10;RLS · labels · access audit" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#8FCE00;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capc">
+          <mxGeometry x="20" y="42" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wsp2" value="ws-share-&lt;sponsor-n&gt;&#10;one workspace per sponsor&#10;no shared objects" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capc">
+          <mxGeometry x="274" y="42" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wsp3" value="Delta Sharing / OneLake share&#10;external sponsor tenant" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capc">
+          <mxGeometry x="528" y="42" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-note-c" value="Decision: per-sponsor&#10;workspace, not RLS on&#10;a shared object." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=10;fontColor=#8FCE00;fontStyle=2;" vertex="1" parent="ph-capc">
+          <mxGeometry x="782" y="42" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph-capd" value="CAPACITY D · EXPLORATION &amp; NON-PROD   —   assumed F16 · throttled · Git-linked" style="swimlane;html=1;startSize=32;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#333333;align=left;spacingLeft=12;rounded=0;" vertex="1" parent="ph-tenant">
+          <mxGeometry x="24" y="470" width="1000" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wsx" value="ws-clinical-sandbox&#10;ad-hoc analysis&#10;read-only shortcut to Gold" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capd">
+          <mxGeometry x="20" y="42" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wsd" value="ws-*-dev / ws-*-test&#10;Git integration&#10;deployment pipelines" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capd">
+          <mxGeometry x="274" y="42" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-wsv" value="ws-validation&#10;GxP validation evidence&#10;IQ/OQ/PQ artefacts" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="ph-capd">
+          <mxGeometry x="528" y="42" width="230" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph-ext" value="EXTERNAL&#10;&#10;ADLS Gen2 landing&#10;Azure SQL EDSL&#10;Azure Service Bus&#10;Source APIs" style="rounded=0;html=1;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=12;verticalAlign=top;spacingTop=10;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="230" width="200" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph-legend" value="LEGEND &amp; ASSUMPTIONS" style="swimlane;html=1;startSize=32;fillColor=none;strokeColor=#B9B2A2;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#8A7F66;align=left;spacingLeft=12;rounded=0;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="400" width="380" height="415" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-lg1" value="Solid arrow  =  data is written / copied&#10;Dashed arrow  =  shortcut, no copy — the READER'S capacity pays the compute&#10;Lime border  =  isolation boundary, non-negotiable" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=11;fontColor=#333333;" vertex="1" parent="ph-legend">
+          <mxGeometry x="14" y="42" width="352" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-lg2" value="PLANNING ASSUMPTIONS — CONFIRM WITH FORTREA" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=10;fontStyle=1;fontColor=#1A7A1A;letterSpacing=1;" vertex="1" parent="ph-legend">
+          <mxGeometry x="14" y="118" width="352" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-lg3" value="Active studies&#9;&#9;200 – 500&#10;Sites in flight&#9;&#9;5,000 – 15,000&#10;Subjects (cumulative)&#9;1M – 3M&#10;Clinical data volume&#9;50 – 200 TB in OneLake&#10;Daily ingest&#9;&#9;200 GB – 1 TB&#10;Micro-batch cadence&#9;15 min (EDC, UCV)&#10;Rave extract&#9;&#9;incremental ODM, hourly–daily&#10;EDSL concurrency&#9;~50,000 stated — unverified&#10;Gold refresh SLA&#9;target 30 min from source&#10;Sponsor share SLA&#9;contractual, per agreement&#10;Capacity A&#9;&#9;F64 + autoscale&#10;Capacity B&#9;&#9;F128, no autoscale, headroom 40%&#10;Capacity C&#9;&#9;F32 per sponsor tier&#10;Capacity D&#9;&#9;F16" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;fontColor=#333333;" vertex="1" parent="ph-legend">
+          <mxGeometry x="14" y="142" width="352" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-lg4" value="Every figure above is a planning assumption for a CRO of Fortrea's scale, not a Fortrea measurement. Replace before any commitment." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=10;fontColor=#8A7F66;fontStyle=2;" vertex="1" parent="ph-legend">
+          <mxGeometry x="14" y="368" width="352" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph-e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=2;endArrow=block;endFill=1;" edge="1" parent="1" source="ph-ext" target="ph-capa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-e2" value="MERGE across capacity" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#1A7A1A;" edge="1" parent="ph-tenant" source="ph-wsq" target="ph-wsg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-e3" value="Direct Lake" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#D4FF3F;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#1A7A1A;" edge="1" parent="ph-tenant" source="ph-wsg" target="ph-wss">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-e4" value="shortcut · no copy" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8FCE00;strokeWidth=2;dashed=1;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#1A7A1A;" edge="1" parent="ph-tenant" source="ph-wsg" target="ph-wsp1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-e5" value="shortcut · read-only" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#999999;strokeWidth=2;dashed=1;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#777777;" edge="1" parent="ph-tenant" source="ph-wsg" target="ph-wsx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-e6" value="deployment pipeline + Git" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#333333;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#333333;" edge="1" parent="ph-tenant" source="ph-wsd" target="ph-capa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-e7" value="write" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#1A7A1A;" edge="1" parent="ph-capa" source="ph-wsl" target="ph-wsc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ph-e8" value="gate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#1A7A1A;" edge="1" parent="ph-capa" source="ph-wsc" target="ph-wsq">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="page-gap" name="03 · CURRENT · Gap Overlay">
+    <mxGraphModel dx="1800" dy="1000" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0" background="#F7F4EC">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="gp-accent" value="" style="rounded=0;fillColor=#1A7A1A;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="10" height="840" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-eyebrow" value="WORKSHOP CANVAS · CURRENT STATE" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#1A7A1A;letterSpacing=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="36" width="520" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-title" value="What is evidenced, what is asserted, what is unknown" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Georgia;fontSize=36;fontStyle=1;fontColor=#111111;" vertex="1" parent="1">
+          <mxGeometry x="78" y="62" width="1250" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-sub" value="Put this on the wall, not the target-state picture. Blank and dashed elements are the point — anything we cannot evidence in the room becomes a request with a name and a date against it." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=15;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="80" y="116" width="1300" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gp-src" value="SOURCES — AS BUILT" style="swimlane;html=1;startSize=32;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=12;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="180" width="270" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-s1" value="Veeva EDC" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-src">
+          <mxGeometry x="14" y="42" width="242" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-s2" value="Medidata Rave" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-src">
+          <mxGeometry x="14" y="84" width="242" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-s3" value="Veeva CTMS / UCV" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-src">
+          <mxGeometry x="14" y="126" width="242" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-s4" value="Commercial &amp; finance apps" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;fontFamily=Helvetica;fontSize=12;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-src">
+          <mxGeometry x="14" y="168" width="242" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-s5" value="Labs · IRT · ePRO · Safety · eTMF&#10;? in scope — pattern undefined" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#B9B2A2;dashed=1;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;fontColor=#8A7F66;" vertex="1" parent="gp-src">
+          <mxGeometry x="14" y="210" width="242" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-s6" value="LEGACY still running?&#10;ODW · SDW · Snowflake · Informatica&#10;TIBCO · Matillion&#10;? duplicate truth · ? decommission date" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#B9B2A2;dashed=1;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=10;verticalAlign=middle;fontColor=#8A7F66;" vertex="1" parent="gp-src">
+          <mxGeometry x="14" y="260" width="242" height="58" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gp-fab" value="FABRIC — AS BUILT" style="swimlane;html=1;startSize=32;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=12;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="410" y="180" width="330" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-f1" value="BRONZE&#10;? immutable   ? replayable   ? lineage columns" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#B9B2A2;dashed=1;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-fab">
+          <mxGeometry x="16" y="46" width="298" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-f2" value="SILVER — described as 'conformed'&#10;? whose model   ? CDISC-aligned or pass-through&#10;? contracts   ? DQ gates blocking" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#B9B2A2;dashed=1;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-fab">
+          <mxGeometry x="16" y="118" width="298" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-f3" value="GOLD — VIEWS over Silver&#10;EVIDENCED · root cause of 4 Aug incident" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=3;fontFamily=Helvetica;fontSize=11;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-fab">
+          <mxGeometry x="16" y="204" width="298" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-f4" value="? capacity shared across all workloads" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#B9B2A2;dashed=1;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;fontColor=#8A7F66;" vertex="1" parent="gp-fab">
+          <mxGeometry x="16" y="276" width="298" height="34" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gp-txn" value="TRANSACTIONAL" style="swimlane;html=1;startSize=32;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=12;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="545" width="660" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-t1" value="Azure Service Bus&#10;? DLQ owner   ? replay procedure" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#B9B2A2;dashed=1;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-txn">
+          <mxGeometry x="14" y="44" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-t2" value="Azure SQL EDSL — ~50k concurrent&#10;? measured or estimated   ? reconciled with Gold" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#B9B2A2;dashed=1;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-txn">
+          <mxGeometry x="336" y="44" width="308" height="56" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gp-cons" value="CONSUMPTION" style="swimlane;html=1;startSize=32;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=12;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="800" y="180" width="300" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-k1" value="Power BI&#10;? Direct Lake or DirectQuery fallback" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#B9B2A2;dashed=1;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-cons">
+          <mxGeometry x="16" y="46" width="268" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-k2" value="Roche data share&#10;RELEASE PULLED · apology issued&#10;patched, design decision remains" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=3;fontFamily=Helvetica;fontSize=11;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-cons">
+          <mxGeometry x="16" y="114" width="268" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-k3" value="Shadow extracts?&#10;Excel · SAS · side databases&#10;? how many   ? what do they compensate for" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#B9B2A2;dashed=1;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;fontColor=#8A7F66;" vertex="1" parent="gp-cons">
+          <mxGeometry x="16" y="194" width="268" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-k4" value="Biostatistics / submission&#10;? path from Gold" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#B9B2A2;dashed=1;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-cons">
+          <mxGeometry x="16" y="274" width="268" height="42" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gp-gaps" value="HYPOTHESES TO TEST — not yet findings" style="swimlane;html=1;startSize=32;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#D4FF3F;align=left;spacingLeft=12;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="180" width="390" height="485" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-g1" value="H1  No enterprise data model with a named owner&#10;      Test: ask who authored Silver and when it was last reviewed" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-gaps">
+          <mxGeometry x="14" y="44" width="362" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-g2" value="H2  No enforced data contracts or blocking DQ gates&#10;      Test: ask what happens on a schema break today" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-gaps">
+          <mxGeometry x="14" y="112" width="362" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-g3" value="H3  Gold is not persisted   —   EVIDENCED, not hypothesis&#10;      Confirmed by the 4 Aug incident chain" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-gaps">
+          <mxGeometry x="14" y="180" width="362" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-g4" value="H4  No capacity isolation between ETL and serving&#10;      Test: request 90 days of capacity metrics" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-gaps">
+          <mxGeometry x="14" y="248" width="362" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-g5" value="H5  Metric definitions duplicated across Gold, models, DAX&#10;      Test: count definitions of 'enrolled subject'" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-gaps">
+          <mxGeometry x="14" y="316" width="362" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-g6" value="H6  Legacy and Fabric disagree on values, no arbiter&#10;      Test: ask where numbers differ and which one wins" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="gp-gaps">
+          <mxGeometry x="14" y="384" width="362" height="56" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gp-cap" value="CAPTURE          Root cause class:                              Where else it applies:                              Evidence requested:                              Owner and date:" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#0B0B0B;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#D4FF3F;align=left;spacingLeft=16;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="80" y="700" width="1460" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-foot" value="H1, H2, H4, H5 and H6 are inferred from the incident narrative and must be presented as hypotheses to test, not as findings. Only H3 is evidenced. Asserting the rest before discovery costs credibility in the room." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#8A7F66;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="785" width="1460" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gp-e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=2;endArrow=block;endFill=1;" edge="1" parent="1" source="gp-src" target="gp-fab">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gp-e2" value="recompute on every read" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#D4FF3F;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=10;fontColor=#1A7A1A;fontStyle=1;" edge="1" parent="1" source="gp-fab" target="gp-cons">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="page-trans" name="04 · TRANSITION · As-is to To-be">
+    <mxGraphModel dx="1800" dy="1000" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0" background="#F7F4EC">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="tr-accent" value="" style="rounded=0;fillColor=#D4FF3F;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="10" height="840" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-eyebrow" value="TRANSITION · HOW WE GET FROM PAGE 03 TO PAGES 01–02" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#1A7A1A;letterSpacing=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="36" width="700" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-title" value="Each horizon earns the right to the next" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Georgia;fontSize=36;fontStyle=1;fontColor=#111111;" vertex="1" parent="1">
+          <mxGeometry x="78" y="62" width="1100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-sub" value="Sequence, not schedule. Horizons are ordered by dependency — each one is gated on a demonstrable outcome, not on elapsed time. Dates are set by Fortrea against the named asks, not by us." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=15;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="80" y="116" width="1300" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tr-rh" value="WORKSTREAM" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#0B0B0B;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=middle;letterSpacing=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="175" width="190" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-h0" value="H0 · STABILISE&#10;stop the recurrence" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#D4FF3F;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="280" y="175" width="308" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-h1" value="H1 · FOUNDATION&#10;the enterprise model" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#FFFFFF;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="596" y="175" width="308" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-h2" value="H2 · SCALE&#10;industrialise and retire" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#FFFFFF;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="912" y="175" width="308" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-h3" value="H3 · INTELLIGENCE&#10;agents on a trusted base" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#FFFFFF;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1228" y="175" width="308" height="48" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tr-r1" value="Capacity &amp;&#10;platform" style="rounded=0;html=1;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#333333;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="80" y="228" width="190" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c11" value="Split serving onto its own capacity&#10;Baseline 90 days of capacity metrics&#10;Identify top consuming jobs" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="280" y="228" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c12" value="Workspace and domain topology&#10;Git integration + deployment pipelines&#10;Dev / test / prod separation" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="596" y="228" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c13" value="Per-sponsor share capacities&#10;Cost attribution by study and sponsor&#10;Autoscale and surge policy" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="912" y="228" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c14" value="Agent runtime and cost budgets&#10;Orchestrator with policy controls" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1228" y="228" width="308" height="93" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tr-r2" value="Data model &amp;&#10;masters" style="rounded=0;html=1;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#333333;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="80" y="326" width="190" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c21" value="Inventory every Gold object&#10;view vs persisted, consumer, owner&#10;Name an owner per object" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="280" y="326" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c22" value="Conformed masters — Study, Site,&#10;Investigator, Subject, Country&#10;Silver CDISC-aligned, versioned, owned" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="596" y="326" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c23" value="Onboard labs, IRT, ePRO,&#10;safety and eTMF to the same model&#10;Subject crosswalk across all sources" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="912" y="326" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c24" value="Ontology over the conformed model&#10;Digital Twin of a Study" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1228" y="326" width="308" height="93" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tr-r3" value="Quality, contracts&#10;&amp; lineage" style="rounded=0;html=1;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#333333;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="80" y="424" width="190" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c31" value="Publish a DQ baseline — measure&#10;before changing anything&#10;Stand up the quarantine pattern" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="280" y="424" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c32" value="Data contracts as BLOCKING gates&#10;Bronze append-only + lineage columns&#10;Purview scanning and glossary live" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="596" y="424" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c33" value="Cross-source reconciliation controls&#10;DQ scorecards to named business owners&#10;GxP validation package for the pipeline" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="912" y="424" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c34" value="Agent evidence trail — prompt, sources,&#10;model version, reviewer&#10;Part 11 e-signature on approvals" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1228" y="424" width="308" height="93" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tr-r4" value="Serving &amp;&#10;sponsor" style="rounded=0;html=1;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#333333;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="80" y="522" width="190" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c41" value="PERSIST the sponsor-facing Gold path&#10;Load-test at sponsor concurrency&#10;before any release is published" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=3;fontFamily=Helvetica;fontSize=11;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="280" y="522" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c42" value="Metric canon published and owned&#10;Semantic models rebuilt on the canon&#10;Report-level metric logic banned" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="596" y="522" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c43" value="Sponsor share industrialised&#10;Two-plane boundary written and enforced&#10;LEGACY DECOMMISSIONED — dated" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="912" y="522" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c44" value="Persona experiences — Start My Day&#10;M365 Copilot, Teams, custom apps&#10;Sponsor self-service Q&amp;A" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1228" y="522" width="308" height="93" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tr-r5" value="Intelligence &amp;&#10;operating model" style="rounded=0;html=1;fillColor=#EDEAE3;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#333333;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="80" y="620" width="190" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c51" value="NO AGENTS IN THIS HORIZON&#10;Name a workstream owner per horizon&#10;Stand up architecture review with veto" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;fontColor=#8A7F66;" vertex="1" parent="1">
+          <mxGeometry x="280" y="620" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c52" value="Ontology DESIGN only — no build&#10;Data product ownership model agreed&#10;Intake process for new sources" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="596" y="620" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c53" value="FIRST AGENT — read-only, one use case&#10;Database Lock Readiness scorecard&#10;Proves grounding, citation and audit" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="912" y="620" width="308" height="93" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-c54" value="Agent factory — certified, reusable&#10;Human-in-the-loop on every write&#10;Continuous learning from expert feedback" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1228" y="620" width="308" height="93" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tr-gh" value="GATE TO PROCEED" style="rounded=0;html=1;fillColor=#1A7A1A;strokeColor=#1A7A1A;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;letterSpacing=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="718" width="190" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-g1" value="Sponsor path persisted and load-tested.&#10;Capacity metrics prove serving is isolated." style="rounded=0;html=1;fillColor=#EDEAE3;strokeColor=#1A7A1A;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="280" y="718" width="308" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-g2" value="Masters live. One metric canon published.&#10;A contract violation demonstrably blocks a load." style="rounded=0;html=1;fillColor=#EDEAE3;strokeColor=#1A7A1A;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="596" y="718" width="308" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-g3" value="Legacy off with a date. Reconciliation clean.&#10;First agent cites Gold and passes audit review." style="rounded=0;html=1;fillColor=#EDEAE3;strokeColor=#1A7A1A;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="912" y="718" width="308" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-g4" value="Target state on pages 01 and 02 reached.&#10;Steady-state operating model owns it." style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;fontFamily=Helvetica;fontSize=11;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=middle;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1228" y="718" width="308" height="72" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tr-a1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=3;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="tr-h0" target="tr-h1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-a2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=3;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="tr-h1" target="tr-h2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tr-a3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=3;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="tr-h2" target="tr-h3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tr-foot" value="H0 is the only horizon that can start without further evidence — it is remediation of a known, evidenced defect. H1 onward depends on discovery outputs. Agents deliberately do not appear until H2, and then read-only: an agent grounded on view-based Gold with no metric canon would be fast, fluent and wrong, carrying the platform's authority while being wrong. Sequence is the risk control." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#8A7F66;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="800" width="1456" height="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="page-medallion" name="05 · Medallion — corrected for clinical">
+    <mxGraphModel dx="1900" dy="1050" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="950" math="0" shadow="0" background="#F7F4EC">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="md-title" value="Microsoft Fabric medallion — corrected for regulated clinical data" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Georgia;fontSize=32;fontStyle=1;fontColor=#111111;" vertex="1" parent="1">
+          <mxGeometry x="60" y="34" width="1200" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="md-sub" value="The reference pattern is right. It omits persistence, isolation, contracts and ownership — and those four omissions are where the incident came from. Each layer below carries one non-negotiable that closes the gap." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=14;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="62" y="82" width="1400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="md-badge" value="TARGET — CORRECTS THE REFERENCE DIAGRAM" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#D4FF3F;letterSpacing=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="34" width="330" height="32" as="geometry" />
+        </mxCell>
+
+        <mxCell id="md-src" value="DATA SOURCES" style="swimlane;html=1;startSize=34;fillColor=#0B0B0B;strokeColor=#0B0B0B;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#D4FF3F;align=left;spacingLeft=12;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="145" width="200" height="550" as="geometry" />
+        </mxCell>
+        <mxCell id="md-s1" value="CLINICAL&lt;br&gt;&lt;br&gt;Veeva EDC — REST · ZIP/CSV&lt;br&gt;Medidata Rave — SOAP · ODM XML&lt;br&gt;Veeva CTMS / UCV — Direct Data API&lt;br&gt;Central labs · IRT/RTSM&lt;br&gt;ePRO / eCOA · Safety (Argus)&lt;br&gt;eTMF" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=10;fontColor=#FFFFFF;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-src">
+          <mxGeometry x="12" y="42" width="176" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="md-s2" value="ENTERPRISE&lt;br&gt;&lt;br&gt;Salesforce · Conga · HubSpot&lt;br&gt;Responsive · Workday&lt;br&gt;Adaptive · BlackLine" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=10;fontColor=#FFFFFF;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-src">
+          <mxGeometry x="12" y="204" width="176" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="md-s3" value="LEGACY — RETIRING&lt;br&gt;&lt;br&gt;ODW · SDW · Snowflake&lt;br&gt;Informatica · TIBCO · Matillion" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#8A7F66;dashed=1;fontFamily=Helvetica;fontSize=10;fontColor=#BBBBBB;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-src">
+          <mxGeometry x="12" y="316" width="176" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="md-s4" value="Not &quot;any source, any format&quot;.&lt;br&gt;Each one has a watermark, a&lt;br&gt;deletion semantic and an&lt;br&gt;atomicity requirement that&lt;br&gt;must be designed for." style="rounded=0;html=1;fillColor=none;strokeColor=#D4FF3F;fontFamily=Helvetica;fontSize=10;fontColor=#D4FF3F;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;fontStyle=2;" vertex="1" parent="md-src">
+          <mxGeometry x="12" y="414" width="176" height="92" as="geometry" />
+        </mxCell>
+
+        <mxCell id="md-orch" value="ORCHESTRATE &amp; PROCESS          Data Factory pipelines  ·  Notebooks (Spark)  ·  Dataflow Gen2  ·  T-SQL          —          one control plane, dependency-based, not time-based" style="rounded=0;html=1;fillColor=#EDEAE3;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=16;verticalAlign=middle;letterSpacing=1;" vertex="1" parent="1">
+          <mxGeometry x="285" y="145" width="1345" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="md-bronze" value="BRONZE — RAW, REPLAYABLE" style="swimlane;html=1;startSize=36;fillColor=#FDF3E3;strokeColor=#B87333;strokeWidth=2;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#8A5A1E;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="285" y="225" width="325" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="md-b1" value="Land exactly as received.&lt;br&gt;&lt;b&gt;Never interpret.&lt;/b&gt;" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#E0D5C0;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=top;spacingTop=8;" vertex="1" parent="md-bronze">
+          <mxGeometry x="14" y="44" width="297" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="md-b2" value="&lt;b&gt;NON-NEGOTIABLE&lt;/b&gt;&lt;br&gt;APPEND-ONLY. Never overwritten,&lt;br&gt;never merged. A retraction lands as&lt;br&gt;a new row — the original is kept." style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=10;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-bronze">
+          <mxGeometry x="14" y="100" width="297" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="md-b3" value="&lt;b&gt;Lineage stamped on every row&lt;/b&gt;&lt;br&gt;_source_system · _batch_id&lt;br&gt;_ingest_ts · _source_modified_ts&lt;br&gt;_transaction_type · _payload_hash&lt;br&gt;_row_hash" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#E0D5C0;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;fontFamily=Courier New;" vertex="1" parent="md-bronze">
+          <mxGeometry x="14" y="186" width="297" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="md-b4" value="&lt;b&gt;Atomicity&lt;/b&gt;  A batch is all-or-nothing.&lt;br&gt;Partial ZIP fails; the watermark does&lt;br&gt;not advance. Source count reconciles&lt;br&gt;to landed count or the load stops." style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#E0D5C0;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-bronze">
+          <mxGeometry x="14" y="282" width="297" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="md-b5" value="&lt;b&gt;Clinical example&lt;/b&gt;&lt;br&gt;Rave TransactionType=Remove is a real&lt;br&gt;retraction. Ignore it and the lake keeps&lt;br&gt;data the source withdrew — a data&lt;br&gt;integrity finding, not a bug." style="rounded=0;html=1;fillColor=#F7F0E2;strokeColor=#B87333;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-bronze">
+          <mxGeometry x="14" y="366" width="297" height="86" as="geometry" />
+        </mxCell>
+
+        <mxCell id="md-silver" value="SILVER — CONFORMED CLINICAL MODEL" style="swimlane;html=1;startSize=36;fillColor=#EEF2F6;strokeColor=#7B8FA1;strokeWidth=2;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#3F5666;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="625" y="225" width="325" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="md-v1" value="One shared language across every&lt;br&gt;source. &lt;b&gt;Source-agnostic by design.&lt;/b&gt;" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D5DEE6;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=top;spacingTop=8;" vertex="1" parent="md-silver">
+          <mxGeometry x="14" y="44" width="297" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="md-v2" value="&lt;b&gt;NON-NEGOTIABLE&lt;/b&gt;&lt;br&gt;Data contracts enforced as BLOCKING&lt;br&gt;gates. A violation quarantines the rows&lt;br&gt;and stops promotion. Not a warning." style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=10;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-silver">
+          <mxGeometry x="14" y="100" width="297" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="md-v3" value="&lt;b&gt;CDISC SDTM-aligned&lt;/b&gt;&lt;br&gt;DM · SV · AE · LB · VS · EX · CM · DS&lt;br&gt;&lt;b&gt;plus operational&lt;/b&gt; — site, investigator,&lt;br&gt;monitoring visit, query, deviation&lt;br&gt;(do not force these into SDTM)" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D5DEE6;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-silver">
+          <mxGeometry x="14" y="186" width="297" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="md-v4" value="&lt;b&gt;Identity resolution — the hard part&lt;/b&gt;&lt;br&gt;Subject crosswalk EDC ↔ Rave ↔ IRT ↔ lab&lt;br&gt;with a survivorship rule, a confidence&lt;br&gt;flag and a visible exception queue.&lt;br&gt;MedDRA / WHODrug / CT version per row." style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#7B8FA1;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-silver">
+          <mxGeometry x="14" y="282" width="297" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="md-v5" value="&lt;b&gt;Clinical example&lt;/b&gt;&lt;br&gt;A study on Veeva and a study on Rave&lt;br&gt;land in the same slv_ae. One query&lt;br&gt;answers &quot;all SAEs across my studies&quot;.&lt;br&gt;&lt;b&gt;That sentence is the business case.&lt;/b&gt;" style="rounded=0;html=1;fillColor=#E4EAF0;strokeColor=#7B8FA1;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-silver">
+          <mxGeometry x="14" y="378" width="297" height="76" as="geometry" />
+        </mxCell>
+
+        <mxCell id="md-gold" value="GOLD — PERSISTED, INSPECTION-READY" style="swimlane;html=1;startSize=36;fillColor=#FFF8E1;strokeColor=#C9A227;strokeWidth=3;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#8A6D0B;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="965" y="225" width="325" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="md-g1" value="The answer, agreed once, served fast.&lt;br&gt;Warehouse · Lakehouse · Direct Lake" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#EBDCA8;fontFamily=Helvetica;fontSize=11;align=left;spacingLeft=10;verticalAlign=top;spacingTop=8;" vertex="1" parent="md-gold">
+          <mxGeometry x="14" y="44" width="297" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="md-g2" value="&lt;b&gt;NON-NEGOTIABLE&lt;/b&gt;&lt;br&gt;PERSISTED DELTA TABLES maintained by&lt;br&gt;incremental MERGE.&lt;br&gt;&lt;b&gt;NEVER VIEWS. NEVER FULL REBUILD.&lt;/b&gt;" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=3;fontFamily=Helvetica;fontSize=10;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-gold">
+          <mxGeometry x="14" y="100" width="297" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="md-g3" value="&lt;b&gt;Read cost, written plainly&lt;/b&gt;&lt;br&gt;Views:  O(full Silver chain) × readers × reads&lt;br&gt;Persisted:  O(scan one table)&lt;br&gt;Write cost paid once, by the transform&lt;br&gt;capacity — not by the sponsor." style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#C9A227;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-gold">
+          <mxGeometry x="14" y="186" width="297" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="md-g4" value="&lt;b&gt;One metric canon&lt;/b&gt;  Enrolled subject,&lt;br&gt;screen failure, data entry lag, query&lt;br&gt;ageing — defined once, versioned, owned.&lt;br&gt;Report-level metric logic is banned." style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#EBDCA8;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-gold">
+          <mxGeometry x="14" y="282" width="297" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="md-g5" value="&lt;b&gt;Sponsor scoping is STRUCTURAL&lt;/b&gt;&lt;br&gt;One workspace per sponsor, read-only&lt;br&gt;shortcut to scoped Gold. A bug in a&lt;br&gt;WHERE clause must not be able to&lt;br&gt;cross a confidentiality boundary." style="rounded=0;html=1;fillColor=#FBF1CE;strokeColor=#C9A227;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-gold">
+          <mxGeometry x="14" y="366" width="297" height="88" as="geometry" />
+        </mxCell>
+
+        <mxCell id="md-serve" value="SERVING — TWO PLANES, ONE TRUTH" style="swimlane;html=1;startSize=36;fillColor=#0B0B0B;strokeColor=#1A7A1A;strokeWidth=3;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#D4FF3F;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1305" y="225" width="325" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="md-p1" value="&lt;b&gt;ANALYTICAL PLANE&lt;/b&gt;&lt;br&gt;Power BI Direct Lake · sponsor share&lt;br&gt;Biostatistics → ADaM → submission&lt;br&gt;Aggregation, trend, cohort, cross-study" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=10;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-serve">
+          <mxGeometry x="14" y="44" width="297" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="md-p2" value="&lt;b&gt;TRANSACTIONAL PLANE&lt;/b&gt;&lt;br&gt;Source apps → Azure Service Bus →&lt;br&gt;Azure SQL (EDSL) → applications&lt;br&gt;~50k concurrent · sub-second lookup" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#3A3A3A;fontFamily=Helvetica;fontSize=10;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-serve">
+          <mxGeometry x="14" y="130" width="297" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="md-p3" value="&lt;b&gt;NON-NEGOTIABLE&lt;/b&gt;&lt;br&gt;The boundary is written down.&lt;br&gt;Aggregation on the lake. Single-record&lt;br&gt;lookup on EDSL. The two planes are&lt;br&gt;RECONCILED by a control, not assumed." style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=10;fontColor=#D4FF3F;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-serve">
+          <mxGeometry x="14" y="216" width="297" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="md-p4" value="&lt;b&gt;AGENTS&lt;/b&gt;&lt;br&gt;Ground on Gold and the semantic model&lt;br&gt;ONLY — never Bronze, never Silver.&lt;br&gt;Agents propose. Humans dispose.&lt;br&gt;Every action cited, signed, audited." style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#8FCE00;fontFamily=Helvetica;fontSize=10;fontColor=#8FCE00;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="md-serve">
+          <mxGeometry x="14" y="312" width="297" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="md-p5" value="Nothing outside engineering reads&lt;br&gt;below Gold. Every exception is a&lt;br&gt;governance failure with a name on it." style="rounded=0;html=1;fillColor=none;strokeColor=#5A5A5A;dashed=1;fontFamily=Helvetica;fontSize=10;fontColor=#BBBBBB;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;fontStyle=2;" vertex="1" parent="md-serve">
+          <mxGeometry x="14" y="408" width="297" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="md-gov" value="GOVERNANCE — ENFORCED AT A NAMED POINT, NOT AN OUTCOME AT THE BOTTOM OF A SLIDE" style="swimlane;html=1;startSize=32;fillColor=#EDEAE3;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#1A7A1A;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="710" width="1570" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="md-gov1" value="&lt;b&gt;Entra · Zero Trust&lt;/b&gt;&lt;br&gt;RLS / CLS enforced in OneLake,&lt;br&gt;not only in the semantic model" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=5;" vertex="1" parent="md-gov">
+          <mxGeometry x="14" y="40" width="246" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="md-gov2" value="&lt;b&gt;Purview&lt;/b&gt;&lt;br&gt;Catalog · lineage to source field&lt;br&gt;Sensitivity labels · DLP" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=5;" vertex="1" parent="md-gov">
+          <mxGeometry x="270" y="40" width="246" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="md-gov3" value="&lt;b&gt;GxP — 21 CFR Part 11 · ALCOA+&lt;/b&gt;&lt;br&gt;Audit trail · e-signature on every&lt;br&gt;agent approval · CSA validation" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#1A7A1A;strokeWidth=2;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=5;" vertex="1" parent="md-gov">
+          <mxGeometry x="526" y="40" width="246" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="md-gov4" value="&lt;b&gt;CAPACITY ISOLATION&lt;/b&gt;&lt;br&gt;Serving NEVER shares a capacity&lt;br&gt;with transformation or exploration" style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=10;fontColor=#D4FF3F;align=left;spacingLeft=8;verticalAlign=top;spacingTop=5;" vertex="1" parent="md-gov">
+          <mxGeometry x="782" y="40" width="246" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="md-gov5" value="&lt;b&gt;Named ownership&lt;/b&gt;&lt;br&gt;One owner per layer and per Gold&lt;br&gt;object. Authority, not just duty." style="rounded=0;html=1;fillColor=#0B0B0B;strokeColor=#D4FF3F;strokeWidth=2;fontFamily=Helvetica;fontSize=10;fontColor=#D4FF3F;align=left;spacingLeft=8;verticalAlign=top;spacingTop=5;" vertex="1" parent="md-gov">
+          <mxGeometry x="1038" y="40" width="246" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="md-gov6" value="&lt;b&gt;SOX &amp;amp; sponsor contracts&lt;/b&gt;&lt;br&gt;Finance path segregation of duties&lt;br&gt;Contracted delivery SLAs, load-tested" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#D8D2C4;fontFamily=Helvetica;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=5;" vertex="1" parent="md-gov">
+          <mxGeometry x="1294" y="40" width="262" height="52" as="geometry" />
+        </mxCell>
+
+        <mxCell id="md-nn" value="THE FIVE NON-NEGOTIABLES          —          what the reference diagram leaves out, and where the incident came from" style="swimlane;html=1;startSize=30;fillColor=#0B0B0B;strokeColor=#0B0B0B;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#D4FF3F;align=left;spacingLeft=14;letterSpacing=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="822" width="1570" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="md-n1" value="01  Bronze is&lt;br&gt;append-only" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#D4FF3F;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="md-nn">
+          <mxGeometry x="14" y="36" width="300" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="md-n2" value="02  Contracts block,&lt;br&gt;they do not warn" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#D4FF3F;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="md-nn">
+          <mxGeometry x="324" y="36" width="300" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="md-n3" value="03  Gold is persisted,&lt;br&gt;never a view chain" style="rounded=0;html=1;fillColor=#D4FF3F;strokeColor=#D4FF3F;fontFamily=Helvetica;fontSize=11;fontStyle=1;fontColor=#0B0B0B;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="md-nn">
+          <mxGeometry x="634" y="36" width="300" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="md-n4" value="04  Serving capacity is&lt;br&gt;isolated from ETL" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#D4FF3F;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="md-nn">
+          <mxGeometry x="944" y="36" width="300" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="md-n5" value="05  One metric, one&lt;br&gt;definition, one owner" style="rounded=0;html=1;fillColor=#1F1F1F;strokeColor=#D4FF3F;fontFamily=Helvetica;fontSize=11;fontColor=#FFFFFF;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="md-nn">
+          <mxGeometry x="1254" y="36" width="302" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="md-e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=3;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="md-src" target="md-bronze">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="md-e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=3;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="md-bronze" target="md-silver">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="md-e3" value="MERGE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=3;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontFamily=Helvetica;fontSize=10;fontColor=#1A7A1A;fontStyle=1;" edge="1" parent="1" source="md-silver" target="md-gold">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="md-e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A7A1A;strokeWidth=3;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="md-gold" target="md-serve">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="md-foot" value="Structure follows the Microsoft reference medallion so the room recognises it. Five things are added: persistence stated explicitly, contracts as blocking gates, capacity isolation, a transactional plane, and a named owner per layer. Nothing here contradicts the reference pattern — it specifies the parts the reference pattern leaves to the implementer, which is where this estate diverged." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#8A7F66;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="60" y="918" width="1570" height="26" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

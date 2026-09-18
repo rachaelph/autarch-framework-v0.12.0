@@ -84,6 +84,15 @@ from .errors import (
     ValidationError,
 )
 from .events import CallbackSink, Event, EventSink, ListSink, NullSink
+from .factory import (
+    AgentBlueprint,
+    AgentDeployment,
+    AgentFactory,
+    DeploymentState,
+    DomainPack,
+    FactoryValidation,
+    ValidationIssue,
+)
 from .guarantees import GuaranteeReport, Invariant, Proof, prove_guarantees
 from .health import health_check
 from .langchain_bridge import (
@@ -144,6 +153,18 @@ from .resilience import (
     make_resilient,
 )
 from .rewind import Rewinder, RewindStep
+from .review import (
+    APPROVED as REVIEW_APPROVED,
+    EXPIRED as REVIEW_EXPIRED,
+    PENDING as REVIEW_PENDING,
+    REJECTED as REVIEW_REJECTED,
+    SUPERSEDED as REVIEW_SUPERSEDED,
+    ReleaseReview,
+    ReleaseReviewStore,
+    ReviewComment,
+    ReviewVote,
+    canonical_sha256,
+)
 from .runlog import RunJournal, RunState
 from .substrate import Substrate
 from .telemetry import JsonlSink, otel_available, otel_sink
@@ -181,6 +202,16 @@ __all__ = [
     "DocumentAdapter",
     "from_callables",
     "RewindStep",
+    "ReleaseReview",
+    "ReleaseReviewStore",
+    "ReviewComment",
+    "ReviewVote",
+    "REVIEW_PENDING",
+    "REVIEW_APPROVED",
+    "REVIEW_REJECTED",
+    "REVIEW_EXPIRED",
+    "REVIEW_SUPERSEDED",
+    "canonical_sha256",
     "Realm",
     "Cipher",
     "MergeReport",
@@ -222,6 +253,13 @@ __all__ = [
     "NullSink",
     "ListSink",
     "CallbackSink",
+    "AgentBlueprint",
+    "AgentDeployment",
+    "AgentFactory",
+    "DeploymentState",
+    "DomainPack",
+    "FactoryValidation",
+    "ValidationIssue",
     "RunJournal",
     "RunState",
     "Role",

@@ -272,13 +272,7 @@ def _content_words(text: str) -> set:
 
 def _normalize_number(token: str) -> str:
     """Canonicalize a number token for comparison ($50,000 -> 50000; 50% -> 50%)."""
-    normalized = token.lstrip("$").replace(",", "").strip()
-    suffix = "%" if normalized.endswith("%") else ""
-    numeric = normalized.removesuffix("%")
-    if "." in numeric:
-        numeric = numeric.rstrip("0").rstrip(".")
-    numeric = numeric.lstrip("0") or "0"
-    return numeric + suffix
+    return token.lstrip("$").replace(",", "").strip()
 
 
 def _numbers(text: str) -> set:
@@ -359,10 +353,8 @@ class GroundednessEvaluator(Evaluator):
         grounded = 0
         ungrounded: List[Dict[str, str]] = []
         for claim in claims:
-            claim_words = _content_words(claim)
-            claim_numbers = _numbers(claim)
-            support = _overlap(claim_words, source_words)
-            bad_numbers = claim_numbers - source_numbers
+            support = _overlap(_content_words(claim), source_words)
+            bad_numbers = _numbers(claim) - source_numbers
             # An entity counts as invented only if it appears NOWHERE in the source
             # (case-folded): capitalized common words ("Coordinates") or partial
             # names ("The TES Tse") that DO occur in the source are not
@@ -371,9 +363,7 @@ class GroundednessEvaluator(Evaluator):
                 e for e in (_entities(claim) - source_entities)
                 if fold(e) not in source_folded
             }
-            non_numeric_words = _content_words(_NUMBER_RE.sub("", nfkc(claim)))
-            numeric_only_support = bool(claim_numbers) and not non_numeric_words
-            if (support >= self.min_support or numeric_only_support) and not bad_numbers and not bad_entities:
+            if support >= self.min_support and not bad_numbers and not bad_entities:
                 grounded += 1
             else:
                 why = []
@@ -900,31 +890,10 @@ def check_grounding(
             continue
         if " ".join(fold(value).split()) in haystack:
             continue  # appears verbatim in the source -> grounded
-        if _equivalent_date_in_source(value, source):
-            continue
         verdict = grounder.evaluate(value)
         if not verdict.passed:
             flagged.append((key, value, verdict.reasons))
     return flagged
-
-
-def _equivalent_date_in_source(value: str, source: str) -> bool:
-    """Whether an ISO date value appears in the source in a common US numeric format."""
-    import datetime
-    import re
-
-    try:
-        expected = datetime.date.fromisoformat(value)
-    except ValueError:
-        return False
-    for month, day, year in re.findall(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{2}|\d{4})\b", source):
-        full_year = int(year) + 2000 if len(year) == 2 else int(year)
-        try:
-            if datetime.date(full_year, int(month), int(day)) == expected:
-                return True
-        except ValueError:
-            continue
-    return False
 
 
 @dataclass

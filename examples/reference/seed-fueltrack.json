@@ -1,0 +1,13 @@
+{
+  "_comment": "Illustrative Fuel Track (national third-party portal) diversion registry - the authoritative source of the DIVERSION NUMBER used on tax returns. Keyed by carrier FEIN + BOL number + lift date. A diversion that carriers have already reported appears here; a diversion missing here means the carrier must be notified to record it. NOT production data.",
+  "diversions": [
+    {
+      "carrier_fein": "58-1234567", "bol_number": "BOL-100234", "lift_date": "2026-08-11",
+      "diversion_number": "FT-2026-778901", "reported_destination_state": "SC", "reported_date": "2026-08-12"
+    },
+    {
+      "carrier_fein": "93-5678901", "bol_number": "BOL-100238", "lift_date": "2026-08-11",
+      "diversion_number": "FT-2026-889012", "reported_destination_state": "NC", "reported_date": "2026-08-12"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "_comment": "Illustrative combined STATE motor-fuel excise tax, US dollars per gallon. Used to compute the tax impact of moving a load's tax jurisdiction from the planned (billed) state to the actual delivery state. Real rates come from PDI / state DORs. NOT tax advice.",
+  "unit": "USD_per_gallon",
+  "motor_fuel_tax": {
+    "GA": 0.331, "SC": 0.2875, "NC": 0.405, "AZ": 0.19, "OR": 0.40,
+    "TX": 0.20, "FL": 0.352, "TN": 0.274, "LA": 0.20, "OK": 0.20,
+    "CO": 0.22, "CA": 0.579, "NV": 0.23, "WA": 0.494, "IL": 0.454
+  }
+}

@@ -346,13 +346,14 @@ class MAFModelProvider(ModelProvider):
         made = self._client_factory()
         return await made if _isawaitable(made) else made
 
-    def complete(self, prompt: str, system: Optional[str] = None) -> str:
+    def complete(self, prompt: str, system: Optional[str] = None, *, run_kwargs: Optional[dict] = None) -> str:
+        """Run a MAF turn with optional request-local options without changing provider defaults."""
         runner, client = self._ensure()
         from .intelligence.usage import current_label
 
         label = current_label()  # capture on the CALLING thread; the loop thread won't have it
         try:
-            return runner.run(self._acomplete(client, prompt, system, label))
+            return runner.run(self._acomplete(client, prompt, system, label, run_kwargs=run_kwargs))
         except RateLimited:
             raise
         except BaseException as exc:  # noqa: BLE001 - classify, then re-raise (as RateLimited if 429)
@@ -360,7 +361,7 @@ class MAFModelProvider(ModelProvider):
                 raise RateLimited(str(exc), retry_after=_retry_after_of(exc)) from exc
             raise
 
-    async def _acomplete(self, client, prompt: str, system: Optional[str], label: str = "") -> str:
+    async def _acomplete(self, client, prompt: str, system: Optional[str], label: str = "", *, run_kwargs: Optional[dict] = None) -> str:
         import agent_framework as af
         import time
 
@@ -371,7 +372,9 @@ class MAFModelProvider(ModelProvider):
             **self._agent_kwargs,
         )
         _t0 = time.time()
-        resp = await agent.run(prompt, **self._run_kwargs)
+        request_kwargs = dict(self._run_kwargs)
+        request_kwargs.update(run_kwargs or {})
+        resp = await agent.run(prompt, **request_kwargs)
         _t1 = time.time()
         text = _maf_response_text(resp)
         _record_maf_usage(resp, self._model_label, prompt, system, text, label, _t0, _t1)

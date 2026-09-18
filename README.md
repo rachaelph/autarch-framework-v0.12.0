@@ -48,6 +48,41 @@ Run it:
 python examples/quickstart.py
 ```
 
+## Build governed agents for any domain
+
+The production agent factory compiles declarative, versioned `AgentBlueprint`
+specifications from an industry `DomainPack`. Creation is deny-by-default and
+passes through structural validation, static guarantees, content-bound quorum
+approval, optional RBAC filtering, and immutable fingerprints before an agent
+can run. The factory creates configuration—not arbitrary executable code.
+
+```python
+from autarch import AgentBlueprint, AgentFactory, DomainPack, FileSystemAdapter, Invariant, capability
+
+blueprint = AgentBlueprint(
+  name="report-writer", version="1.0.0",
+  grants=[capability("file.write", scope={"path_prefix": "reports"})],
+  adapters=["filesystem"],
+  invariants=[Invariant.forbid("file.delete")],
+  requires_approval=False,  # use quorum approval in production
+)
+pack = DomainPack(
+  name="reporting", version="1.0.0",
+  blueprints={blueprint.name: blueprint},
+  adapter_catalog={"filesystem": lambda root: FileSystemAdapter(root)},
+)
+factory = AgentFactory()
+factory.register(pack, workspace="./sandbox")
+deployment = factory.create(
+  "reporting", "report-writer", "create reports/status.txt that says ready",
+  workspace="./sandbox",
+)
+result = deployment.run()
+```
+
+See [docs/AGENT_FACTORY.md](docs/AGENT_FACTORY.md) for approval, lifecycle, RBAC,
+domain-pack, and production deployment guidance.
+
 ## Already know the action? `enact()` it — governed, no council
 
 When the AI should *decide* what to do, use `run()` and the council deliberates.
@@ -78,9 +113,9 @@ trail and **deterministic, reproducible** results (same invoice → same determi
 
 ```powershell
 python examples/extract_invoice.py "C:\path\to\invoice.pdf" `
-    --model azure:invoice-extractor --auth aad `
+    --model azure:gpt-4.1-rp --auth aad `
     --doci "https://circlekdoci.cognitiveservices.azure.com/" `
-    --embed azure:invoice-embeddings --html out.html --csv out.csv
+    --embed azure:text-embedding-3-small --html out.html --csv out.csv
 
 # or fully offline, zero setup:
 python examples/extract_invoice.py --demo
@@ -514,7 +549,126 @@ Every action an agent takes is automatically:
 | Substrate | the portable host abstraction (runs anywhere) | `autarch/substrate.py` |
 | Agent SDK | build governed agents fast (`run()` to deliberate, `enact()` for a known action) | `autarch/agent.py` |
 
-Examples: `examples/quickstart.py`, `examples/council.py`, `examples/tools.py`, `examples/mesh.py`, `examples/ollama_live.py`, `examples/provenance.py`, `examples/delegation.py`, `examples/orchestration.py`, `examples/orchestration_live.py`, `examples/memory.py`, `examples/agent_types.py`, `examples/guarantees.py`, `examples/economy.py`, `examples/network.py`, `examples/gossip.py`, `examples/durable.py`, `examples/security.py`, `examples/mcp.py`, `examples/langchain.py`, `examples/observability.py`, `examples/evaluation.py`, `examples/faithfulness.py`, `examples/resilience.py`, `examples/extract.py`.
+Examples: `examples/quickstart.py`, `examples/finance_intelligence.py`, `examples/microsoft_finance_intelligence.py`, `examples/council.py`, `examples/tools.py`, `examples/mesh.py`, `examples/ollama_live.py`, `examples/provenance.py`, `examples/delegation.py`, `examples/orchestration.py`, `examples/orchestration_live.py`, `examples/memory.py`, `examples/agent_types.py`, `examples/guarantees.py`, `examples/economy.py`, `examples/network.py`, `examples/gossip.py`, `examples/durable.py`, `examples/security.py`, `examples/mcp.py`, `examples/langchain.py`, `examples/observability.py`, `examples/evaluation.py`, `examples/faithfulness.py`, `examples/resilience.py`, `examples/extract.py`.
+
+### Finance intelligence reference architecture
+
+`examples/finance_intelligence.py` is a fully offline implementation of a governed finance-intelligence platform: SEC, market, news, and macro ingestion fan out to eight capability-attenuated specialists; a committee synthesizes their signed evidence; and governed views are produced for investment firms, auditors, banks, and regulators.
+
+```bash
+python examples/finance_intelligence.py
+```
+
+It writes a polished self-contained HTML dashboard, the consolidated JSON result, consumer reports, static guarantee results, an architecture map, and the signed audit ledger under `sandbox/finance_intelligence/outputs/`. The deterministic fixtures can be replaced with live providers without changing the capability or evidence contracts.
+
+### Company-parameterized financial intelligence
+
+[examples/company_finance_intelligence.py](examples/company_finance_intelligence.py)
+accepts a legal company name, exact ticker, or SEC CIK. It resolves identities from
+the SEC directory rather than a fixed list of company-specific scripts.
+
+Run from the repository root with Python 3.10 or newer:
+
+```powershell
+python examples/company_finance_intelligence.py --company "Alphabet Inc." --mode hybrid
+python examples/company_finance_intelligence.py --ticker GOOGL --mode hybrid
+python examples/company_finance_intelligence.py --ticker MSFT --mode hybrid
+python examples/company_finance_intelligence.py --cik 1652044 --mode hybrid
+```
+
+The existing Microsoft entry point also accepts these selectors:
+
+```powershell
+python examples/microsoft_finance_intelligence.py --company "Alphabet Inc." --mode hybrid
+```
+
+With **no company selector**, that entry point retains its original 15-specialist
+Microsoft product. With a selector, it uses the **six-analysis general profile**:
+performance, cash flow/capital allocation, liquidity, quarterly/TTM results, tax
+measures, and filing-change triage. The general profile does not relabel Microsoft's
+Azure/Copilot analysis, valuation assumptions, or peer set for another company.
+
+**Supported scope:** SEC US-GAAP companies filing Forms 10-K/10-Q. Fiscal year-end,
+reporting currency, annual/quarter facts, and available fields are detected from
+filings. Missing facts are shown as unavailable, never zero. Names with multiple
+registrant matches require an exact ticker or CIK; GOOG and GOOGL resolve to the
+same Alphabet registrant. IFRS/20-F filers, private companies, and unsupported
+calendars/taxonomies fail with an explicit coverage message. Banks and insurers
+may need additional sector mappings. Subsidiary discovery and standalone subsidiary
+financial statements are **not implemented**; consolidated reporting is not a
+separate report for GitHub, Waymo, or every owned company.
+
+Provide your SEC-compliant identity using `--user-agent "YourOrganization contact@example.com"`
+or `SEC_USER_AGENT`. `--mode live` refreshes sources; `--mode hybrid` uses fresh
+cache and may label stale fallback evidence; `--mode cache-only` makes no network
+requests and requires previously cached sources. `--cache-ttl-hours` sets the
+general cache TTL; the SEC directory, filing metadata, facts, and filing documents
+have source-specific freshness settings. No API key or LLM is required.
+
+Outputs are isolated by CIK under `sandbox/company_finance_intelligence/`, or the
+root passed to `--workspace`. Each company has persistent `cache/` and `reviews/`
+directories, a fresh `runs/<run-id>/outputs/` folder per execution, and `latest.json`
+pointing to its latest successful report. Previous runs and evidence are retained.
+The run prints the exact HTML, JSON, and review database paths. Outputs include
+HTML, Markdown, JSON, canonical review content, signed action audit, review audit,
+artifact hashes, and a ZIP with member hashes. The HTML opens directly in a browser.
+
+The general profile now uses the Microsoft-style dark financial dashboard by default:
+an executive cockpit, six TTM KPI tiles, annual/quarterly/TTM charts, a searchable
+specialist workbench with coverage filtering, fact drill-down, and dedicated review
+and governance sections. Print/PDF uses a light layout. No styling flag or web
+server is needed. Rerun the same company command to generate a new styled report;
+existing run folders remain unchanged. Presentation is shared, but analytical scope
+remains the six-analysis general profile, not the Microsoft-specific 15-specialist
+product. Missing information and pending review remain visible.
+
+Review uses the existing CLI with the company's database, for example:
+
+```powershell
+python examples/microsoft_finance_review.py --db sandbox/company_finance_intelligence/CIK0001652044/reviews/release_reviews.db list
+python examples/microsoft_finance_review.py --db sandbox/company_finance_intelligence/CIK0001652044/reviews/release_reviews.db verify
+```
+
+The required reviewers are `finance-review-lead` and `risk-review-lead`. Approvals
+are never generated automatically. Identical evidence and analysis recover the
+same review; changed content supersedes the prior decision. Rerun after a review
+decision to generate an updated snapshot. Integrity checks can pass while financial
+coverage remains incomplete: reconciliation exceptions and retrieval gaps are
+displayed and keep the combined review/reconciliation flag false. Approval never
+grants trading or publication authority. CLI names are attribution, not authenticated
+identity; production still requires an IdP, protected review storage, data rights,
+and accountable professional validation.
+
+### Live Microsoft finance-intelligence product
+
+[examples/microsoft_finance_intelligence.py](examples/microsoft_finance_intelligence.py) is the real-data Microsoft **Quarterly & Change Intelligence v1.1 controlled pilot**. It dynamically discovers recent 10-K, 10-Q, and 8-K filings; retrieves the latest and prior annual reports and latest interim filing; normalizes annual, standalone-quarter, TTM, balance-sheet, segment, and product facts; and runs fifteen capability-attenuated specialists. Q2/Q3 are derived only from filed cumulative facts when direct quarter facts are absent, Q4 only from annual less nine-month YTD, and every available quarter sum is reconciled to the filed annual value.
+
+Every raw response is URL-bound, SHA-256 verified, and retained in the content-addressed cache. Selected facts retain period, concept, accession, recast chain, formula, and input IDs. The release package adds deterministic filing-change triage, claim-to-fact links for structured-fact findings, a 15-check fail-closed package acceptance gate, signed action lineage, and a persistent two-person review bound to the exact canonical release digest.
+
+Use a descriptive SEC-compliant user agent containing an organizational identity and contact channel:
+
+```bash
+python examples/microsoft_finance_intelligence.py --mode live --user-agent "YourOrganization research@example.com"
+python examples/microsoft_finance_intelligence.py --mode hybrid
+python examples/microsoft_finance_intelligence.py --mode cache-only
+```
+
+Operate the durable review independently from analysis generation:
+
+```bash
+python examples/microsoft_finance_review.py list
+python examples/microsoft_finance_review.py status <review-id>
+python examples/microsoft_finance_review.py comment <review-id> --reviewer finance-review-lead --comment "Tie-out complete"
+python examples/microsoft_finance_review.py approve <review-id> --reviewer finance-review-lead --comment "Financial review complete"
+python examples/microsoft_finance_review.py approve <review-id> --reviewer risk-review-lead --comment "Risk review complete"
+python examples/microsoft_finance_review.py verify
+```
+
+Reviewer names entered through this CLI are asserted attribution, not authentication. A deployment must map principals from its IdP before invoking the same review-store API. After a decision, rerun the product to regenerate reports and manifests with the current review state; the same evidence and semantic content recover the same review ID and release digest.
+
+The workflow writes a buyer-ready interactive HTML dashboard, detailed Markdown, normalized JSON, source and artifact manifests, review audit, verified signed action ledger, and a portable evidence bundle with its own member-hash manifest under `sandbox/microsoft_finance_intelligence/outputs/`. See [examples/microsoft_finance_intelligence_architecture.md](examples/microsoft_finance_intelligence_architecture.md) for the source hierarchy, quarter construction, calculations, governance model, specialist contracts, buyer personas, operating modes, acceptance criteria, and production-hardening path.
+
+This is deliberately a controlled pilot—not a claim of complete enterprise production readiness. The public chart endpoint is indicative only and must be replaced by an approved licensed market-data source. Accountable professional review, data entitlements, authenticated identity, retention controls, and deployment security remain required. The workflow has no trading or external-publication authority and never auto-approves a release.
 
 ## Develop
 

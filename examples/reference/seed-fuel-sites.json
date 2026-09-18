@@ -1,0 +1,13 @@
+{
+  "_comment": "Illustrative PDI 'site' reference. site_id -> ship-to state/city. Circle K site IDs are 270-prefixed (or 274 for some acquired CST sites). The last four digits alone are NOT unique across acquisitions, so a 4-digit-only match must be kicked out (see fueldata.site_state). NOT production data.",
+  "sites": {
+    "2700123": { "state": "GA", "city": "Savannah" },
+    "2700987": { "state": "SC", "city": "Charleston" },
+    "2700456": { "state": "NC", "city": "Charlotte" },
+    "2700789": { "state": "AZ", "city": "Phoenix" },
+    "2740456": { "state": "AZ", "city": "Tempe" },
+    "2700555": { "state": "OR", "city": "Portland" },
+    "2700642": { "state": "TX", "city": "Dallas" },
+    "3900672": { "state": "AZ", "city": "Tempe", "note": "IT project number (Tempe Depot) - NOT a real ship-to site; must be manually assessed, do not tax at Tempe rate" }
+  }
+}

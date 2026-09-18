@@ -1,0 +1,31 @@
+MARATHON PETROLEUM COMPANY LP
+FUEL SUPPLIER INVOICE
+
+Invoice Number:   FINV-55501
+Invoice Date:     08/12/2026
+Bill To:          Circle K Stores, Inc.  (Midwest Division)
+Terms:            NET 10
+
+Carrier:          Southern Fuel Express
+Carrier FEIN:     58-1234567
+Bill of Lading:   BOL-100234
+Loading Number:   LN-778
+Lift Date:        08/11/2026
+Origin Terminal:  Atlanta Terminal, GA
+Destination State (billed at lift):  GA
+Ship-To Site:     2700123
+
+------------------------------------------------------------------------------
+PRODUCT                    GALLONS      RATE/GAL      AMOUNT
+------------------------------------------------------------------------------
+Unleaded 87 (E10)          8,000        3.0500        24,400.00
+------------------------------------------------------------------------------
+
+Georgia Motor Fuel Excise Tax  (8,000 gal @ 0.331)      2,648.00
+Federal Excise Tax                                       1,473.60
+------------------------------------------------------------------------------
+SUBTOTAL (product)                                      24,400.00
+STATE FUEL TAX (GA)                                      2,648.00
+TOTAL DUE                                               28,521.60
+
+Remit to: Marathon Petroleum, Findlay OH.  Tax jurisdiction billed: Georgia (origin/destination at lift).

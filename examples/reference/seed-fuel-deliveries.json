@@ -1,0 +1,54 @@
+{
+  "_comment": "Illustrative PDI 'confirmed bill-of-lading / delivery' data view (the join of the fuel-bill-of-ladings and field-deliveries tables). Each row = one confirmed load. terminal_id gives the ORIGIN state; planned_site_id is the destination the carrier selected at the terminal (what the supplier billed); delivered_site_id is where the store actually confirmed receipt. A STATE-TO-STATE diversion is planned_state != actual_state. NOT production data.",
+  "deliveries": [
+    {
+      "bol_number": "BOL-100234", "lift_date": "2026-08-11", "confirmation_date": "2026-08-12",
+      "confirmation_status": "Confirmed", "carrier_id": "C-100", "carrier_name": "Southern Fuel Express",
+      "carrier_fein": "58-1234567", "carrier_type": "third_party", "terminal_id": "T-ATL-01",
+      "loading_number": "LN-778", "planned_site_id": "2700123", "delivered_site_id": "2700987",
+      "product": "Unleaded 87", "gallons": 8000, "supplier": "Marathon", "invoice_number": "FINV-55501"
+    },
+    {
+      "bol_number": "BOL-100235", "lift_date": "2026-08-11", "confirmation_date": "2026-08-12",
+      "confirmation_status": "Confirmed", "carrier_id": "C-110", "carrier_name": "Piedmont Carriers",
+      "carrier_fein": "56-2345678", "carrier_type": "third_party", "terminal_id": "T-CLT-01",
+      "loading_number": "LN-780", "planned_site_id": "2700456", "delivered_site_id": "2700456",
+      "product": "Diesel", "gallons": 7500, "supplier": "Colonial", "invoice_number": "FINV-55502"
+    },
+    {
+      "bol_number": "BOL-100236", "lift_date": "2026-08-11", "confirmation_date": "2026-08-12",
+      "confirmation_status": "Confirmed", "carrier_id": "C-120", "carrier_name": "Desert Haul Logistics",
+      "carrier_fein": "86-3456789", "carrier_type": "third_party", "terminal_id": "T-ATL-01",
+      "loading_number": "LN-781", "planned_site_id": "2700123", "delivered_site_id": "2700789",
+      "product": "Unleaded 87", "gallons": 8200, "supplier": "Marathon", "invoice_number": "FINV-55503"
+    },
+    {
+      "bol_number": "BOL-100237", "lift_date": "2026-08-11", "confirmation_date": "2026-08-12",
+      "confirmation_status": "Confirmed", "carrier_id": "C-130", "carrier_name": "Cactus Fuel Transport",
+      "carrier_fein": "86-4567890", "carrier_type": "third_party", "terminal_id": "T-PHX-01",
+      "loading_number": "LN-782", "planned_site_id": "2700789", "delivered_site_id": "2740456",
+      "product": "Diesel", "gallons": 6000, "supplier": "HF Sinclair", "invoice_number": "FINV-55504"
+    },
+    {
+      "bol_number": "BOL-100238", "lift_date": "2026-08-11", "confirmation_date": "2026-08-12",
+      "confirmation_status": "Confirmed", "carrier_id": "C-140", "carrier_name": "Cascade Transport",
+      "carrier_fein": "93-5678901", "carrier_type": "third_party", "terminal_id": "T-PDX-01",
+      "loading_number": "LN-783", "planned_site_id": "2700555", "delivered_site_id": "2700987",
+      "product": "Unleaded 87", "gallons": 7800, "supplier": "Chevron", "invoice_number": "FINV-55505"
+    },
+    {
+      "bol_number": "BOL-100239", "lift_date": "2026-08-11", "confirmation_date": "2026-08-12",
+      "confirmation_status": "Confirmed", "carrier_id": "C-001", "carrier_name": "Circle K Internal Fleet",
+      "carrier_fein": "47-6789012", "carrier_type": "internal_fleet", "terminal_id": "T-CLT-01",
+      "loading_number": "LN-784", "planned_site_id": "2700456", "delivered_site_id": "2700123",
+      "product": "Diesel", "gallons": 7000, "supplier": "Colonial", "invoice_number": "FINV-55506"
+    },
+    {
+      "bol_number": "BOL-100240", "lift_date": "2026-08-12", "confirmation_date": null,
+      "confirmation_status": "Pending", "carrier_id": "C-150", "carrier_name": "Lone Star Fuel",
+      "carrier_fein": "74-7890123", "carrier_type": "third_party", "terminal_id": "T-DAL-01",
+      "loading_number": "LN-785", "planned_site_id": "2700642", "delivered_site_id": "2700987",
+      "product": "Unleaded 87", "gallons": 8100, "supplier": "Valero", "invoice_number": "FINV-55507"
+    }
+  ]
+}

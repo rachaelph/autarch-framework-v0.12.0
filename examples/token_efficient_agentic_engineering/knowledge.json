@@ -1,0 +1,16 @@
+[
+  {"id":"arch-001","kind":"architecture","tags":["authentication","api","security"],"text":"Authentication is enforced at the API boundary. Business services accept a verified Principal and never parse bearer tokens directly."},
+  {"id":"arch-002","kind":"architecture","tags":["python","service","dependency"],"text":"Services use constructor injection. New dependencies must be represented by narrow protocols so unit tests can supply deterministic fakes."},
+  {"id":"sec-001","kind":"security","tags":["authentication","token","jwt"],"text":"Access tokens require issuer, audience, signature, expiry, and not-before validation. Failed validation returns a generic unauthorized response without disclosing which check failed."},
+  {"id":"sec-002","kind":"security","tags":["authorization","rbac","least-privilege"],"text":"Authentication establishes identity; authorization remains a separate deny-by-default policy check for each protected capability."},
+  {"id":"test-001","kind":"testing","tags":["pytest","authentication","security"],"text":"Security changes require tests for valid credentials, expired credentials, wrong audience, malformed input, missing credentials, and insufficient roles."},
+  {"id":"test-002","kind":"testing","tags":["integration","api"],"text":"API integration tests assert status code, stable error shape, and that rejected requests never invoke the protected service."},
+  {"id":"ops-001","kind":"operations","tags":["secrets","deployment","rotation"],"text":"Signing keys and credentials come from the deployment secret store. Configuration identifies key versions and supports overlap during rotation."},
+  {"id":"ops-002","kind":"operations","tags":["observability","security","privacy"],"text":"Record authentication outcome, reason category, issuer, and correlation ID. Never log raw access tokens, secrets, or unnecessary personal data."},
+  {"id":"docs-001","kind":"documentation","tags":["api","authentication","runbook"],"text":"Public API documentation describes the authentication scheme and error contract. The operator runbook covers key rotation and emergency revocation."},
+  {"id":"ui-001","kind":"frontend","tags":["css","accessibility","design"],"text":"The design system uses an eight-pixel spacing grid and requires WCAG AA color contrast for interactive controls."},
+  {"id":"data-001","kind":"data","tags":["warehouse","forecasting","batch"],"text":"Nightly demand forecasts are partitioned by region and retained for thirteen months for seasonality analysis."},
+  {"id":"mobile-001","kind":"mobile","tags":["ios","offline","sync"],"text":"The mobile client resolves offline write conflicts with server timestamps and displays a non-blocking reconciliation notice."},
+  {"id":"fin-001","kind":"finance","tags":["invoice","tax","currency"],"text":"Invoice totals use decimal arithmetic, preserve source currency, and apply tax only after line-level discounts."},
+  {"id":"ml-001","kind":"machine-learning","tags":["embedding","evaluation","drift"],"text":"Embedding releases require retrieval evaluation against the frozen relevance set and a drift report by language."}
+]

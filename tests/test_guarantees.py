@@ -2,6 +2,7 @@
 from autarch import Agent, capability
 from autarch.guarantees import Invariant, prove_guarantees
 from autarch.policy import Policy, PolicyEffect
+from autarch.policydsl import compile_policy
 
 
 # --- forbid ---------------------------------------------------------------
@@ -31,6 +32,17 @@ def test_forbid_holds_with_unconditional_deny_policy():
     report = prove_guarantees([Invariant.forbid("file.delete")], grants, policies)
     assert report.all_hold is True
     assert "unconditionally denies" in report.proofs[0].reason
+
+
+def test_declarative_unconditional_policy_can_satisfy_guarantee():
+    policy = compile_policy({
+        "name": "no-del", "effect": "deny", "capability": "file.delete",
+    })
+    assert policy.when is None
+    report = prove_guarantees(
+        [Invariant.forbid("file.delete")], [capability("file.delete")], [policy]
+    )
+    assert report.all_hold is True
 
 
 def test_forbid_ignores_conditional_deny():
