@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1420" viewBox="0 0 1900 1420" font-family="Segoe UI, Calibri, sans-serif" role="img" aria-label="CapEx CIP Validation Azure architecture">
+<defs><filter id="soft" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="1.5" stdDeviation="2.2" flood-color="#1B2A4A" flood-opacity="0.13"/></filter><marker id="aB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#0078D4"/></marker><marker id="aP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#6B4FBB"/></marker><marker id="aT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#12A5A0"/></marker><marker id="aA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#B8791A"/></marker><marker id="aI" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#3B5BA5"/></marker><marker id="aG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#2A7D6F"/></marker><marker id="aM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#B4407A"/></marker><marker id="aO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#C8781E"/></marker><marker id="aK" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#1B2A4A"/></marker><marker id="aX" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5A7391"/></marker></defs>
+<rect width="1900" height="1420" fill="#FFFFFF"/>
+<text x="44" y="42" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.4" font-weight="bold" fill="#0078D4" text-anchor="start" letter-spacing="1.6">CIRCLE K × MICROSOFT  |  CAPEX CIP VALIDATION  |  AZURE SOLUTION ARCHITECTURE</text>
+<text x="44" y="76" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="25" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">CapEx CIP validation — target Azure architecture</text>
+<text x="44" y="100" font-family="Segoe UI, Calibri, sans-serif" font-size="11.4" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Deterministic where the answer is knowable; the model only where judgement is required. The agent holds no credentials, reaches no source system directly, and writes to no financial system in Phase 1.</text>
+<rect x="44" y="126" width="1812" height="214" rx="12" fill="#F7F9FB"/>
+<rect x="44" y="126" width="1812" height="4" rx="2" fill="#7B8794"/>
+<text x="62" y="154" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.4" font-weight="bold" fill="#7B8794" text-anchor="start" letter-spacing="1.0">1  ·  CIRCLE K SOURCE SYSTEMS  (on-premises / existing estate)</text>
+<text x="62" y="171" font-family="Segoe UI, Calibri, sans-serif" font-size="9.0" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">read-only, and never replicated — three inputs plus a governed rules corpus</text>
+<rect x="60.0" y="182" width="422.5" height="138" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="60.0" y="191" width="3.2" height="120" rx="1.6" fill="#0078D4"/>
+<text x="75.0" y="203" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#0078D4" text-anchor="start" letter-spacing="0.8">SQL DATABASE</text>
+<text x="75.0" y="220" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Invoice line items</text>
+<text x="75.0" y="237" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">ABBYY Vantage output — description,</text>
+<text x="75.0" y="249.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">quantity, unit cost. Not yet populated.</text>
+<text x="75.0" y="261.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0"></text>
+<text x="75.0" y="274.2" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Read-only. No write-back in Phase 1.</text>
+<rect x="512.5" y="182" width="422.5" height="138" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="512.5" y="191" width="3.2" height="120" rx="1.6" fill="#3B5BA5"/>
+<text x="527.5" y="203" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#3B5BA5" text-anchor="start" letter-spacing="0.8">CSV EXTRACT</text>
+<text x="527.5" y="220" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Approved coding</text>
+<text x="527.5" y="237" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Post-approval file sent to POPA. One line</text>
+<text x="527.5" y="249.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">per invoice, one per coding distribution.</text>
+<text x="527.5" y="261.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0"></text>
+<text x="527.5" y="274.2" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Read-only. No write-back in Phase 1.</text>
+<rect x="965.0" y="182" width="422.5" height="138" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="965.0" y="191" width="3.2" height="120" rx="1.6" fill="#12A5A0"/>
+<text x="980.0" y="203" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#12A5A0" text-anchor="start" letter-spacing="0.8">REFERENCE</text>
+<text x="980.0" y="220" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Task / asset class list</text>
+<text x="980.0" y="237" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Task list (NA) from POPA. Asset class list</text>
+<text x="980.0" y="249.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">(Europe) extracted from GDE.</text>
+<text x="980.0" y="261.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0"></text>
+<text x="980.0" y="274.2" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Read-only. No write-back in Phase 1.</text>
+<rect x="1417.5" y="182" width="422.5" height="138" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="1417.5" y="191" width="3.2" height="120" rx="1.6" fill="#B8791A"/>
+<text x="1432.5" y="203" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#B8791A" text-anchor="start" letter-spacing="0.8">DOCUMENTS</text>
+<text x="1432.5" y="220" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Governed rules corpus</text>
+<text x="1432.5" y="237" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Reporting manual thresholds, accounting</text>
+<text x="1432.5" y="249.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">manual, IFRS, agreed exception list.</text>
+<text x="1432.5" y="261.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0"></text>
+<text x="1432.5" y="274.2" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Read-only. No write-back in Phase 1.</text>
+<rect x="44" y="366" width="1812" height="220" rx="12" fill="#F5F3FC"/>
+<rect x="44" y="366" width="1812" height="4" rx="2" fill="#6B4FBB"/>
+<text x="62" y="394" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.4" font-weight="bold" fill="#6B4FBB" text-anchor="start" letter-spacing="1.0">2  ·  GOVERNED ACCESS LAYER  — THE CONTROL BOUNDARY</text>
+<text x="62" y="411" font-family="Segoe UI, Calibri, sans-serif" font-size="9.0" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">one policy enforcement point; the agent can only emit a tool call and never holds a credential</text>
+<rect x="60.0" y="424" width="570.6666666666666" height="146" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="60.0" y="433" width="3.2" height="128" rx="1.6" fill="#6B4FBB"/>
+<text x="75.0" y="445" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#6B4FBB" text-anchor="start" letter-spacing="0.8">AZURE API MANAGEMENT</text>
+<text x="75.0" y="462" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">APIM — internal mode</text>
+<text x="75.0" y="479" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Validates the Entra token to establish which agent is</text>
+<text x="75.0" y="491.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">calling, checks that agent's tool allowlist, applies</text>
+<text x="75.0" y="503.79999999999995" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">throttle and per-agent quota, and writes the tool-call</text>
+<text x="75.0" y="516.1999999999999" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">audit record before any read proceeds.</text>
+<rect x="664.6666666666666" y="424" width="570.6666666666666" height="146" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="664.6666666666666" y="433" width="3.2" height="128" rx="1.6" fill="#12A5A0"/>
+<text x="679.6666666666666" y="445" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#12A5A0" text-anchor="start" letter-spacing="0.8">MCP TOOL LAYER</text>
+<text x="679.6666666666666" y="462" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Governed source adapters</text>
+<text x="679.6666666666666" y="479" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Business-meaningful tools — get_invoice_lines,</text>
+<text x="679.6666666666666" y="491.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">get_approved_coding, get_task_list. Transport-agnostic:</text>
+<text x="679.6666666666666" y="503.79999999999995" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Boomi may sit behind the adapter where coverage exists,</text>
+<text x="679.6666666666666" y="516.1999999999999" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">without changing the agent.</text>
+<rect x="1269.3333333333333" y="424" width="570.6666666666666" height="146" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="1269.3333333333333" y="433" width="3.2" height="128" rx="1.6" fill="#3B5BA5"/>
+<text x="1284.3333333333333" y="445" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#3B5BA5" text-anchor="start" letter-spacing="0.8">KEY VAULT + ENTRA ID</text>
+<text x="1284.3333333333333" y="462" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Credentials and identity</text>
+<text x="1284.3333333333333" y="479" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">The MCP server retrieves source credentials from Key</text>
+<text x="1284.3333333333333" y="491.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Vault under its own managed identity. The agent sees a</text>
+<text x="1284.3333333333333" y="503.79999999999995" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">tool result, never a connection string. Every action is</text>
+<text x="1284.3333333333333" y="516.1999999999999" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">attributable to a named identity.</text>
+<path d="M271.25 320 L271.25 348 L950.0 348" fill="none" stroke="#7B8794" stroke-width="1.6"/>
+<path d="M723.75 320 L723.75 348 L950.0 348" fill="none" stroke="#7B8794" stroke-width="1.6"/>
+<path d="M1176.25 320 L1176.25 348 L950.0 348" fill="none" stroke="#7B8794" stroke-width="1.6"/>
+<path d="M1628.75 320 L1628.75 348 L950.0 348" fill="none" stroke="#7B8794" stroke-width="1.6"/>
+<path d="M950.0 348 L950.0 414" fill="none" stroke="#6B4FBB" stroke-width="2.1" marker-end="url(#aP)"/>
+<rect x="44" y="612" width="1812" height="448" rx="12" fill="#EFF9F8"/>
+<rect x="44" y="612" width="1812" height="4" rx="2" fill="#12A5A0"/>
+<text x="62" y="640" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.4" font-weight="bold" fill="#12A5A0" text-anchor="start" letter-spacing="1.0">3  ·  AGENT RUNTIME  — AZURE AI FOUNDRY</text>
+<text x="62" y="657" font-family="Segoe UI, Calibri, sans-serif" font-size="9.0" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">one orchestrator owns each work item and sequences every step in a fixed, reconstructable order</text>
+<rect x="60" y="672" width="1780" height="58" rx="10" fill="#1B2A4A"/>
+<text x="80" y="696" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="9.0" font-weight="bold" fill="#8FB4E0" text-anchor="start" letter-spacing="1.0">FOUNDRY AGENT SERVICE</text>
+<text x="80" y="716" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.4" font-weight="bold" fill="#FFFFFF" text-anchor="start" letter-spacing="0">Orchestrator — owns the work item end to end, sequences each tool call, escalates exceptions. Agents never call each other freely.</text>
+<text x="1820" y="706" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="9.0" font-weight="bold" fill="#8FB4E0" text-anchor="end" letter-spacing="0">hosted on Azure Container Apps · scales to zero</text>
+<rect x="60.0" y="760" width="422.5" height="150" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="60.0" y="769" width="3.2" height="132" rx="1.6" fill="#12A5A0"/>
+<text x="75.0" y="781" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#12A5A0" text-anchor="start" letter-spacing="0.8">STEP 1  ·  DETERMINISTIC</text>
+<text x="75.0" y="798" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Resolve and join</text>
+<text x="75.0" y="815" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Invoice line items joined to the approved</text>
+<text x="75.0" y="827.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">coding on invoice number. Pure data</text>
+<text x="75.0" y="839.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">work — no model call, no token cost.</text>
+<text x="467.5" y="774" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#12A5A0" text-anchor="end" letter-spacing="0.8">NO AI</text>
+<rect x="512.5" y="760" width="422.5" height="150" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="512.5" y="769" width="3.2" height="132" rx="1.6" fill="#B4407A"/>
+<text x="527.5" y="781" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#B4407A" text-anchor="start" letter-spacing="0.8">STEP 2  ·  AZURE OPENAI</text>
+<text x="527.5" y="798" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Determine the task</text>
+<text x="527.5" y="815" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">The model reads the line description —</text>
+<text x="527.5" y="827.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">'Xerox' → printer → the matching task from</text>
+<text x="527.5" y="839.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">the governed list. Language judgement</text>
+<text x="527.5" y="852.1999999999999" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">no rule can encode.</text>
+<text x="920.0" y="774" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#B4407A" text-anchor="end" letter-spacing="0.8">GPT-5.1</text>
+<rect x="965.0" y="760" width="422.5" height="150" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="965.0" y="769" width="3.2" height="132" rx="1.6" fill="#3B5BA5"/>
+<text x="980.0" y="781" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#3B5BA5" text-anchor="start" letter-spacing="0.8">STEP 3  ·  DETERMINISTIC</text>
+<text x="980.0" y="798" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Compare and test threshold</text>
+<text x="980.0" y="815" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Expected task set vs coded task set →</text>
+<text x="980.0" y="827.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">EXCEPTION 1. Then unit cost against the</text>
+<text x="980.0" y="839.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">governed threshold. Both reproducible,</text>
+<text x="980.0" y="852.1999999999999" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">both free.</text>
+<text x="1372.5" y="774" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#3B5BA5" text-anchor="end" letter-spacing="0.8">NO AI</text>
+<rect x="1417.5" y="760" width="422.5" height="150" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="1417.5" y="769" width="3.2" height="132" rx="1.6" fill="#B4407A"/>
+<text x="1432.5" y="781" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#B4407A" text-anchor="start" letter-spacing="0.8">STEP 4  ·  AZURE OPENAI</text>
+<text x="1432.5" y="798" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Assess the substance</text>
+<text x="1432.5" y="815" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Only in the grey range. Assesses nature</text>
+<text x="1432.5" y="827.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">against retrieved rule text. Disagreement</text>
+<text x="1432.5" y="839.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">with the rule raises EXCEPTION 2.</text>
+<text x="1432.5" y="852.1999999999999" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">The rule is never silently overridden.</text>
+<text x="1825.0" y="774" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#B4407A" text-anchor="end" letter-spacing="0.8">GPT-5.1</text>
+<line x1="476.5" y1="835" x2="504.5" y2="835" stroke="#12A5A0" stroke-width="1.9" marker-end="url(#aT)"/>
+<line x1="929.0" y1="835" x2="957.0" y2="835" stroke="#12A5A0" stroke-width="1.9" marker-end="url(#aT)"/>
+<line x1="1381.5" y1="835" x2="1409.5" y2="835" stroke="#12A5A0" stroke-width="1.9" marker-end="url(#aT)"/>
+<path d="M950.0 570 L950.0 664" fill="none" stroke="#12A5A0" stroke-width="2.1" marker-end="url(#aT)"/>
+<rect x="60.0" y="932" width="570.6666666666666" height="112" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="60.0" y="941" width="3.2" height="94" rx="1.6" fill="#C8781E"/>
+<text x="75.0" y="953" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#C8781E" text-anchor="start" letter-spacing="0.8">AZURE AI SEARCH</text>
+<text x="75.0" y="970" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Rules retrieval (RAG)</text>
+<text x="75.0" y="987" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Indexes the rules corpus so the model applies current</text>
+<text x="75.0" y="999.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">governed text rather than recalling from training data.</text>
+<text x="75.0" y="1011.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Retrieved passages are cited on the determination.</text>
+<rect x="664.6666666666666" y="932" width="570.6666666666666" height="112" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="664.6666666666666" y="941" width="3.2" height="94" rx="1.6" fill="#C8781E"/>
+<text x="679.6666666666666" y="953" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#C8781E" text-anchor="start" letter-spacing="0.8">AZURE OPENAI</text>
+<text x="679.6666666666666" y="970" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">text-embedding-3-small</text>
+<text x="679.6666666666666" y="987" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Turns rule text and line descriptions into comparable</text>
+<text x="679.6666666666666" y="999.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">vectors so meaning can be matched. Called by AI Search</text>
+<text x="679.6666666666666" y="1011.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">via integrated vectorization.</text>
+<rect x="1269.3333333333333" y="932" width="570.6666666666666" height="112" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="1269.3333333333333" y="941" width="3.2" height="94" rx="1.6" fill="#2A7D6F"/>
+<text x="1284.3333333333333" y="953" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#2A7D6F" text-anchor="start" letter-spacing="0.8">AZURE AI FOUNDRY</text>
+<text x="1284.3333333333333" y="970" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Model governance</text>
+<text x="1284.3333333333333" y="987" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Model catalogue, agent definitions, pinned versions and</text>
+<text x="1284.3333333333333" y="999.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">evaluation gates. No auto-upgrade — the golden dataset</text>
+<text x="1284.3333333333333" y="1011.8" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">re-runs before any model change is promoted.</text>
+<rect x="44" y="1086" width="1812" height="200" rx="12" fill="#FDF7EE"/>
+<rect x="44" y="1086" width="1812" height="4" rx="2" fill="#B8791A"/>
+<text x="62" y="1114" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.4" font-weight="bold" fill="#B8791A" text-anchor="start" letter-spacing="1.0">4  ·  STATE, EVIDENCE AND HUMAN CONTROL</text>
+<text x="62" y="1131" font-family="Segoe UI, Calibri, sans-serif" font-size="9.0" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">the agent proposes; a named analyst disposes — nothing posts to a financial system in Phase 1</text>
+<rect x="60.0" y="1144" width="422.5" height="124" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="60.0" y="1153" width="3.2" height="106" rx="1.6" fill="#3B5BA5"/>
+<text x="75.0" y="1165" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#3B5BA5" text-anchor="start" letter-spacing="0.8">COSMOS DB · SERVERLESS</text>
+<text x="75.0" y="1182" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Work state + decision record</text>
+<text x="75.0" y="1199" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Run state across days, plus determination,</text>
+<text x="75.0" y="1211.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">rule cited, model version, approver and</text>
+<text x="75.0" y="1223.8000000000002" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">correction lineage.</text>
+<rect x="512.5" y="1144" width="422.5" height="124" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="512.5" y="1153" width="3.2" height="106" rx="1.6" fill="#3B5BA5"/>
+<text x="527.5" y="1165" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#3B5BA5" text-anchor="start" letter-spacing="0.8">BLOB STORAGE</text>
+<text x="527.5" y="1182" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Immutable evidence</text>
+<text x="527.5" y="1199" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">The exact artefact behind every decision,</text>
+<text x="527.5" y="1211.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">held under a time-based hold so it cannot</text>
+<text x="527.5" y="1223.8000000000002" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">be altered after the fact.</text>
+<rect x="965.0" y="1144" width="422.5" height="124" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="965.0" y="1153" width="3.2" height="106" rx="1.6" fill="#B8791A"/>
+<text x="980.0" y="1165" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#B8791A" text-anchor="start" letter-spacing="0.8">POWER APPS / POWER BI</text>
+<text x="980.0" y="1182" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Reviewer workbench</text>
+<text x="980.0" y="1199" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Coded task, expected task, governed range,</text>
+<text x="980.0" y="1211.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">reasoning, and a flag when a call came</text>
+<text x="980.0" y="1223.8000000000002" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">from prior learning.</text>
+<rect x="1417.5" y="1144" width="422.5" height="124" rx="9" fill="#FFFFFF" filter="url(#soft)"/>
+<rect x="1417.5" y="1153" width="3.2" height="106" rx="1.6" fill="#2A7D6F"/>
+<text x="1432.5" y="1165" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="7.8" font-weight="bold" fill="#2A7D6F" text-anchor="start" letter-spacing="0.8">PHASE 2 · DEFERRED</text>
+<text x="1432.5" y="1182" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="10.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Correction writeback</text>
+<text x="1432.5" y="1199" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Power Automate reclass in POPA (NA) or</text>
+<text x="1432.5" y="1211.4" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">asset class in GDE (Europe). RPA, not AI.</text>
+<text x="1432.5" y="1223.8000000000002" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Not in Phase 1 scope.</text>
+<path d="M950.0 1044 L950.0 1074" fill="none" stroke="#B8791A" stroke-width="2.1" marker-end="url(#aA)"/>
+<rect x="44" y="1306" width="1812" height="54" rx="10" fill="#F2F5FC" stroke="#D5DDE5" stroke-width="1"/>
+<text x="64" y="1328" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="8.6" font-weight="bold" fill="#3B5BA5" text-anchor="start" letter-spacing="1.0">CROSS-CUTTING</text>
+<text x="64" y="1346" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="9.6" font-weight="bold" fill="#1B2A4A" text-anchor="start" letter-spacing="0">Azure Monitor + Log Analytics + Application Insights — agent traces, token spend per run, retry counts and drift indicators; forwarded to Circle K's Splunk estate.</text>
+<text x="1836" y="1338" font-family="Segoe UI Semibold, Segoe UI, Calibri, sans-serif" font-size="9.0" font-weight="bold" fill="#7B8794" text-anchor="end" letter-spacing="0">Container Registry · immutable images tagged by git SHA</text>
+<text x="44" y="1408" font-family="Segoe UI, Calibri, sans-serif" font-size="9.2" font-weight="normal" fill="#7B8794" text-anchor="start" letter-spacing="0">Phase 1 writes to no Circle K financial system. Every determination is evidenced whether or not a person reviewed it.</text>
+</svg>
