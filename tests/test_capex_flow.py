@@ -10,10 +10,19 @@ EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 if str(EXAMPLES) not in sys.path:
     sys.path.insert(0, str(EXAMPLES))
 
-from capex_flow import load_reviews, run_pipeline, write_outputs  # noqa: E402
+from capex_flow import load_inputs, load_reviews, run_pipeline, write_outputs  # noqa: E402
 
 
 DATA = EXAMPLES / "data" / "capex"
+
+
+def test_unpacked_abbyy_exports_are_loaded() -> None:
+    invoices, _, _, _ = load_inputs(DATA)
+
+    by_number = {invoice["invoice_number"]: invoice for invoice in invoices}
+    assert len(by_number["INV12-62027"]["lines"]) == 12
+    assert len(by_number["36764068-GRP005"]["lines"]) == 10
+    assert by_number["INV12-62027"]["source"].startswith("Bruegmann")
 
 
 def test_supplied_abbyy_packages_reach_expected_decisions() -> None:
@@ -445,6 +454,37 @@ def test_maf_azure_transport_uses_structured_responses_and_bounded_requests(tmp_
     assert requests[0]["response_format"]["type"] == "json_schema"
     assert requests[0]["response_format"]["json_schema"]["strict"] is True
     assert requests[0]["store"] is False
+
+
+def test_foundry_responses_endpoint_selects_responses_client(monkeypatch) -> None:
+    agent_framework_openai = pytest.importorskip("agent_framework.openai")
+    pytest.importorskip("openai")
+    from capex_agents import azure_client_factory
+
+    created = []
+
+    class TestResponsesClient:
+        def __init__(self, **kwargs):
+            created.append(kwargs)
+
+    monkeypatch.setattr(agent_framework_openai, "OpenAIChatClient", TestResponsesClient, raising=False)
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "synthetic-test-key-not-a-real-credential")
+    factory, deployment = azure_client_factory(
+        "gpt-5.4",
+        "https://aif-learning.services.ai.azure.com/openai/v1/responses",
+        "key",
+        30.0,
+    )
+
+    assert deployment == "gpt-5.4"
+    assert isinstance(factory(), TestResponsesClient)
+    assert created == [{
+        "model": "gpt-5.4",
+        "base_url": "https://aif-learning.services.ai.azure.com/openai/v1/",
+        "timeout": 30.0,
+        "max_retries": 0,
+        "api_key": "synthetic-test-key-not-a-real-credential",
+    }]
 
 
 def test_europe_policy_classification_and_bundling_path(tmp_path: Path, monkeypatch) -> None:

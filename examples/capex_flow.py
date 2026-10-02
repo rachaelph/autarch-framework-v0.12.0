@@ -165,6 +165,11 @@ def _csv_member(archive: zipfile.ZipFile, predicate: Any) -> List[Dict[str, str]
     return []
 
 
+def _csv_file(path: Path) -> List[Dict[str, str]]:
+    with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as stream:
+        return list(csv.DictReader(stream))
+
+
 def _line(row: Mapping[str, Any], index: int) -> Dict[str, Any]:
     amount = _number(row.get("Total Price") or row.get("Net Price"))
     return {
@@ -174,6 +179,36 @@ def _line(row: Mapping[str, Any], index: int) -> Dict[str, Any]:
         "unit_price": _number(row.get("Unit Price")),
         "amount": amount,
         "actual_task": str(row.get("Job Type") or row.get("Project") or "").strip(),
+    }
+
+
+def _abbyy_invoice(
+    header: Mapping[str, Any],
+    rows: Sequence[Mapping[str, Any]],
+    source: str,
+    source_sha256: str,
+) -> Dict[str, Any]:
+    lines = [_line(row, index) for index, row in enumerate(rows, 1) if row.get("Description")]
+    transaction_id = header.get("Transaction id") or Path(source).stem
+    country = str(header.get("Business Unit/Country", ""))
+    return {
+        "invoice_id": transaction_id,
+        "transaction_id": transaction_id,
+        "invoice_number": header.get("Invoice Number", ""),
+        "invoice_date": header.get("Invoice Date", ""),
+        "vendor": header.get("Vendor/Name") or header.get("Vendor/Invoice Vendor Name", ""),
+        "country": country,
+        "region": "North America" if country.upper() in US_COUNTRIES else "Europe",
+        "state": header.get("Business Unit/State", ""),
+        "currency": header.get("Currency", ""),
+        "total": _number(header.get("Total")),
+        "afe_number": header.get("AFE Number", ""),
+        "project_number": header.get("Work Order Number", ""),
+        "business_capex_opex": header.get("CAPEX/OPEX", ""),
+        "lines": lines,
+        "source": source,
+        "source_sha256": source_sha256,
+        "abbyy_confidence": _number(str(header.get("Confidence", "")).replace("%", "")),
     }
 
 
@@ -187,28 +222,32 @@ def read_abbyy_archive(path: Path) -> Dict[str, Any]:
         rows = _csv_member(archive, lambda name: name.startswith("Line Items_"))
         if not headers:
             raise ValueError(f"ABBYY package has no invoice CSV: {path.name}")
-        header = headers[0]
-        lines = [_line(row, index) for index, row in enumerate(rows, 1) if row.get("Description")]
-        transaction_id = header.get("Transaction id") or path.stem
-        return {
-            "invoice_id": transaction_id,
-            "transaction_id": transaction_id,
-            "invoice_number": header.get("Invoice Number", ""),
-            "invoice_date": header.get("Invoice Date", ""),
-            "vendor": header.get("Vendor/Name") or header.get("Vendor/Invoice Vendor Name", ""),
-            "country": header.get("Business Unit/Country", ""),
-            "region": "North America" if header.get("Business Unit/Country", "").upper() in US_COUNTRIES else "Europe",
-            "state": header.get("Business Unit/State", ""),
-            "currency": header.get("Currency", ""),
-            "total": _number(header.get("Total")),
-            "afe_number": header.get("AFE Number", ""),
-            "project_number": header.get("Work Order Number", ""),
-            "business_capex_opex": header.get("CAPEX/OPEX", ""),
-            "lines": lines,
-            "source": path.name,
-            "source_sha256": _sha256_bytes(path.read_bytes()),
-            "abbyy_confidence": _number(str(header.get("Confidence", "")).replace("%", "")),
-        }
+        return _abbyy_invoice(headers[0], rows, path.name, _sha256_bytes(path.read_bytes()))
+
+
+def read_abbyy_directory(path: Path) -> Dict[str, Any]:
+    """Consume an unpacked ABBYY export using its invoice and referenced line-item CSVs."""
+    header_paths = sorted(
+        item for item in path.glob("Non-Trade Invoices*.csv") if "Line Items" not in item.name
+    )
+    if not header_paths:
+        raise ValueError(f"ABBYY directory has no invoice CSV: {path.name}")
+    header_rows = _csv_file(header_paths[0])
+    if not header_rows:
+        raise ValueError(f"ABBYY invoice CSV is empty: {header_paths[0].name}")
+    header = header_rows[0]
+    line_name = str(header.get("Line Items", "")).strip()
+    line_paths = [path / line_name] if line_name else sorted(path.glob("**/Line Items_*.csv"))
+    line_path = next((item for item in line_paths if item.is_file()), None)
+    if line_path is None:
+        raise ValueError(f"ABBYY directory has no referenced line-item CSV: {path.name}")
+    source_bytes = header_paths[0].read_bytes() + line_path.read_bytes()
+    return _abbyy_invoice(
+        header,
+        _csv_file(line_path),
+        path.name,
+        _sha256_bytes(source_bytes),
+    )
 
 
 def read_cases(path: Path, excluded_ids: Iterable[str]) -> List[Dict[str, Any]]:
@@ -248,6 +287,15 @@ def read_cases(path: Path, excluded_ids: Iterable[str]) -> List[Dict[str, Any]]:
 
 def load_inputs(data_dir: Path, *, allow_continuity: bool = True) -> Tuple[List[Dict[str, Any]], List[Dict[str, str]], Dict[str, Dict[str, str]], List[str]]:
     archives = [read_abbyy_archive(path) for path in sorted(data_dir.glob("*.zip"))]
+    archived_ids = {invoice["transaction_id"] for invoice in archives}
+    directories = [
+        read_abbyy_directory(path)
+        for path in sorted(item for item in data_dir.iterdir() if item.is_dir())
+        if any(path.glob("Non-Trade Invoices*.csv"))
+    ]
+    archives.extend(
+        invoice for invoice in directories if invoice["transaction_id"] not in archived_ids
+    )
     ids = {invoice["transaction_id"] for invoice in archives}
     warnings: List[str] = []
     cases_path = data_dir / "Cases.xlsx"

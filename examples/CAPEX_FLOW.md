@@ -22,10 +22,19 @@ az login
 ```
 
 Replace the endpoint and deployment placeholders with your resource's values.
+The endpoint may also be a full Microsoft Foundry Responses API URL ending in
+`/openai/v1/responses`; the workflow detects that form and uses the Agent Framework
+Responses client. For example:
+
+```powershell
+$env:AZURE_OPENAI_ENDPOINT = "https://YOUR_RESOURCE.services.ai.azure.com/openai/v1/responses"
+$env:AZURE_OPENAI_DEPLOYMENT = "gpt-5.4"
+```
+
 Entra authentication uses `DefaultAzureCredential` (Azure CLI or managed identity,
 for example). The identity needs inference permission such as **Cognitive Services
 OpenAI User** on the resource. The script does not launch an interactive sign-in.
-The deployment must support chat completions and JSON-schema structured outputs.
+The deployment must support the selected API and JSON-schema structured outputs.
 
 Alternatively, configure `AZURE_OPENAI_API_KEY` privately in your terminal/environment
 and use `--auth key`. Do not put keys in source files, reports, command arguments, or chat.
@@ -80,9 +89,10 @@ They receive structured invoice fields, not the raw ABBYY bank-account fields or
 
 ## Inputs and Finance References
 
-`--data` defaults to `examples/data/capex`. Supported ABBYY ZIPs contain invoice-header
-and line-item CSVs matching the supplied exports. Accessible cases workbooks are grouped
-by transaction ID and deduplicated against ZIP transactions.
+`--data` defaults to `examples/data/capex`. Supported ABBYY inputs are ZIP packages or
+unpacked export directories containing an invoice-header CSV and its referenced line-item
+CSV. Accessible cases workbooks are grouped by transaction ID and deduplicated against
+ABBYY transactions; ZIP packages take precedence over duplicate unpacked exports.
 
 At the last verified customer-data run, both supplied Excel workbooks were Purview/DRM
 protected. Obtain authorized readable XLSX exports through your organization's process;

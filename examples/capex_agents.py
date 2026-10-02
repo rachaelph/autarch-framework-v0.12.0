@@ -468,13 +468,52 @@ def azure_client_factory(
     if auth == "key" and not api_key:
         raise ValueError("Key authentication requires AZURE_OPENAI_API_KEY in your environment")
     try:
-        from agent_framework.openai import OpenAIChatCompletionClient
-        from openai import AsyncAzureOpenAI
+        import agent_framework.openai as agent_framework_openai
+        from openai import AsyncAzureOpenAI, AsyncOpenAI
         from azure.identity import DefaultAzureCredential, get_bearer_token_provider
     except ImportError as exc:
         raise RuntimeError('Install the live dependencies with: python -m pip install -e ".[capex]"') from exc
 
+    endpoint_path = parsed.path.rstrip("/")
+    use_responses = endpoint_path.endswith("/openai/v1/responses") or endpoint_path.endswith("/openai/v1")
+
     def factory():
+        credential = DefaultAzureCredential(exclude_interactive_browser_credential=True)
+        if use_responses:
+            base_url = endpoint.removesuffix("/responses").rstrip("/") + "/"
+            responses_client = getattr(agent_framework_openai, "OpenAIChatClient", None)
+            if responses_client is not None:
+                kwargs = {
+                    "model": deployment,
+                    "base_url": base_url,
+                    "timeout": timeout,
+                    "max_retries": 0,
+                }
+                if auth == "aad":
+                    kwargs["credential"] = credential
+                else:
+                    kwargs["api_key"] = api_key
+                return responses_client(**kwargs)
+
+            responses_client = getattr(agent_framework_openai, "OpenAIResponsesClient", None)
+            if responses_client is None:
+                raise RuntimeError(
+                    "Installed agent-framework-openai does not support the Responses API; "
+                    "upgrade the capex optional dependencies"
+                )
+            responses_api_key = api_key
+            if auth == "aad":
+                responses_api_key = get_bearer_token_provider(
+                    credential, "https://ai.azure.com/.default"
+                )
+            async_client = AsyncOpenAI(
+                base_url=base_url,
+                api_key=responses_api_key,
+                timeout=timeout,
+                max_retries=0,
+            )
+            return responses_client(model_id=deployment, async_client=async_client)
+
         kwargs = {
             "azure_endpoint": endpoint,
             "api_version": os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21"),
@@ -483,12 +522,14 @@ def azure_client_factory(
         }
         if auth == "aad":
             kwargs["azure_ad_token_provider"] = get_bearer_token_provider(
-                DefaultAzureCredential(exclude_interactive_browser_credential=True),
+                credential,
                 "https://cognitiveservices.azure.com/.default",
             )
         else:
             kwargs["api_key"] = api_key
-        return OpenAIChatCompletionClient(model=deployment, async_client=AsyncAzureOpenAI(**kwargs))
+        return agent_framework_openai.OpenAIChatCompletionClient(
+            model=deployment, async_client=AsyncAzureOpenAI(**kwargs)
+        )
 
     return factory, deployment
 
