@@ -458,16 +458,23 @@ def test_maf_azure_transport_uses_structured_responses_and_bounded_requests(tmp_
 
 def test_foundry_responses_endpoint_selects_responses_client(monkeypatch) -> None:
     agent_framework_openai = pytest.importorskip("agent_framework.openai")
-    pytest.importorskip("openai")
+    openai = pytest.importorskip("openai")
     from capex_agents import azure_client_factory
 
     created = []
+    transports = []
+    async_client = object()
 
     class TestResponsesClient:
         def __init__(self, **kwargs):
             created.append(kwargs)
 
+    def test_async_openai(**kwargs):
+        transports.append(kwargs)
+        return async_client
+
     monkeypatch.setattr(agent_framework_openai, "OpenAIChatClient", TestResponsesClient, raising=False)
+    monkeypatch.setattr(openai, "AsyncOpenAI", test_async_openai)
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "synthetic-test-key-not-a-real-credential")
     factory, deployment = azure_client_factory(
         "gpt-5.4",
@@ -480,11 +487,42 @@ def test_foundry_responses_endpoint_selects_responses_client(monkeypatch) -> Non
     assert isinstance(factory(), TestResponsesClient)
     assert created == [{
         "model": "gpt-5.4",
+        "async_client": async_client,
+    }]
+    assert transports == [{
         "base_url": "https://aif-learning.services.ai.azure.com/openai/v1/",
         "timeout": 30.0,
         "max_retries": 0,
         "api_key": "synthetic-test-key-not-a-real-credential",
     }]
+
+
+def test_foundry_responses_aad_token_provider_is_awaitable(monkeypatch) -> None:
+    import asyncio
+    agent_framework_openai = pytest.importorskip("agent_framework.openai")
+    azure_identity = pytest.importorskip("azure.identity")
+    openai = pytest.importorskip("openai")
+    from capex_agents import azure_client_factory
+
+    transports = []
+
+    class TestResponsesClient:
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(agent_framework_openai, "OpenAIChatClient", TestResponsesClient, raising=False)
+    monkeypatch.setattr(openai, "AsyncOpenAI", lambda **kwargs: transports.append(kwargs) or object())
+    monkeypatch.setattr(azure_identity, "get_bearer_token_provider", lambda *_args: lambda: "test-token")
+
+    factory, _ = azure_client_factory(
+        "gpt-5.4",
+        "https://aif-learning.services.ai.azure.com/openai/v1/responses",
+        "aad",
+        30.0,
+    )
+    factory()
+
+    assert asyncio.run(transports[0]["api_key"]()) == "test-token"
 
 
 def test_europe_policy_classification_and_bundling_path(tmp_path: Path, monkeypatch) -> None:

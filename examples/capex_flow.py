@@ -237,7 +237,11 @@ def read_abbyy_directory(path: Path) -> Dict[str, Any]:
         raise ValueError(f"ABBYY invoice CSV is empty: {header_paths[0].name}")
     header = header_rows[0]
     line_name = str(header.get("Line Items", "")).strip()
-    line_paths = [path / line_name] if line_name else sorted(path.glob("**/Line Items_*.csv"))
+    line_paths = (
+        [path / line_name, *sorted(path.glob(f"**/{line_name}"))]
+        if line_name
+        else sorted(path.glob("**/Line Items_*.csv"))
+    )
     line_path = next((item for item in line_paths if item.is_file()), None)
     if line_path is None:
         raise ValueError(f"ABBYY directory has no referenced line-item CSV: {path.name}")

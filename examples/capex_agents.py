@@ -481,19 +481,25 @@ def azure_client_factory(
         credential = DefaultAzureCredential(exclude_interactive_browser_credential=True)
         if use_responses:
             base_url = endpoint.removesuffix("/responses").rstrip("/") + "/"
+            responses_api_key = api_key
+            if auth == "aad":
+                token_provider = get_bearer_token_provider(
+                    credential, "https://ai.azure.com/.default"
+                )
+
+                async def responses_token_provider() -> str:
+                    return token_provider()
+
+                responses_api_key = responses_token_provider
+            async_client = AsyncOpenAI(
+                base_url=base_url,
+                api_key=responses_api_key,
+                timeout=timeout,
+                max_retries=0,
+            )
             responses_client = getattr(agent_framework_openai, "OpenAIChatClient", None)
             if responses_client is not None:
-                kwargs = {
-                    "model": deployment,
-                    "base_url": base_url,
-                    "timeout": timeout,
-                    "max_retries": 0,
-                }
-                if auth == "aad":
-                    kwargs["credential"] = credential
-                else:
-                    kwargs["api_key"] = api_key
-                return responses_client(**kwargs)
+                return responses_client(model=deployment, async_client=async_client)
 
             responses_client = getattr(agent_framework_openai, "OpenAIResponsesClient", None)
             if responses_client is None:
@@ -501,17 +507,6 @@ def azure_client_factory(
                     "Installed agent-framework-openai does not support the Responses API; "
                     "upgrade the capex optional dependencies"
                 )
-            responses_api_key = api_key
-            if auth == "aad":
-                responses_api_key = get_bearer_token_provider(
-                    credential, "https://ai.azure.com/.default"
-                )
-            async_client = AsyncOpenAI(
-                base_url=base_url,
-                api_key=responses_api_key,
-                timeout=timeout,
-                max_retries=0,
-            )
             return responses_client(model_id=deployment, async_client=async_client)
 
         kwargs = {
