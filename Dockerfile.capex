@@ -1,0 +1,17 @@
+FROM python:3.12-slim
+
+RUN useradd --create-home --uid 10001 capex
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY autarch ./autarch
+COPY examples/capex_flow.py examples/capex_agents.py ./examples/
+COPY examples/data/capex ./examples/data/capex
+RUN pip install --no-cache-dir ".[capex]"
+
+ENV AUTARCH_WORKSPACE=/data
+RUN mkdir -p /data && chown -R capex:capex /data /app
+USER capex
+VOLUME ["/data"]
+
+ENTRYPOINT ["python", "/app/examples/capex_flow.py", "--workspace", "/data"]

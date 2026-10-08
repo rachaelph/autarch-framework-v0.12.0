@@ -12,6 +12,7 @@ dist/
 # Runtime artifacts
 sandbox/
 .autarch/
+.copilot-azure/
 *.db
 
 # Env
