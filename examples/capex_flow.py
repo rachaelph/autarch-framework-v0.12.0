@@ -632,6 +632,195 @@ td{{overflow-wrap:anywhere}}details{{margin:12px 0}}summary{{cursor:pointer;padd
 <footer>Catalog: {package['task_catalog_count']} task types | Generated {html.escape(package['generated_at'])}</footer></main></body></html>"""
 
 
+def _customer_task_label(line: Mapping[str, Any]) -> str:
+    code = line.get("recommended_task") or line.get("recommended_asset_class")
+    if not code:
+        return "Unresolved"
+    description = line.get("recommended_task_description")
+    return f"{code} - {description}" if description else str(code)
+
+
+def _customer_confidence_range(invoice: Mapping[str, Any]) -> str:
+    values = [
+        float(line["classification_confidence"])
+        for line in invoice["lines"]
+        if _customer_task_label(line) != "Unresolved"
+        and isinstance(line.get("classification_confidence"), (int, float))
+    ]
+    if not values:
+        return "Not available"
+    return f"{min(values):.0%}" if min(values) == max(values) else f"{min(values):.0%}-{max(values):.0%}"
+
+
+def _customer_task_summary(invoice: Mapping[str, Any]) -> str:
+    counts = Counter(
+        _customer_task_label(line)
+        for line in invoice["lines"]
+        if _customer_task_label(line) != "Unresolved"
+    )
+    if not counts:
+        return "No supported task suggestion"
+    return "; ".join(
+        f"{html.escape(label)} ({count} line{'s' if count != 1 else ''})"
+        for label, count in counts.items()
+    )
+
+
+def _render_customer_dashboard(package: Mapping[str, Any]) -> str:
+    invoices = package["invoices"]
+    exceptions = package["exceptions"]
+    lines = [line for invoice in invoices for line in invoice["lines"]]
+    suggestions = [line for line in lines if _customer_task_label(line) != "Unresolved"]
+    unresolved = len(lines) - len(suggestions)
+    pending = sum(
+        invoice["review_status"] in {"PENDING", "STALE_REVIEW"}
+        for invoice in invoices
+    )
+    engine = (
+        "Microsoft Agent Framework + governance and audit controls"
+        if package.get("engine") == "maf"
+        else "Offline deterministic rules (no LLM)"
+    )
+    engine_label = html.escape(
+        engine + (f" | {package['model']}" if package.get("model") else "")
+    )
+
+    source_gaps = "".join(
+        f"<li>{html.escape(warning)}</li>"
+        for warning in package.get("source_warnings", [])
+    )
+    inputs = (
+        "<section class='inputs'><h2>Inputs needed for final determination</h2>"
+        "<p>The workflow completed safely, but Finance must supply the following "
+        "governed evidence before a final CapEx/OpEx decision can be supported.</p>"
+        f"<ul>{source_gaps}</ul></section>"
+        if source_gaps else ""
+    )
+
+    invoice_rows = "".join(
+        "<tr>"
+        f"<td>{html.escape(invoice['invoice_number'] or invoice['invoice_id'])}</td>"
+        f"<td>{html.escape(invoice['vendor'])}</td>"
+        f"<td>{html.escape(invoice['currency'])} {invoice['total']:,.2f}</td>"
+        f"<td>{_customer_task_summary(invoice)}</td>"
+        f"<td>{_customer_confidence_range(invoice)}</td>"
+        f"<td><span class='status review'>{html.escape(invoice['recommendation'])}</span></td>"
+        "<td>Finance validation required</td></tr>"
+        for invoice in invoices
+    )
+
+    case_cards = []
+    evidence_sections = []
+    for invoice in invoices:
+        classified = sum(
+            _customer_task_label(line) != "Unresolved"
+            for line in invoice["lines"]
+        )
+        unresolved_count = len(invoice["lines"]) - classified
+        case_cards.append(
+            "<article class='case-card'><div class='case-title'><div>"
+            "<span class='eyebrow'>Invoice case</span>"
+            f"<h3>{html.escape(invoice['invoice_number'] or invoice['invoice_id'])}</h3>"
+            f"<p>{html.escape(invoice['vendor'])}</p></div>"
+            f"<span class='status review'>{html.escape(invoice['recommendation'])}</span></div>"
+            "<dl>"
+            f"<div><dt>Invoice total</dt><dd>{html.escape(invoice['currency'])} {invoice['total']:,.2f}</dd></div>"
+            f"<div><dt>Task coverage</dt><dd>{classified} of {len(invoice['lines'])} lines</dd></div>"
+            f"<div><dt>Confidence</dt><dd>{_customer_confidence_range(invoice)}</dd></div>"
+            f"<div><dt>Unresolved lines</dt><dd>{unresolved_count}</dd></div></dl>"
+            f"<h4>AI task suggestion</h4><p>{_customer_task_summary(invoice)}</p>"
+            "<h4>Control outcome</h4><p>No final CapEx/OpEx determination was "
+            "issued because approved policy and project evidence were not supplied.</p>"
+            "<h4>Finance action</h4><p>Validate the suggested task and provide the "
+            "applicable policy, current coding, and project evidence.</p></article>"
+        )
+
+        line_rows = "".join(
+            "<tr>"
+            f"<td>{html.escape(line['line_id'])}</td>"
+            f"<td>{html.escape(line['description'])}</td>"
+            f"<td>{html.escape(_customer_task_label(line))}</td>"
+            f"<td>{float(line.get('classification_confidence') or 0):.0%}</td>"
+            f"<td>{html.escape(line['capex_opex'])}</td>"
+            f"<td>{html.escape(line['policy_basis'])}</td>"
+            f"<td>{html.escape(', '.join(line.get('evidence_refs', [])))}</td></tr>"
+            for line in invoice["lines"]
+        )
+        evidence_sections.append(
+            f"<details><summary>{html.escape(invoice['invoice_number'])} | Full line evidence</summary>"
+            "<div class='table-wrap'><table><thead><tr><th>Line</th><th>Description</th>"
+            "<th>Suggested task / class</th><th>Confidence</th><th>Decision</th>"
+            f"<th>Policy reasoning</th><th>Evidence IDs</th></tr></thead><tbody>{line_rows}</tbody>"
+            "</table></div></details>"
+        )
+
+    grouped_exceptions = Counter(
+        (item["code"], item["type"], item["detail"])
+        for item in exceptions
+    )
+    condition_rows = "".join(
+        f"<tr><td>{html.escape(code)}</td><td>{html.escape(kind)}</td>"
+        f"<td>{count}</td><td>{html.escape(detail)}</td></tr>"
+        for (code, kind, detail), count in grouped_exceptions.items()
+    ) or "<tr><td colspan='4'>No review conditions</td></tr>"
+    exception_rows = "".join(
+        f"<tr><td>{html.escape(item['code'])}</td><td>{html.escape(item['type'])}</td>"
+        f"<td>{html.escape(item['invoice_id'])}</td><td>{html.escape(item['detail'])}</td></tr>"
+        for item in exceptions
+    ) or "<tr><td colspan='4'>No review conditions</td></tr>"
+
+    governance = package.get("governance") or {}
+    verified = bool(
+        governance.get("chain_verified") and governance.get("signatures_verified")
+    )
+    integrity = (
+        f"<div class='control {'verified' if verified else 'failed'}'><strong>"
+        f"{'Verified governance record' if verified else 'Governance verification failed'}</strong>"
+        f"<span>{governance.get('record_count', 0)} governed actions; hash chain "
+        f"{'verified' if governance.get('chain_verified') else 'not verified'}; signatures "
+        f"{'verified' if governance.get('signatures_verified') else 'not verified'}.</span></div>"
+        if governance else ""
+    )
+    try:
+        generated = datetime.fromisoformat(
+            str(package["generated_at"]).replace("Z", "+00:00")
+        )
+        generated_label = generated.strftime("%B %d, %Y at %H:%M UTC")
+    except (TypeError, ValueError):
+        generated_label = str(package["generated_at"])
+
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circle K CapEx/CIP Validation - Controlled Demonstration Results</title><style>
+:root{{--ink:#17211c;--muted:#5f6b64;--paper:#f3f5f2;--panel:#fff;--line:#d7ddd8;--green:#166b46;--green-bg:#eaf5ef;--amber:#9a531c;--amber-bg:#fff5e8;--red:#9c3030;--navy:#163a52;--blue:#1769aa}}
+*{{box-sizing:border-box}}body{{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 "Segoe UI",Arial,sans-serif}}header{{background:var(--navy);color:#fff;padding:36px max(24px,calc((100vw - 1180px)/2))}}
+header .eyebrow{{color:#b8d8ea}}header h1{{margin:5px 0 7px;font-size:30px;line-height:1.2}}header p{{margin:4px 0;color:#d7e5ec}}.eyebrow{{display:block;color:var(--blue);font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase}}
+main{{max-width:1180px;margin:auto;padding:26px}}.scope{{background:#fff;border:1px solid var(--line);border-radius:9px;padding:16px 18px;margin-bottom:18px}}.scope strong{{color:var(--navy)}}
+.kpis{{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--line);border-radius:9px;background:var(--panel);overflow:hidden}}.kpi{{padding:18px;border-right:1px solid var(--line)}}.kpi:last-child{{border:0}}.kpi strong{{display:block;font:700 25px/1.1 Consolas,monospace;color:var(--navy)}}.kpi span{{color:var(--muted);font-size:11px;text-transform:uppercase}}
+section{{margin-top:30px}}h2{{font-size:20px;margin:0 0 6px;color:var(--navy)}}h3{{margin:2px 0;font-size:18px}}h4{{font-size:12px;text-transform:uppercase;color:var(--muted);margin:17px 0 4px}}.section-lede{{color:var(--muted);margin:0 0 14px}}
+.notice{{border-left:4px solid var(--amber);padding:12px 15px;background:var(--amber-bg);margin-top:18px}}.notice strong{{display:block;color:var(--amber)}}.success-list{{display:grid;grid-template-columns:1fr 1fr;gap:9px 24px;margin:15px 0;padding-left:21px}}
+.cases{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}.case-card{{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px}}.case-title{{display:flex;justify-content:space-between;gap:20px}}.case-title p{{margin:0;color:var(--muted)}}.status{{height:fit-content;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700}}.status.review{{background:var(--amber-bg);color:var(--amber)}}
+dl{{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin:17px 0}}dl div{{background:#fff;padding:10px}}dt{{font-size:11px;text-transform:uppercase;color:var(--muted)}}dd{{margin:2px 0 0;font-weight:700}}
+.inputs{{background:var(--amber-bg);border:1px solid #ead4bb;border-radius:9px;padding:18px}}.table-wrap{{overflow:auto;border:1px solid var(--line);background:var(--panel)}}table{{border-collapse:collapse;width:100%;min-width:760px}}th,td{{padding:10px 12px;text-align:left;border:1px solid #e7eae7;vertical-align:top}}th{{background:#f3f6f4;font-size:11px;text-transform:uppercase;color:var(--muted)}}td{{overflow-wrap:anywhere}}.decision{{font:bold 12px Consolas,monospace}}.review,.mixed{{color:var(--amber)}}
+.control{{display:flex;flex-direction:column;border-radius:9px;padding:15px 18px;margin-top:14px}}.control.verified{{background:var(--green-bg);border:1px solid #bddbc9;color:var(--green)}}.control.failed{{background:#faeaea;border:1px solid #e1b7b7;color:var(--red)}}details{{margin:12px 0;background:#fff;border:1px solid var(--line);border-radius:7px;padding:0 13px}}summary{{cursor:pointer;padding:12px 0;font-weight:700;color:var(--navy)}}footer{{color:var(--muted);margin:30px 0 10px;border-top:1px solid var(--line);padding-top:15px}}
+@media(max-width:820px){{.kpis{{grid-template-columns:1fr 1fr}}.kpi{{border-bottom:1px solid var(--line)}}.cases,.success-list{{grid-template-columns:1fr}}}}
+@media print{{body{{background:#fff}}header{{padding:20px}}main{{padding:10px}}.case-card,.scope,.inputs,.kpis{{break-inside:avoid}}details{{break-inside:avoid}}summary{{list-style:none}}}}
+</style></head><body><header><span class="eyebrow">Circle K | Controlled demonstration</span>
+<h1>CapEx/CIP Validation Results</h1><p>{engine_label}</p><p>ABBYY Vantage normalized invoice exports | Advisory workflow</p></header><main>
+<div class="scope"><strong>Demonstration scope:</strong> two supplied invoice cases. These results demonstrate workflow behavior, evidence controls, and human-review routing; they are not a statistical accuracy benchmark.</div>
+<div class="kpis"><div class="kpi"><strong>{len(invoices)}</strong><span>Invoices analyzed</span></div><div class="kpi"><strong>{len(lines)}</strong><span>Lines analyzed</span></div><div class="kpi"><strong>{len(suggestions)}</strong><span>Task suggestions</span></div><div class="kpi"><strong>{unresolved}</strong><span>Unresolved lines</span></div><div class="kpi"><strong>{pending}</strong><span>Finance reviews</span></div></div>
+<div class="notice"><strong>REVIEW is an intentional control outcome, not a model failure.</strong>The workflow generated task suggestions but withheld final CapEx/OpEx conclusions because approved policy and project evidence were not supplied. No financial posting was performed.</div>
+<section><h2>Executive summary</h2><p class="section-lede">The controlled run completed the intended advisory and governance workflow.</p>
+<ul class="success-list"><li>Consumed {len(invoices)} ABBYY normalized invoice exports.</li><li>Interpreted {len(lines)} invoice lines.</li><li>Produced {len(suggestions)} suggestions from a closed {package['task_catalog_count']}-code catalog.</li><li>Left {unresolved} ambiguous cost lines unresolved rather than forcing a code.</li><li>Routed both invoice cases to Finance for a governed decision.</li><li>Performed no posting or source-system writeback.</li></ul>{integrity}</section>
+<section><h2>Case-study results</h2><p class="section-lede">Task mappings are AI suggestions pending Finance validation.</p><div class="cases">{''.join(case_cards)}</div></section>
+<section><h2>Invoice result summary</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Vendor</th><th>Total</th><th>Suggested task coverage</th><th>Confidence</th><th>Control status</th><th>Required action</th></tr></thead><tbody>{invoice_rows}</tbody></table></div></section>
+{inputs}
+<section><h2>Consolidated review conditions</h2><p class="section-lede">Repeated line-level controls are grouped here to keep the review actionable.</p><div class="table-wrap"><table><thead><tr><th>Code</th><th>Control</th><th>Occurrences</th><th>Reason</th></tr></thead><tbody>{condition_rows}</tbody></table></div></section>
+<section><h2>Technical appendix</h2><p class="section-lede">Full model reasoning and raw review conditions are retained for technical and audit review.</p>{''.join(evidence_sections)}
+<details><summary>All line-level review conditions ({len(exceptions)})</summary><div class="table-wrap"><table><thead><tr><th>Code</th><th>Type</th><th>Invoice ID</th><th>Reason</th></tr></thead><tbody>{exception_rows}</tbody></table></div></details></section>
+<footer>Model: {html.escape(str(package.get('model') or 'No LLM'))} | Catalog: {package['task_catalog_count']} task types | Generated {html.escape(generated_label)} | Controlled demonstration - advisory output only</footer></main></body></html>"""
+
+
 def write_outputs(package: Mapping[str, Any], workspace: Path) -> Path:
     if package.get("engine") == "maf":
         from capex_agents import archive_cases
@@ -650,7 +839,7 @@ def write_outputs(package: Mapping[str, Any], workspace: Path) -> Path:
     _write_csv(outputs / "audit_trace.csv", package["audit_trace"], ["stage", "agent", "framework", "model", "why_id", "input_sha256", "output_sha256", "automatic_posting"])
     if package.get("governance"):
         shutil.copyfile(package["governance"]["audit_path"], outputs / "signed_audit.jsonl")
-    (outputs / "dashboard.html").write_text(_render_dashboard(package), encoding="utf-8")
+    (outputs / "dashboard.html").write_text(_render_customer_dashboard(package), encoding="utf-8")
     return outputs
 
 

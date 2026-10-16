@@ -69,7 +69,13 @@ def test_power_bi_and_dashboard_outputs_are_created(tmp_path: Path) -> None:
         "dashboard.html",
     }
     assert expected <= {path.name for path in outputs.iterdir()}
-    assert "Advisory output only" in (outputs / "dashboard.html").read_text(encoding="utf-8")
+    dashboard = (outputs / "dashboard.html").read_text(encoding="utf-8")
+    assert "advisory output only" in dashboard
+    assert "Controlled demonstration" in dashboard
+    assert "Task suggestions" in dashboard
+    assert "Consolidated review conditions" in dashboard
+    assert "statistical accuracy benchmark" in dashboard
+    assert "href='signed_audit.jsonl'" not in dashboard
 
 
 def test_autarch_gates_each_maf_stage_and_records_evidence(tmp_path: Path) -> None:
@@ -253,9 +259,10 @@ def test_real_maf_sdk_runs_all_specialists_under_autarch(tmp_path: Path, monkeyp
     assert package["governance"]["chain_verified"] is True
     output_dir = write_outputs(package, tmp_path)
     dashboard = (output_dir / "dashboard.html").read_text(encoding="utf-8")
-    assert "Microsoft Agent Framework + Autarch" in dashboard
-    assert "Source gaps" in dashboard
-    assert "0</strong><span>OPEX" in dashboard
+    assert "Microsoft Agent Framework + governance and audit controls" in dashboard
+    assert "Inputs needed for final determination" in dashboard
+    assert "1</strong><span>Lines analyzed" in dashboard
+    assert "Verified governance record" in dashboard
     assert (output_dir / "signed_audit.jsonl").is_file()
     capex_flow.record_review(tmp_path, "TEST-INVOICE", "reclassify", "Test reviewer", "Fixture decision", "opex")
     reviewed = json.loads((output_dir / "decision_package.json").read_text(encoding="utf-8"))
