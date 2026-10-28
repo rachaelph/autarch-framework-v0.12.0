@@ -1,0 +1,30 @@
+Acquiring Azure SQL token from Azure CLI...
+CICT-187 proposed live records
+  Database user:       v-rphillips@circlek.com
+  Success event ID:    cict-187-acceptance-b5459ad00eb4
+  Invalid event ID:    cict-187-invalid-b5459ad00eb4
+  Governed task codes: ('0000', '0001')
+  Success lines:       3 (2 SUGGESTED, 1 UNRESOLVED)
+
+CICT-187 LIVE ACCEPTANCE PASS
+{
+  "conflictingReplayRejected": true,
+  "databaseUser": "v-rphillips@circlek.com",
+  "duplicateEventLineGroups": 0,
+  "finalDurableRowCount": 3,
+  "governedTaskCodes": [
+    "0000",
+    "0001"
+  ],
+  "initialPersistedRowCount": 3,
+  "invalidBatchRejected": true,
+  "invalidEventId": "cict-187-invalid-b5459ad00eb4",
+  "matchingReplayRowCount": 3,
+  "modelDeployment": "gpt-6.1-sol",
+  "partialRowsFromInvalidBatch": 0,
+  "promptVersion": "task-determination-v1",
+  "successEventId": "cict-187-acceptance-b5459ad00eb4",
+  "suggestedCount": 2,
+  "taskMasterSha256": "CC41B492A5DE454EFD7405066EF1EAA6CDE1FF050C8E71ED180831197B6EBA13",
+  "unresolvedCount": 1
+}

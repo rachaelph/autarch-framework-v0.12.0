@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "1.0",
+  "packageId": "pkg-kimley-horn-36764068-grp005-v1",
+  "runId": "contract-examples-v1",
+  "invoice": {
+    "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+    "invoiceNumber": "36764068-GRP005",
+    "invoiceDate": "2026-07-31",
+    "vendorId": "2117718",
+    "vendorName": "KIMLEY-HORN AND ASSOCIATES, INC.",
+    "currency": "USD",
+    "invoiceTotal": 28805.0,
+    "poNumber": null,
+    "countryRegion": "North America",
+    "sourceSystem": "ABBYY"
+  },
+  "lines": [
+    {
+      "invoiceLineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:1",
+      "lineNumber": 1,
+      "description": "LINE 1 ENVIRONMENTAL ASSESSMENT FORM",
+      "partNumber": null,
+      "quantity": 0.0,
+      "unitCost": 0.0,
+      "lineAmount": 2625.0,
+      "poLineNumber": null,
+      "poDescription": null,
+      "poTaskCode": null,
+      "afeProjectId": null,
+      "siteId": null
+    },
+    {
+      "invoiceLineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:2",
+      "lineNumber": 2,
+      "description": "LINE 2 AIR QUALITY & GREENHOUSE GAS\nEMISSIONS ASSESSME",
+      "partNumber": null,
+      "quantity": 0.0,
+      "unitCost": 0.0,
+      "lineAmount": 5120.0,
+      "poLineNumber": null,
+      "poDescription": null,
+      "poTaskCode": null,
+      "afeProjectId": null,
+      "siteId": null
+    },
+    {
+      "invoiceLineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:3",
+      "lineNumber": 3,
+      "description": "LINE 3 BIOLOGICAL RESOURCES ASSESSMENT",
+      "partNumber": null,
+      "quantity": 0.0,
+      "unitCost": 0.0,
+      "lineAmount": 0.0,
+      "poLineNumber": null,
+      "poDescription": null,
+      "poTaskCode": null,
+      "afeProjectId": null,
+      "siteId": null
+    },
+    {
+      "invoiceLineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:4",
+      "lineNumber": 4,
+      "description": "LINE 4 CUTLURAL RESOURCES ASSESSMENT",
+      "partNumber": null,
+      "quantity": 0.0,
+      "unitCost": 0.0,
+      "lineAmount": 3760.0,
+      "poLineNumber": null,
+      "poDescription": null,
+      "poTaskCode": null,
+      "afeProjectId": null,
+      "siteId": null
+    },
+    {
+      "invoiceLineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:5",
+      "lineNumber": 5,
+      "description": "LINE 5 HEALTH RISK ASSESSMENT",
+      "partNumber": null,
+      "quantity": 0.0,
+      "unitCost": 0.0,
+      "lineAmount": 3400.0,
+      "poLineNumber": null,
+      "poDescription": null,
+      "poTaskCode": null,
+      "afeProjectId": null,
+      "siteId": null
+    },
+    {
+      "invoiceLineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:6",
+      "lineNumber": 6,
+      "description": "LINE 6 NOISE & VIBRATION",
+      "partNumber": null,
+      "quantity": 0.0,
+      "unitCost": 0.0,
+      "lineAmount": 5400.0,
+      "poLineNumber": null,
+      "poDescription": null,
+      "poTaskCode": null,
+      "afeProjectId": null,
+      "siteId": null
+    },
+    {
+      "invoiceLineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:7",
+      "lineNumber": 7,
+      "description": "LINE 7 WESTERN JOSHUA TREE PROJECT SITE\nCENSUS",
+      "partNumber": null,
+      "quantity": 0.0,
+      "unitCost": 0.0,
+      "lineAmount": 6300.0,
+      "poLineNumber": null,
+      "poDescription": null,
+      "poTaskCode": null,
+      "afeProjectId": null,
+      "siteId": null
+    },
+    {
+      "invoiceLineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:8",
+      "lineNumber": 8,
+      "description": "LINE 8 WESTERN JOSHUA TREE CONSERVATION\nACT INCIDENTAL",
+      "partNumber": null,
+      "quantity": 0.0,
+      "unitCost": 0.0,
+      "lineAmount": 0.0,
+      "poLineNumber": null,
+      "poDescription": null,
+      "poTaskCode": null,
+      "afeProjectId": null,
+      "siteId": null
+    },
+    {
+      "invoiceLineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:9",
+      "lineNumber": 9,
+      "description": "LINE 9 ENVRIONMENTAL PROJECT MGMT,\nMEETINGS, HEARINGS",
+      "partNumber": null,
+      "quantity": 0.0,
+      "unitCost": 0.0,
+      "lineAmount": 1700.0,
+      "poLineNumber": null,
+      "poDescription": null,
+      "poTaskCode": null,
+      "afeProjectId": null,
+      "siteId": null
+    },
+    {
+      "invoiceLineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:10",
+      "lineNumber": 10,
+      "description": "LINE 10 LEVEL REIMBURSABLE EXPENSES",
+      "partNumber": null,
+      "quantity": 0.0,
+      "unitCost": 0.0,
+      "lineAmount": 500.0,
+      "poLineNumber": null,
+      "poDescription": null,
+      "poTaskCode": null,
+      "afeProjectId": null,
+      "siteId": null
+    }
+  ],
+  "context": {
+    "businessUnit": null,
+    "projectStatus": null,
+    "projectType": null,
+    "bundlingInScope": false
+  },
+  "dataQuality": {
+    "missingPo": true,
+    "missingProject": true,
+    "missingSite": true,
+    "warnings": [
+      "Purchase-order context was not supplied.",
+      "AFE/project context was not supplied.",
+      "Site context was not supplied."
+    ]
+  },
+  "source": {
+    "packageName": "Kimley Hor - 36764068GRP005.pdf-58aceec5-f35a-48a7-8faa-2f1a195af203.zip",
+    "sourceSha256": "ede8b96961483673d0e06d8d73f684a835f05d9a061f67a8bcb84b98be445292"
+  },
+  "createdAtUtc": "2026-10-16T19:00:00Z"
+}

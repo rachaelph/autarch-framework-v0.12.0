@@ -1,0 +1,9 @@
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# @circlek-global/cict-developers will be requested for
+# review when someone opens a pull request.
+*                   @circlek-global/cict-developers
+
+# These owners will be the owners for github workflows.
+.github/workflows/* @circlek-global/cict-infrastructure-admins @circlek-global/global-infrastructure-admins
+

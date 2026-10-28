@@ -5,6 +5,7 @@ kernel authorizes; the adapter performs (and re-checks its own boundaries).
 """
 from __future__ import annotations
 
+from .abbyy import ABBYYInvoiceAdapter, ABBYYPackageError, parse_abbyy_archive
 from .base import Adapter
 from .document import DocumentAdapter
 from .extraction import ExtractionAdapter
@@ -17,6 +18,9 @@ from .sql import (SQLAdapter, connect_mysql, connect_oracle, connect_postgres,
 from .tool import ToolAdapter, from_callables, from_langchain_tools, from_mcp_tools
 
 __all__ = [
+    "ABBYYInvoiceAdapter",
+    "ABBYYPackageError",
+    "parse_abbyy_archive",
     "Adapter",
     "DocumentAdapter",
     "ExtractionAdapter",

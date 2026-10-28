@@ -38,6 +38,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from autarch.adapters.abbyy import parse_abbyy_archive
+
 
 DEFAULT_DATA = Path(__file__).resolve().parent / "data" / "capex"
 DEFAULT_WORKSPACE = Path("./sandbox/capex_flow")
@@ -157,14 +159,6 @@ def load_task_catalog(path: Path) -> Tuple[List[Dict[str, str]], Dict[str, Dict[
     return tasks, internal_books
 
 
-def _csv_member(archive: zipfile.ZipFile, predicate: Any) -> List[Dict[str, str]]:
-    for name in archive.namelist():
-        if name.lower().endswith(".csv") and predicate(Path(name).name):
-            text = archive.read(name).decode("utf-8-sig", errors="replace")
-            return list(csv.DictReader(io.StringIO(text)))
-    return []
-
-
 def _csv_file(path: Path) -> List[Dict[str, str]]:
     with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as stream:
         return list(csv.DictReader(stream))
@@ -213,16 +207,8 @@ def _abbyy_invoice(
 
 
 def read_abbyy_archive(path: Path) -> Dict[str, Any]:
-    """Consume ABBYY's normalized CSV output; PDFs/images remain source evidence only."""
-    with zipfile.ZipFile(path) as archive:
-        headers = _csv_member(
-            archive,
-            lambda name: name.startswith("Non-Trade Invoices") and "Line Items" not in name,
-        )
-        rows = _csv_member(archive, lambda name: name.startswith("Line Items_"))
-        if not headers:
-            raise ValueError(f"ABBYY package has no invoice CSV: {path.name}")
-        return _abbyy_invoice(headers[0], rows, path.name, _sha256_bytes(path.read_bytes()))
+    """Consume one ABBYY ZIP through the supported input adapter."""
+    return parse_abbyy_archive(path)
 
 
 def read_abbyy_directory(path: Path) -> Dict[str, Any]:

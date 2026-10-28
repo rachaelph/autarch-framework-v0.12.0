@@ -16,11 +16,14 @@ dependencies = []
 [project.optional-dependencies]
 crypto = ["cryptography>=42"]
 otel = ["opentelemetry-api>=1.20"]
-dev = ["pytest>=7", "cryptography>=42"]
-capex = ["agent-framework-core>=1.16,<2", "agent-framework-openai>=1.14.1,<2", "azure-identity>=1.20,<2", "pydantic>=2.11,<3", "cryptography>=42"]
+dev = ["pytest>=7", "cryptography>=42", "httpx>=0.27,<1", "jsonschema[format]>=4.23,<5"]
+capex = ["agent-framework-core>=1.16,<2", "agent-framework-openai>=1.14.1,<2", "azure-identity>=1.20,<2", "azure-servicebus>=7.14,<8", "azure-storage-blob>=12.25,<13", "pyodbc>=5.2,<6", "pydantic>=2.11,<3", "cryptography>=42", "jsonschema[format]>=4.23,<5"]
 
 [project.scripts]
 autarch = "autarch.cli:main"
+capex-prepare = "autarch.capex.job:main"
+capex-prepare-blob = "autarch.capex.blob_job:main"
+capex-dispatch = "autarch.capex.dispatch_job:main"
 
 [tool.setuptools.packages.find]
 include = ["autarch*"]
@@ -28,3 +31,7 @@ include = ["autarch*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+
+[tool.setuptools.package-data]
+"autarch.capex" = ["schemas/*.json"]

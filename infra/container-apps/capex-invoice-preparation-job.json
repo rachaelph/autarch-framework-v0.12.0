@@ -1,0 +1,210 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.48.1.52935",
+      "templateHash": "2310762343656302657"
+    }
+  },
+  "parameters": {
+    "jobName": {
+      "type": "string",
+      "defaultValue": "capex-invoice-preparation",
+      "metadata": {
+        "description": "Name of the Container Apps Job."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for the job."
+      }
+    },
+    "containerAppsEnvironmentId": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource ID of the existing Container Apps managed environment."
+      }
+    },
+    "image": {
+      "type": "string",
+      "metadata": {
+        "description": "Fully qualified container image, including its tag."
+      }
+    },
+    "registryServer": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Private registry server, such as example.azurecr.io. Leave empty for a public image."
+      }
+    },
+    "userAssignedIdentityResourceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource ID of the approved user-assigned managed identity."
+      }
+    },
+    "userAssignedIdentityClientId": {
+      "type": "string",
+      "metadata": {
+        "description": "Client ID of the approved user-assigned managed identity."
+      }
+    },
+    "sqlServerName": {
+      "type": "string",
+      "defaultValue": "cict-ai-cus-sql",
+      "metadata": {
+        "description": "Azure SQL logical server name."
+      }
+    },
+    "sqlDatabaseName": {
+      "type": "string",
+      "defaultValue": "cict-ai-cus-sqldb",
+      "metadata": {
+        "description": "Azure SQL database name."
+      }
+    },
+    "cronExpression": {
+      "type": "string",
+      "defaultValue": "0 2 * * *",
+      "metadata": {
+        "description": "Nightly NCRONTAB schedule in UTC."
+      }
+    },
+    "scheduleEnabled": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable the configured schedule after runtime permissions are ready."
+      }
+    },
+    "replicaRetryLimit": {
+      "type": "int",
+      "defaultValue": 2,
+      "minValue": 0,
+      "metadata": {
+        "description": "Maximum retries after a failed execution."
+      }
+    },
+    "replicaTimeoutSeconds": {
+      "type": "int",
+      "defaultValue": 1800,
+      "minValue": 60,
+      "metadata": {
+        "description": "Maximum execution duration in seconds."
+      }
+    },
+    "containerCpu": {
+      "type": "string",
+      "defaultValue": "0.5",
+      "metadata": {
+        "description": "CPU cores allocated to the preparation container."
+      }
+    },
+    "containerMemory": {
+      "type": "string",
+      "defaultValue": "1Gi",
+      "metadata": {
+        "description": "Memory allocated to the preparation container."
+      }
+    },
+    "blobStorageAccountName": {
+      "type": "string",
+      "defaultValue": "cictaicusst",
+      "metadata": {
+        "description": "Azure Blob Storage account name for persistent invoice staging."
+      }
+    },
+    "blobAccountUrl": {
+      "type": "string",
+      "defaultValue": "[format('https://{0}.blob.{1}', parameters('blobStorageAccountName'), environment().suffixes.storage)]",
+      "metadata": {
+        "description": "Azure Blob Storage account URL for persistent invoice staging."
+      }
+    },
+    "blobContainer": {
+      "type": "string",
+      "defaultValue": "landing",
+      "metadata": {
+        "description": "Container name for Blob Storage invoices."
+      }
+    },
+    "blobInputPrefix": {
+      "type": "string",
+      "defaultValue": "capex/input/",
+      "metadata": {
+        "description": "Prefix for input blobs (e.g., capex/input/)."
+      }
+    },
+    "blobOutputPrefix": {
+      "type": "string",
+      "defaultValue": "capex/output/",
+      "metadata": {
+        "description": "Prefix for output blobs (e.g., capex/output/)."
+      }
+    },
+    "blobQuarantinePrefix": {
+      "type": "string",
+      "defaultValue": "capex/quarantine/",
+      "metadata": {
+        "description": "Prefix for quarantine blobs (e.g., capex/quarantine/)."
+      }
+    }
+  },
+  "variables": {
+    "sqlServerFqdn": "[format('{0}{1}', parameters('sqlServerName'), environment().suffixes.sqlServerHostname)]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.App/jobs",
+      "apiVersion": "2025-01-01",
+      "name": "[parameters('jobName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('userAssignedIdentityResourceId'))]": {}
+        }
+      },
+      "properties": {
+        "environmentId": "[parameters('containerAppsEnvironmentId')]",
+        "configuration": "[union(createObject('triggerType', if(parameters('scheduleEnabled'), 'Schedule', 'Manual'), 'replicaRetryLimit', parameters('replicaRetryLimit'), 'replicaTimeout', parameters('replicaTimeoutSeconds'), 'registries', if(empty(parameters('registryServer')), createArray(), createArray(createObject('server', parameters('registryServer'), 'identity', parameters('userAssignedIdentityResourceId'))))), if(parameters('scheduleEnabled'), createObject('scheduleTriggerConfig', createObject('cronExpression', parameters('cronExpression'), 'parallelism', 1, 'replicaCompletionCount', 1)), createObject('manualTriggerConfig', createObject('parallelism', 1, 'replicaCompletionCount', 1))))]",
+        "template": {
+          "containers": [
+            {
+              "name": "capex-prepare",
+              "image": "[parameters('image')]",
+              "env": "[concat(createArray(createObject('name', 'CAPEX_INPUT_DIR', 'value', '/input'), createObject('name', 'CAPEX_OUTPUT_DIR', 'value', '/output'), createObject('name', 'CAPEX_SQL_SERVER', 'value', variables('sqlServerFqdn')), createObject('name', 'CAPEX_SQL_DATABASE', 'value', parameters('sqlDatabaseName')), createObject('name', 'AZURE_CLIENT_ID', 'value', parameters('userAssignedIdentityClientId'))), if(empty(parameters('blobAccountUrl')), createArray(), createArray(createObject('name', 'CAPEX_BLOB_ACCOUNT_URL', 'value', parameters('blobAccountUrl')), createObject('name', 'CAPEX_BLOB_CONTAINER', 'value', parameters('blobContainer')), createObject('name', 'CAPEX_BLOB_INPUT_PREFIX', 'value', parameters('blobInputPrefix')), createObject('name', 'CAPEX_BLOB_OUTPUT_PREFIX', 'value', parameters('blobOutputPrefix')), createObject('name', 'CAPEX_BLOB_QUARANTINE_PREFIX', 'value', parameters('blobQuarantinePrefix')))))]",
+              "resources": {
+                "cpu": "[json(parameters('containerCpu'))]",
+                "memory": "[parameters('containerMemory')]"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "jobResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.App/jobs', parameters('jobName'))]"
+    },
+    "managedIdentityResourceId": {
+      "type": "string",
+      "value": "[parameters('userAssignedIdentityResourceId')]"
+    },
+    "managedIdentityClientId": {
+      "type": "string",
+      "value": "[parameters('userAssignedIdentityClientId')]"
+    },
+    "scheduleUtc": {
+      "type": "string",
+      "value": "[parameters('cronExpression')]"
+    }
+  }
+}

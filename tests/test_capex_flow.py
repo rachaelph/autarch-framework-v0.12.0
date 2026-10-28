@@ -16,6 +16,24 @@ from capex_flow import load_inputs, load_reviews, run_pipeline, write_outputs  #
 DATA = EXAMPLES / "data" / "capex"
 
 
+def _private_abbyy_inputs_available() -> bool:
+    if not DATA.exists():
+        return False
+    if any(DATA.glob("*.zip")):
+        return True
+    return any(
+        item.is_dir() and any(item.glob("Non-Trade Invoices*.csv"))
+        for item in DATA.iterdir()
+    )
+
+
+requires_private_abbyy_inputs = pytest.mark.skipif(
+    not _private_abbyy_inputs_available(),
+    reason="Private ABBYY invoice inputs are not included in the repository",
+)
+
+
+@requires_private_abbyy_inputs
 def test_unpacked_abbyy_exports_are_loaded() -> None:
     invoices, _, _, _ = load_inputs(DATA)
 
@@ -25,6 +43,7 @@ def test_unpacked_abbyy_exports_are_loaded() -> None:
     assert by_number["INV12-62027"]["source"].startswith("Bruegmann")
 
 
+@requires_private_abbyy_inputs
 def test_supplied_abbyy_packages_reach_expected_decisions() -> None:
     package = run_pipeline(DATA, 2000.0)
     invoices = {row["invoice_number"]: row for row in package["invoices"]}
@@ -42,6 +61,7 @@ def test_supplied_abbyy_packages_reach_expected_decisions() -> None:
     assert all(invoice["automatic_posting"] is False for invoice in invoices.values())
 
 
+@requires_private_abbyy_inputs
 def test_review_is_applied_but_does_not_create_rule_before_threshold(tmp_path: Path) -> None:
     invoice_id = "58aceec5-f35a-48a7-8faa-2f1a195af203"
     (tmp_path / "reviews.jsonl").write_text(
@@ -56,6 +76,7 @@ def test_review_is_applied_but_does_not_create_rule_before_threshold(tmp_path: P
     assert package["candidate_rules"] == []
 
 
+@requires_private_abbyy_inputs
 def test_power_bi_and_dashboard_outputs_are_created(tmp_path: Path) -> None:
     outputs = write_outputs(run_pipeline(DATA, 2000.0), tmp_path)
 
@@ -210,6 +231,7 @@ def test_coding_validation_citations_use_exact_evidence_keys(invalid_ref) -> Non
     assert invalid_ref in str(error.value)
 
 
+@requires_private_abbyy_inputs
 def test_real_maf_sdk_runs_all_specialists_under_autarch(tmp_path: Path, monkeypatch) -> None:
     framework = pytest.importorskip("agent_framework")
     import json
@@ -532,6 +554,7 @@ def test_foundry_responses_aad_token_provider_is_awaitable(monkeypatch) -> None:
     assert asyncio.run(transports[0]["api_key"]()) == "test-token"
 
 
+@requires_private_abbyy_inputs
 def test_europe_policy_classification_and_bundling_path(tmp_path: Path, monkeypatch) -> None:
     pytest.importorskip("pydantic")
     import json

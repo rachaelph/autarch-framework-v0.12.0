@@ -1,0 +1,11 @@
+{
+  "eventId": "evt-invoice-ready-bruegmann-v1",
+  "eventType": "InvoiceReady",
+  "schemaVersion": "1.0",
+  "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+  "packageId": "pkg-bruegmann-inv12-62027-v1",
+  "runId": "contract-examples-v1",
+  "packageUri": "urn:circlek:capex:invoice-package:pkg-bruegmann-inv12-62027-v1",
+  "occurredAtUtc": "2026-10-16T19:00:00Z",
+  "correlationId": "corr-135d03ac-3598-498a-83fe-d273d046bfea"
+}

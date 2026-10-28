@@ -21,6 +21,10 @@ venv/
 .env
 
 # Editor
-.vscode/
+
 .idea/
 .DS_Store
+/examples/data/capex/*.zip
+/examples/data/capex/*.pdf-*/
+
+/azure_function/local.settings.json

@@ -1,0 +1,11 @@
+{
+  "eventId": "evt-invoice-ready-kimley-horn-v1",
+  "eventType": "InvoiceReady",
+  "schemaVersion": "1.0",
+  "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+  "packageId": "pkg-kimley-horn-36764068-grp005-v1",
+  "runId": "contract-examples-v1",
+  "packageUri": "urn:circlek:capex:invoice-package:pkg-kimley-horn-36764068-grp005-v1",
+  "occurredAtUtc": "2026-10-16T19:00:00Z",
+  "correlationId": "corr-58aceec5-f35a-48a7-8faa-2f1a195af203"
+}

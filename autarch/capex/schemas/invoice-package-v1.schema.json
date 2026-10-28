@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://circlek.com/schemas/capex/invoice-package-v1.schema.json",
+  "title": "Circle K CapEx InvoicePackage v1",
+  "description": "Versioned invoice package produced by the deterministic Invoice Preparation Job.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packageId",
+    "runId",
+    "invoice",
+    "lines",
+    "context",
+    "dataQuality",
+    "source",
+    "createdAtUtc"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "packageId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "invoice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invoiceId",
+        "invoiceNumber",
+        "vendorName",
+        "currency",
+        "invoiceTotal",
+        "countryRegion",
+        "sourceSystem"
+      ],
+      "properties": {
+        "invoiceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "minLength": 1
+        },
+        "invoiceDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "vendorId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vendorName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "invoiceTotal": {
+          "type": "number",
+          "minimum": 0
+        },
+        "poNumber": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "countryRegion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceSystem": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "lines": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invoiceLineId",
+          "lineNumber",
+          "description",
+          "quantity",
+          "unitCost",
+          "lineAmount"
+        ],
+        "properties": {
+          "invoiceLineId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lineNumber": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "partNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unitCost": {
+            "type": "number"
+          },
+          "lineAmount": {
+            "type": "number"
+          },
+          "poLineNumber": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "poDescription": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "poTaskCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "afeProjectId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "siteId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "businessUnit",
+        "projectStatus",
+        "projectType",
+        "bundlingInScope"
+      ],
+      "properties": {
+        "businessUnit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "projectStatus": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "projectType": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bundlingInScope": {
+          "type": "boolean"
+        }
+      }
+    },
+    "dataQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missingPo",
+        "missingProject",
+        "missingSite",
+        "warnings"
+      ],
+      "properties": {
+        "missingPo": {
+          "type": "boolean"
+        },
+        "missingProject": {
+          "type": "boolean"
+        },
+        "missingSite": {
+          "type": "boolean"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageName",
+        "sourceSha256"
+      ],
+      "properties": {
+        "packageName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "createdAtUtc": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
