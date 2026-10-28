@@ -64,6 +64,17 @@ def _required_environment() -> dict[str, str]:
     return values
 
 
+def _parse_invoice_ready_message(
+    message_body: bytes,
+) -> InvoiceReadyMessage:
+    message_dict = json.loads(message_body.decode("utf-8"))
+    if not isinstance(message_dict, dict):
+        raise ValueError(
+            "InvoiceReady message body must be a JSON object."
+        )
+    return InvoiceReadyMessage.from_properties(message_dict)
+
+
 @app.service_bus_topic_trigger(
     arg_name="msg",
     connection="ServiceBusConnection",
@@ -79,10 +90,9 @@ def invoice_agent_invocation(
     message_id = str(msg.message_id)
 
     try:
-        message_dict = json.loads(
-            msg.get_body().decode("utf-8")
+        invoice_ready = _parse_invoice_ready_message(
+            msg.get_body()
         )
-        invoice_ready = InvoiceReadyMessage(**message_dict)
         correlation_id = (
             invoice_ready.correlation_id
             or msg.correlation_id

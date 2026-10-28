@@ -45,6 +45,24 @@ def test_function_uses_identity_based_service_bus_settings() -> None:
     assert "value: userAssignedIdentityClientId" in source
 
 
+def test_function_uses_identity_based_host_storage() -> None:
+    source = FUNCTION_BICEP.read_text(encoding="utf-8")
+
+    assert "functionsStorageAccountKey" not in source
+    assert "AccountKey=" not in source
+    assert "AzureWebJobsStorage__accountName" in source
+    assert "AzureWebJobsStorage__credential" in source
+    assert "AzureWebJobsStorage__clientId" in source
+    assert "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING" not in source
+    assert "APPLICATIONINSIGHTS_CONNECTION_STRING" in source
+
+
+def test_function_targets_existing_cict_app() -> None:
+    source = FUNCTION_BICEP.read_text(encoding="utf-8")
+
+    assert "param functionAppName string = 'cict-ai-cus-func'" in source
+
+
 
 def test_function_enables_remote_dependency_build() -> None:
     source = FUNCTION_BICEP.read_text(encoding="utf-8")

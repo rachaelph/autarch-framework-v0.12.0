@@ -2,7 +2,7 @@
 
 ## Plan status
 
-- Status: Approved
+- Status: Validated
 - Approval required before deployment: Yes
 - Deployment target: Circle K CICT Azure sandbox
 - Planned deployment date: 2026-10-22
@@ -44,6 +44,7 @@ The deployment must use the current `dev_rachael_phillips` branch head containin
 - Service Bus namespace: `cict-ai-cus-bus`
 - InvoiceReady topic: `capex-invoice-ready-v1`
 - Storage account: `cictaicusst`
+- Dedicated Function host storage: `cictaicusfuncst`
 - Blob container: `landing`
 - SQL server: `cict-ai-cus-sql.database.windows.net`
 - SQL database: `cict-ai-cus-sqldb`
@@ -63,7 +64,7 @@ The deployment must use the current `dev_rachael_phillips` branch head containin
 - Align `task.TaskSuggestion` for line-level, replay-safe results.
 - Create subscription `invoice-agent-invocation` under topic `capex-invoice-ready-v1`.
 - Add `Cognitive Services OpenAI User` for the CapEx UAMI at the Foundry account scope.
-- Create or update Function App `capex-invoice-agent-invocation`.
+- Update Function App `cict-ai-cus-func`.
 - Deploy the deterministic Function ZIP package.
 
 ## Governed data contract
@@ -134,6 +135,8 @@ Deploy:
 Required runtime configuration:
 
 - User-assigned identity: `cict-ai-cus-capex-id`
+- Dedicated host storage: `cictaicusfuncst`
+- Identity-based `AzureWebJobsStorage` using the approved UAMI
 - Service Bus identity connection prefix: `ServiceBusConnection`
 - Service Bus namespace: `cict-ai-cus-bus.servicebus.windows.net`
 - Topic: `capex-invoice-ready-v1`
@@ -176,16 +179,91 @@ Record the package SHA-256 before deployment.
 
 ## Validation workflow checklist
 
-- [ ] Core validation: Azure CLI, authentication, Bicep build,
+- [x] Core validation: Azure CLI, authentication, Bicep build,
   ARM validation, and ARM what-if.
-- [ ] Complete CapEx test suite passes.
-- [ ] Function deployment package builds and passes content checks.
-- [ ] Azure Policy impact is reviewed.
-- [ ] Static managed-identity role assignments are verified.
-- [ ] Validation commands and results are recorded as proof.
-- [ ] All validation failures are resolved.
-- [ ] Plan status is changed from Approved to Validated only after
+- [x] Complete CapEx test suite passes.
+- [x] Function deployment package builds and passes content checks.
+- [x] Azure Policy impact is reviewed.
+- [x] Static managed-identity role assignments are verified.
+- [x] Validation commands and results are recorded as proof.
+- [x] All validation failures are resolved.
+- [x] Plan status is changed from Approved to Validated only after
   every check passes.
+
+## Section 7: Validation Proof
+
+Validation completed on 2026-10-28 against:
+
+- Tenant: `19da1f3c-d958-44ea-850d-195c1502525c`
+- Subscription: `NA AI Dev/Test`
+- Subscription ID: `0451df15-250e-42f5-b15c-f19a9bb9c21a`
+- Resource group: `cict-aisandbox-cus-rg`
+
+### Source and build verification
+
+- Focused Function, package, and Task Determination tests: 16 passed.
+- Complete `test_capex*.py` suite: 130 passed.
+- The existing Pydantic `json_encoders` deprecation warning is
+  non-blocking.
+- Service Bus, RBAC, and Function Bicep templates compiled
+  successfully with `az bicep build`.
+- The Function template was corrected to target the existing
+  `cict-ai-cus-func` app and to use identity-based
+  `AzureWebJobsStorage` settings. The obsolete storage-key parameter
+  and content connection string were removed.
+
+### ARM validation and what-if
+
+- `az deployment group validate` passed for the Service Bus template.
+- Service Bus what-if reported only the existing topic and
+  `invoice-agent-invocation` subscription as `Deploy`; it reported no
+  `Create`, `Modify`, or `Delete` changes.
+- `az deployment group validate` passed for the Function template.
+- Function what-if reported only the existing `cict-ai-cus-func` site
+  as `Deploy`; it reported no `Create`, `Modify`, or `Delete` changes.
+- RBAC Bicep compilation passed. ARM validation of role assignments is
+  not part of the remaining deployment because the caller does not
+  have `Microsoft.Authorization/roleAssignments/write` and all
+  required assignments were pre-provisioned by an authorized
+  administrator and verified live.
+
+### Policy and identity verification
+
+- Central US is allowed by the subscription location policy.
+- The existing Function has the required `application`, `project`,
+  `owner`, `environment`, and `maintainer` tags.
+- The Function uses UAMI `cict-ai-cus-capex-id`.
+- Live UAMI roles were verified:
+  - Azure Service Bus Data Sender and Receiver on the InvoiceReady
+    topic.
+  - Storage Blob Data Contributor on the invoice `landing` container.
+  - Cognitive Services OpenAI User on the Foundry account.
+  - Storage Blob Data Owner, Storage Queue Data Contributor, and
+    Storage Account Contributor on `cictaicusfuncst`.
+- A read-only UAMI SQL diagnostic execution
+  `capex-task-determination-proof-ii1wpmw` verified:
+  - `SELECT` on `pub.v1_TaskMaster`.
+  - `SELECT` and `INSERT` on `task.TaskSuggestion`.
+  - No `UPDATE` or `DELETE` permission.
+
+### Function package verification
+
+- Package: `dist/capex-invoice-agent-invocation.zip`
+- SHA-256:
+  `B18866EDCB74E958B87E33FC9F4A5B8AABFBBDCC9C235577056A858621FC9B5F`
+- Size: 232,072 bytes
+- Files: 85
+- The package contains `function_app.py`, `host.json`,
+  `requirements.txt`, and tracked `autarch` runtime source.
+- The package contains no `local.settings.json`, bytecode, or
+  `__pycache__` entries.
+
+### Validation result
+
+All checks required for the code-only Function deployment passed.
+Existing Service Bus, RBAC, storage, SQL, and Function infrastructure
+were preserved. The recorded ZIP package was published and trigger
+discovery and runtime health were verified.
 
 ## Pre-deployment checks
 
@@ -221,17 +299,21 @@ Stop immediately if any row count, uniqueness check, hash check, or schema check
 
 ### Phase 2 - Messaging and RBAC
 
-1. Deploy the Service Bus Bicep.
-2. Verify subscription `invoice-agent-invocation` and its dead-letter/retry settings.
-3. Deploy the RBAC Bicep.
-4. Verify the CapEx UAMI has `Cognitive Services OpenAI User` at the Foundry account.
-5. Allow normal Azure RBAC propagation time before model invocation testing.
+This phase is already provisioned. Preserve the existing resources and
+verify them before the code deployment:
+
+1. Verify subscription `invoice-agent-invocation` and its
+   dead-letter/retry settings.
+2. Verify the CapEx UAMI has its required Service Bus, Blob, Foundry,
+   and dedicated host-storage roles.
+3. Do not redeploy RBAC from the current caller because it does not
+   have role-assignment write permission.
 
 ### Phase 3 - Function infrastructure and code
 
-1. Deploy the Function Bicep.
+1. Preserve the existing validated Function infrastructure.
 2. Verify the UAMI attachment.
-3. Verify identity-based Service Bus settings.
+3. Verify identity-based host-storage and Service Bus settings.
 4. Verify no Foundry API-key setting exists.
 5. Deploy the recorded Function ZIP with remote dependency build enabled.
 6. Wait for deployment completion.
@@ -336,6 +418,58 @@ Because migrations 005 and 006 are additive and the TaskMaster seed is governed 
 - TaskSuggestion schema validation confirmed five new columns, four
   trusted constraints, three required indexes, a unique event-line
   replay guard, and zero duplicate event-line groups.
+- CICT-189 Function deployment completed through the ARM OneDeploy
+  endpoint because the Function SCM endpoint is private:
+  - Final package SHA-256:
+    `B18866EDCB74E958B87E33FC9F4A5B8AABFBBDCC9C235577056A858621FC9B5F`.
+  - OneDeploy deployment ID:
+    `2327b442f1da45a8aa2b2f544dd99b3d`.
+  - Deployment completed successfully at
+    `2026-10-28T18:25:53.0686424Z`.
+  - Function `invoice_agent_invocation` was discovered with the
+    `capex-invoice-ready-v1` topic and `invoice-agent-invocation`
+    subscription placeholders.
+  - Function App `cict-ai-cus-func` remained `Running` with public
+    network access disabled.
+- The first controlled CICT-190 delivery exposed and dead-lettered on a
+  camelCase-to-snake_case deserialization defect. The Function boundary
+  was corrected to parse the published InvoiceReady v1 contract through
+  `InvoiceReadyMessage.from_properties`, covered by regression tests,
+  rebuilt, and redeployed. The one controlled failed message was then
+  removed from the dead-letter queue without removing any other message.
+- CICT-190 end-to-end and replay proof completed successfully:
+  - Proof execution:
+    `capex-task-determination-proof-quvb5fx`.
+  - Proof script SHA-256:
+    `E3BF8426E7E92F760E489D42816D83B88394749124E879F0CE03AB1F66899396`.
+  - Event ID:
+    `evt-06d9fc90-73ce-5e2f-ac87-32b9fbc72841`.
+  - Event payload SHA-256:
+    `372066D57D1AFFD2313C6A71952C2F829C441247DB30B2B6300C287BD1456791`.
+  - SQL baseline was zero rows and the governed US TaskMaster contained
+    761 task codes.
+  - Initial delivery persisted exactly 12 rows with 12 distinct line
+    IDs, zero duplicate event-line groups, zero unresolved lines, and
+    zero ungoverned task codes.
+  - Reusing the same broker message ID proved Service Bus duplicate
+    suppression.
+  - Publishing the identical event body under a distinct proof-only
+    broker message ID forced application replay and completed
+    successfully.
+  - The final durable row SHA-256 remained
+    `0D29CD66BE22833A283C52AB3983D1E67A3BF08FFDD231AC146AF89F1EC4CAA5`,
+    and the final SQL row count remained 12.
+  - Application Insights recorded exactly two successful Function
+    completions, each reporting `persistedLineCount: 12`, and no
+    post-fix exceptions.
+  - Final Service Bus active and dead-letter counts were both zero.
+- Final live role verification for UAMI `cict-ai-cus-capex-id` passed:
+  - Azure Service Bus Data Sender and Receiver on the InvoiceReady
+    topic.
+  - Storage Blob Data Contributor on the invoice `landing` container.
+  - Cognitive Services OpenAI User on the Foundry account.
+  - Storage Blob Data Owner, Storage Queue Data Contributor, and
+    Storage Account Contributor on `cictaicusfuncst`.
 
 ## Approval
 

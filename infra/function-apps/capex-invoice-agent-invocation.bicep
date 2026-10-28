@@ -1,7 +1,7 @@
 targetScope = 'resourceGroup'
 
 @description('Name of the Function App for invoice agent invocation.')
-param functionAppName string = 'capex-invoice-agent-invocation'
+param functionAppName string = 'cict-ai-cus-func'
 
 @description('Azure region for the Function App.')
 param location string = resourceGroup().location
@@ -17,10 +17,6 @@ param userAssignedIdentityClientId string
 
 @description('Storage account name for Azure Functions runtime.')
 param functionsStorageAccountName string
-
-@description('Storage account key for Azure Functions runtime.')
-@secure()
-param functionsStorageAccountKey string
 
 @description('Service Bus namespace FQDN (e.g., cict-ai-cus-bus.servicebus.windows.net).')
 param serviceBusNamespace string
@@ -59,10 +55,10 @@ param taskMasterSha256 string = 'CC41B492A5DE454EFD7405066EF1EAA6CDE1FF050C8E71E
 @description('Version of the Task Determination prompt contract.')
 param taskPromptVersion string = 'task-determination-v1'
 
-@description('Application Insights instrumentation key.')
-param applicationInsightsInstrumentationKey string
+@description('Application Insights connection string.')
+@secure()
+param applicationInsightsConnectionString string
 
-var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${functionsStorageAccountName};AccountKey=${functionsStorageAccountKey};EndpointSuffix=${environment().suffixes.storage}'
 var blobAccountUrl = 'https://${blobStorageAccountName}.blob.${environment().suffixes.storage}'
 var sqlServerFqdn = '${sqlServerName}.${environment().suffixes.sqlServerHostname}'
 
@@ -82,16 +78,16 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
     siteConfig: {
       appSettings: [
         {
-          name: 'AzureWebJobsStorage'
-          value: storageConnectionString
+          name: 'AzureWebJobsStorage__accountName'
+          value: functionsStorageAccountName
         }
         {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: storageConnectionString
+          name: 'AzureWebJobsStorage__credential'
+          value: 'managedidentity'
         }
         {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(functionAppName)
+          name: 'AzureWebJobsStorage__clientId'
+          value: userAssignedIdentityClientId
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
@@ -114,8 +110,8 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           value: '0'
         }
         {
-          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-          value: applicationInsightsInstrumentationKey
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: applicationInsightsConnectionString
         }
         {
           name: 'ApplicationInsightsAgent_EXTENSION_VERSION'

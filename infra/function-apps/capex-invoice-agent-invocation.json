@@ -5,13 +5,13 @@
     "_generator": {
       "name": "bicep",
       "version": "0.48.1.52935",
-      "templateHash": "12961079439662855403"
+      "templateHash": "6215757793838810213"
     }
   },
   "parameters": {
     "functionAppName": {
       "type": "string",
-      "defaultValue": "capex-invoice-agent-invocation",
+      "defaultValue": "cict-ai-cus-func",
       "metadata": {
         "description": "Name of the Function App for invoice agent invocation."
       }
@@ -45,12 +45,6 @@
       "type": "string",
       "metadata": {
         "description": "Storage account name for Azure Functions runtime."
-      }
-    },
-    "functionsStorageAccountKey": {
-      "type": "securestring",
-      "metadata": {
-        "description": "Storage account key for Azure Functions runtime."
       }
     },
     "serviceBusNamespace": {
@@ -135,15 +129,14 @@
         "description": "Version of the Task Determination prompt contract."
       }
     },
-    "applicationInsightsInstrumentationKey": {
-      "type": "string",
+    "applicationInsightsConnectionString": {
+      "type": "securestring",
       "metadata": {
-        "description": "Application Insights instrumentation key."
+        "description": "Application Insights connection string."
       }
     }
   },
   "variables": {
-    "storageConnectionString": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', parameters('functionsStorageAccountName'), parameters('functionsStorageAccountKey'), environment().suffixes.storage)]",
     "blobAccountUrl": "[format('https://{0}.blob.{1}', parameters('blobStorageAccountName'), environment().suffixes.storage)]",
     "sqlServerFqdn": "[format('{0}.{1}', parameters('sqlServerName'), environment().suffixes.sqlServerHostname)]"
   },
@@ -166,16 +159,16 @@
         "siteConfig": {
           "appSettings": [
             {
-              "name": "AzureWebJobsStorage",
-              "value": "[variables('storageConnectionString')]"
+              "name": "AzureWebJobsStorage__accountName",
+              "value": "[parameters('functionsStorageAccountName')]"
             },
             {
-              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
-              "value": "[variables('storageConnectionString')]"
+              "name": "AzureWebJobsStorage__credential",
+              "value": "managedidentity"
             },
             {
-              "name": "WEBSITE_CONTENTSHARE",
-              "value": "[toLower(parameters('functionAppName'))]"
+              "name": "AzureWebJobsStorage__clientId",
+              "value": "[parameters('userAssignedIdentityClientId')]"
             },
             {
               "name": "FUNCTIONS_EXTENSION_VERSION",
@@ -198,8 +191,8 @@
               "value": "0"
             },
             {
-              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
-              "value": "[parameters('applicationInsightsInstrumentationKey')]"
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[parameters('applicationInsightsConnectionString')]"
             },
             {
               "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
