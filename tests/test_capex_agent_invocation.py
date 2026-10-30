@@ -243,7 +243,7 @@ def test_agent_invocation_success():
             foundry_endpoint="https://test.openai.azure.com/",
             managed_identity_client_id="client-001",
             task_catalog=_task_catalog(),
-            deployment_name="gpt-6.1-sol",
+            deployment_name="gpt-5.1",
         )
 
     assert len(suggestion.lines) == 1

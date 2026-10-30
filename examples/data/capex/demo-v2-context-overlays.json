@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "overlays": [
+    {
+      "schemaVersion": "1.0",
+      "overlayVersion": "demo-v2-context-2026-10-30",
+      "targetInvoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+      "projectId": "DEMO-PROJECT-BRUEGMANN",
+      "siteId": "DEMO-SITE-001",
+      "projectStatus": "OPEN",
+      "bundlingInScope": true,
+      "synthetic": true
+    },
+    {
+      "schemaVersion": "1.0",
+      "overlayVersion": "demo-v2-context-2026-10-30",
+      "targetInvoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+      "projectId": "DEMO-PROJECT-KIMLEY-HORN",
+      "siteId": "DEMO-SITE-002",
+      "projectStatus": "OPEN",
+      "bundlingInScope": true,
+      "synthetic": true
+    },
+    {
+      "schemaVersion": "1.0",
+      "overlayVersion": "demo-v2-context-2026-10-30",
+      "targetInvoiceId": "JC2000A07814:20294",
+      "projectId": "DEMO-PROJECT-JC2000A07814",
+      "siteId": "DEMO-SITE-EU-001",
+      "projectStatus": "OPEN",
+      "bundlingInScope": true,
+      "synthetic": true
+    }
+  ]
+}

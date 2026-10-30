@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0",
+  "runId": "capex-demo-v2-normalization-2026-10-30",
+  "createdAtUtc": "2026-10-30T00:00:00+00:00",
+  "overlayFile": "demo-v2-context-overlays.json",
+  "targetPackages": [
+    {
+      "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+      "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+      "invoiceNumber": "INV12-62027",
+      "normalizationStatus": "REVIEW_REQUIRED",
+      "artifact": "bruegmann.normalized.json",
+      "sourceSha256": "974d61a406edf85e3cadfa75a5177795481d3a82ce962dc414e9d276b885ee5b",
+      "syntheticOverlay": true,
+      "reviewReasons": [
+        "Source quantity is missing for one or more invoice lines.",
+        "Source unit cost is missing for one or more invoice lines."
+      ]
+    },
+    {
+      "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+      "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+      "invoiceNumber": "36764068-GRP005",
+      "normalizationStatus": "REVIEW_REQUIRED",
+      "artifact": "kimley-horn.normalized.json",
+      "sourceSha256": "ede8b96961483673d0e06d8d73f684a835f05d9a061f67a8bcb84b98be445292",
+      "syntheticOverlay": true,
+      "reviewReasons": [
+        "Source quantity is missing for one or more invoice lines.",
+        "Source unit cost is missing for one or more invoice lines."
+      ]
+    },
+    {
+      "packageId": "pkg-8a841383-3ec4-5173-a24d-3c506eb63d24",
+      "invoiceId": "JC2000A07814:20294",
+      "invoiceNumber": "20294",
+      "normalizationStatus": "REVIEW_REQUIRED",
+      "artifact": "jc2000a07814.normalized.json",
+      "sourceSha256": "bdb5a904f1d661a04ca24db2f365c9de4c06916579b0f250a519151a22227510",
+      "syntheticOverlay": true,
+      "reviewReasons": [
+        "Source quantity is missing for one or more invoice lines.",
+        "Source unit cost is missing for one or more invoice lines.",
+        "JC source task code is not governed by the supplied US/Canadian TaskMaster.",
+        "JC accounting rows are not a complete invoice-line export."
+      ]
+    }
+  ],
+  "companionClassification": {
+    "artifact": "jc2000a07465.classification.json",
+    "includedInvoiceCount": 7,
+    "excludedRecordCount": 6
+  }
+}

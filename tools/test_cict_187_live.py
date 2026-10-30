@@ -25,7 +25,7 @@ from autarch.capex.agent_invocation_persistence import (
 SERVER = "cict-ai-cus-sql.database.windows.net"
 DATABASE = "cict-ai-cus-sqldb"
 REGION_CODE = "US"
-MODEL_DEPLOYMENT = "gpt-6.1-sol"
+MODEL_DEPLOYMENT = "gpt-5.1"
 PROMPT_VERSION = "task-determination-v1"
 TASK_MASTER_SHA256 = (
     "CC41B492A5DE454EFD7405066EF1EAA6CDE1FF050C8E71ED180831197B6EBA13"

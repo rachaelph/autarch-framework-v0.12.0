@@ -1,0 +1,231 @@
+{
+  "schemaVersion": "2.0-normalized",
+  "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+  "runId": "capex-demo-v2-normalization-2026-10-30",
+  "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+  "invoiceNumber": "INV12-62027",
+  "invoiceDate": "2026-08-26",
+  "vendorId": "2153631",
+  "vendorName": "Bruegmann USA, Inc.",
+  "invoiceTotal": 1627.5,
+  "currency": "USD",
+  "countryRegion": "North America",
+  "poNumber": null,
+  "normalizationStatus": "REVIEW_REQUIRED",
+  "lines": [
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:1",
+      "lineNumber": 1,
+      "description": "Layover FR 4PK, 727x886\n15 degree front retainer rail slot\nSimplified\nNon-Anodized\nWidth: 28.6 (727mm)\nDepth: 34.9\" (886mm)\nColor: Black",
+      "partNumber": "1 01 294",
+      "quantity": 1.0,
+      "unitCost": 253.71,
+      "lineAmount": 253.71,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:2",
+      "lineNumber": 2,
+      "description": "Layover FR 1PK, 727x886\n15 degree front retainer rail slot\nSimplified\nNon-Anodized\nWidth: 28.6 (727mm)\nDepth: 34.9\" (886mm)\nColor: Black",
+      "partNumber": "112664",
+      "quantity": 3.0,
+      "unitCost": 67.27,
+      "lineAmount": 201.81,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:3",
+      "lineNumber": 3,
+      "description": "Reinforced Lock-In 2 Wire divider,\n70x886 50PK\nLayover\nAngled corners\n2-Wire 5mm\nDivider height: 2.75\" (70mm)\nFR depth: 34.9\" (886mm)\nColor: Black",
+      "partNumber": "112020",
+      "quantity": 1.0,
+      "unitCost": 98.12,
+      "lineAmount": 98.12,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:4",
+      "lineNumber": 4,
+      "description": "Reinforced Lock-In 2 Wire divider,\n70x886 10PK\nLayover\nAngled corners\n2-Wire 5mm\nDivider height: 2.75\" (70mm)\nFR depth: 34.9\" (886mm)\nColor: Black",
+      "partNumber": "112018",
+      "quantity": 2.0,
+      "unitCost": 20.83,
+      "lineAmount": 41.66,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:5",
+      "lineNumber": 5,
+      "description": "FlexRoller Clear Retainer 10PK 90x711\nRetainer height: Medium 3.5\" (90mm)\nRetainer width: 28\" (711mm)",
+      "partNumber": "112675",
+      "quantity": 1.0,
+      "unitCost": 41.61,
+      "lineAmount": 41.61,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:6",
+      "lineNumber": 6,
+      "description": "FlexRoller Clear Retainer 10PK, 35x711\nRetainer height: Mini 1.375\" (35mm)\nRetainer width: 28\" (711mm)",
+      "partNumber": "1 01 255",
+      "quantity": 1.0,
+      "unitCost": 21.75,
+      "lineAmount": 21.75,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:7",
+      "lineNumber": 7,
+      "description": "FR Back Wire Retainer 70x723 20PK\nHeight: 2.75\" (70mm)\nShelf Width: 28.5\" (723mm)\nColor: Red",
+      "partNumber": "112667",
+      "quantity": 1.0,
+      "unitCost": 15.69,
+      "lineAmount": 15.69,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:8",
+      "lineNumber": 8,
+      "description": "Infostrip 10PK\nLabel height: 1.25\" (32mm)\nSingle Wire Mount\nLength: 25.5\" (648mm)\nColor: Black\nWindow displayed at 20 degree to\nback",
+      "partNumber": "112680",
+      "quantity": 2.0,
+      "unitCost": 9.07,
+      "lineAmount": 18.14,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:9",
+      "lineNumber": 9,
+      "description": "Infostrip 10PK\nLabel height: 1.25\" (32mm)\nDouble Wire Mount\nLength: 27\" (685.8mm)\nColor: BlackOI",
+      "partNumber": "114417",
+      "quantity": 1.0,
+      "unitCost": 12.17,
+      "lineAmount": 12.17,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:10",
+      "lineNumber": 10,
+      "description": "Reinforced Lock-In Wire divider 20-\nPack, 140x886\nLayover\nAngled Corners\n3-Wire\nDivider height: 5.5\" (140mm)\nFR Depth: 34.88\" (886mm)\nColor: Black",
+      "partNumber": "112672",
+      "quantity": 3.0,
+      "unitCost": 58.74,
+      "lineAmount": 176.22,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:11",
+      "lineNumber": 11,
+      "description": "Reinforced Lock-In Wire divider 10-\nPack, 140x886\nLayover\nAngled Corners\n3-Wire\nDivider height: 5.5\" (140mm)\nFR Depth: 34.88\" (886mm)\nColor: Black",
+      "partNumber": "112673",
+      "quantity": 1.0,
+      "unitCost": 30.2,
+      "lineAmount": 30.2,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    },
+    {
+      "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:12",
+      "lineNumber": 12,
+      "description": "Shipping",
+      "partNumber": null,
+      "quantity": null,
+      "unitCost": null,
+      "lineAmount": 617.09,
+      "currency": "USD",
+      "sourceTransactionType": null,
+      "sourceDocumentNumber": null,
+      "sourceInvoiceNumber": null,
+      "sourceAccount": null,
+      "sourceTaskCode": null
+    }
+  ],
+  "contextOverlay": {
+    "schemaVersion": "1.0",
+    "overlayVersion": "demo-v2-context-2026-10-30",
+    "targetInvoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+    "projectId": "DEMO-PROJECT-BRUEGMANN",
+    "siteId": "DEMO-SITE-001",
+    "projectStatus": "OPEN",
+    "bundlingInScope": true,
+    "synthetic": true
+  },
+  "dataQuality": {
+    "missingQuantityLineIds": [
+      "135d03ac-3598-498a-83fe-d273d046bfea:12"
+    ],
+    "missingUnitCostLineIds": [
+      "135d03ac-3598-498a-83fe-d273d046bfea:12"
+    ],
+    "sourceCurrencies": [
+      "USD"
+    ],
+    "warnings": [
+      "Invoice total differs from extracted line total; tax or another header-level charge may account for the difference."
+    ],
+    "reviewReasons": [
+      "Source quantity is missing for one or more invoice lines.",
+      "Source unit cost is missing for one or more invoice lines."
+    ]
+  },
+  "source": {
+    "fileName": "Bruegmann  - INV1262027.pdf-135d03ac-3598-498a-83fe-d273d046bfea.zip",
+    "sha256": "974d61a406edf85e3cadfa75a5177795481d3a82ce962dc414e9d276b885ee5b",
+    "sourceSystem": "ABBYY"
+  },
+  "createdAtUtc": "2026-10-30T00:00:00Z"
+}

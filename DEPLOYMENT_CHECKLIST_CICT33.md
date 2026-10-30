@@ -9,7 +9,7 @@
 - ✓ Created `sql/migrations/004_create_task_suggestion_table.sql` - Task schema with TaskSuggestion table
 - ✓ Created `autarch/capex/agent_invocation_models.py` - Pydantic models for messages and suggestions
 - ✓ Created `autarch/capex/agent_invocation_blob.py` - Blob Storage package fetcher
-- ✓ Created `autarch/capex/agent_invocation_handler.py` - Foundry agent invocation (gpt-6-sol)
+- ✓ Created `autarch/capex/agent_invocation_handler.py` - Foundry agent invocation (gpt-5.1)
 - ✓ Created `autarch/capex/agent_invocation_persistence.py` - SQL persistence for task suggestions
 - ✓ Created `azure_function/function_app.py` - Service Bus trigger function
 - ✓ Created Azure Function configuration (host.json, local.settings.json, requirements.txt)
@@ -27,7 +27,7 @@ Service Bus Topic (capex-invoice-ready-v1)
 Azure Function (Service Bus Trigger)
     ├─ Parse InvoiceReady message
     ├─ Fetch invoice package from Blob Storage (capex/output/<run-id>/<package-id>.json)
-    ├─ Invoke Foundry Agent (gpt-6-sol model)
+    ├─ Invoke Foundry Agent (gpt-5.1 model)
     └─ Persist task suggestions to SQL (task.TaskSuggestion table)
         └─ One row per invoice with per-line recommendations (CAPEX/OPEX/REVIEW)
 
@@ -97,7 +97,7 @@ Create or update `local.settings.json` with your Foundry API key:
 {
   "FOUNDRY_API_KEY": "your-actual-api-key-here",
   "FOUNDRY_ENDPOINT": "https://cict-ai-cus-foundry.openai.azure.com/openai",
-  "FOUNDRY_DEPLOYMENT": "gpt-6-sol"
+  "FOUNDRY_DEPLOYMENT": "gpt-5.1"
 }
 ```
 
@@ -375,4 +375,3 @@ Do NOT claim:
 - CICT-35: Configure RBAC and secrets management
 - CICT-36: Add observability and monitoring
 - CICT-37: Create automated demo runbook
-

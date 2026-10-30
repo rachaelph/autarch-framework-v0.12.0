@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "2.0-jc-ledger",
+  "runId": "capex-demo-v2-normalization-2026-10-30",
+  "projectId": "JC2000A07814",
+  "packages": [
+    {
+      "schemaVersion": "2.0-normalized",
+      "packageId": "pkg-8a841383-3ec4-5173-a24d-3c506eb63d24",
+      "runId": "capex-demo-v2-normalization-2026-10-30",
+      "invoiceId": "JC2000A07814:20294",
+      "invoiceNumber": "20294",
+      "invoiceDate": null,
+      "vendorId": null,
+      "vendorName": "GILBARCO GMBH",
+      "invoiceTotal": 16123.79,
+      "currency": "EUR",
+      "countryRegion": "Europe",
+      "poNumber": null,
+      "normalizationStatus": "REVIEW_REQUIRED",
+      "lines": [
+        {
+          "lineId": "JC2000A07814:20294:17535596:1",
+          "lineNumber": 1,
+          "description": "TLG system",
+          "partNumber": null,
+          "quantity": null,
+          "unitCost": null,
+          "lineAmount": 16123.79,
+          "currency": "EUR",
+          "sourceTransactionType": "AI",
+          "sourceDocumentNumber": "17535596",
+          "sourceInvoiceNumber": "20294",
+          "sourceAccount": "JC2000A07814.118010.0303",
+          "sourceTaskCode": "0303"
+        }
+      ],
+      "contextOverlay": {
+        "schemaVersion": "1.0",
+        "overlayVersion": "demo-v2-context-2026-10-30",
+        "targetInvoiceId": "JC2000A07814:20294",
+        "projectId": "DEMO-PROJECT-JC2000A07814",
+        "siteId": "DEMO-SITE-EU-001",
+        "projectStatus": "OPEN",
+        "bundlingInScope": true,
+        "synthetic": true
+      },
+      "dataQuality": {
+        "missingQuantityLineIds": [
+          "JC2000A07814:20294:17535596:1"
+        ],
+        "missingUnitCostLineIds": [
+          "JC2000A07814:20294:17535596:1"
+        ],
+        "sourceCurrencies": [
+          "DKK",
+          "EUR"
+        ],
+        "warnings": [
+          "Workbook contains multiple currencies; packages are separated by invoice and currency and are not aggregated.",
+          "1 unapproved or reversal row(s) were excluded."
+        ],
+        "reviewReasons": [
+          "Source quantity is missing for one or more invoice lines.",
+          "Source unit cost is missing for one or more invoice lines.",
+          "JC source task code is not governed by the supplied US/Canadian TaskMaster.",
+          "JC accounting rows are not a complete invoice-line export."
+        ]
+      },
+      "source": {
+        "fileName": "JC2000A07814 - Ariba+Proj.tool.xlsx",
+        "sha256": "bdb5a904f1d661a04ca24db2f365c9de4c06916579b0f250a519151a22227510",
+        "sourceSystem": "JDE_PROJECT_ACCOUNTING"
+      },
+      "createdAtUtc": "2026-10-30T00:00:00Z"
+    }
+  ],
+  "excludedRecords": [
+    {
+      "recordId": "31196810:1",
+      "transactionType": "OV",
+      "currency": "DKK",
+      "amount": 4844.97,
+      "reason": "Transaction type is not approved for invoice aggregation."
+    }
+  ],
+  "sourceCurrencies": [
+    "DKK",
+    "EUR"
+  ],
+  "reviewReasons": [
+    "Mixed source currencies cannot be aggregated without an approved conversion policy.",
+    "Excluded ledger transaction types require Circle K confirmation."
+  ],
+  "source": {
+    "fileName": "JC2000A07814 - Ariba+Proj.tool.xlsx",
+    "sha256": "bdb5a904f1d661a04ca24db2f365c9de4c06916579b0f250a519151a22227510",
+    "sourceSystem": "JDE_PROJECT_ACCOUNTING"
+  },
+  "createdAtUtc": "2026-10-30T00:00:00Z"
+}

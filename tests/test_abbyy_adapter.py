@@ -174,6 +174,23 @@ def test_parse_abbyy_archive_returns_normalized_invoice(
     assert "must-not-be-returned" not in repr(invoice)
 
 
+def test_parse_abbyy_archive_can_preserve_missing_numbers(
+    tmp_path: Path,
+) -> None:
+    path = write_package(tmp_path / "invoice.zip")
+
+    legacy = parse_abbyy_archive(path)
+    lossless = parse_abbyy_archive(
+        path,
+        preserve_missing_numbers=True,
+    )
+
+    assert legacy["lines"][1]["quantity"] == 0.0
+    assert legacy["lines"][1]["unit_price"] == 0.0
+    assert lossless["lines"][1]["quantity"] is None
+    assert lossless["lines"][1]["unit_price"] is None
+
+
 def test_governed_adapter_lists_and_reads_packages(
     tmp_path: Path,
 ) -> None:

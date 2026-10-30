@@ -44,7 +44,7 @@ param foundryEndpoint string
 
 
 @description('Foundry deployment name.')
-param foundryDeployment string = 'gpt-6.1-sol'
+param foundryDeployment string = 'gpt-5.1'
 
 @description('TaskMaster region used for task-code governance.')
 param taskRegion string = 'US'

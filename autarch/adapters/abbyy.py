@@ -160,10 +160,26 @@ def _number(
     return -result if negative else result
 
 
+def _optional_number(
+    value: Any,
+    *,
+    field: str,
+    record: str,
+) -> Optional[float]:
+    if not str(value or "").strip():
+        return None
+    return _number(
+        value,
+        field=field,
+        record=record,
+    )
+
+
 def parse_abbyy_archive(
     path: Path,
     *,
     max_csv_bytes: int = _DEFAULT_MAX_CSV_BYTES,
+    preserve_missing_numbers: bool = False,
 ) -> Dict[str, Any]:
     """Parse one ABBYY ZIP without extracting files or invoking a model."""
     source_path = Path(path)
@@ -322,19 +338,35 @@ def parse_abbyy_archive(
             field=amount_field,
             record=record,
         )
-        quantity = _number(
-            row.get("Quantity"),
-            field="Quantity",
-            record=record,
-            blank_value=0.0,
+        quantity = (
+            _optional_number(
+                row.get("Quantity"),
+                field="Quantity",
+                record=record,
+            )
+            if preserve_missing_numbers
+            else _number(
+                row.get("Quantity"),
+                field="Quantity",
+                record=record,
+                blank_value=0.0,
+            )
         )
-        unit_price = _number(
-            row.get("Unit Price"),
-            field="Unit Price",
-            record=record,
-            blank_value=0.0,
+        unit_price = (
+            _optional_number(
+                row.get("Unit Price"),
+                field="Unit Price",
+                record=record,
+            )
+            if preserve_missing_numbers
+            else _number(
+                row.get("Unit Price"),
+                field="Unit Price",
+                record=record,
+                blank_value=0.0,
+            )
         )
-        if quantity < 0:
+        if quantity is not None and quantity < 0:
             raise ABBYYPackageError(
                 f"ABBYY {record} quantity cannot be negative"
             )

@@ -51,7 +51,7 @@ The deployment must use the current `dev_rachael_phillips` branch head containin
 - Foundry account: `cict-ai-cus-foundry`
 - Foundry project: `proj-cict-ai`
 - Foundry endpoint: `https://cict-ai-cus-foundry.openai.azure.com/`
-- Model deployment: `gpt-6.1-sol`
+- Model deployment: `gpt-5.1`
 - CapEx UAMI: `cict-ai-cus-capex-id`
 - UAMI client ID: `562512ef-d515-428a-8df5-6c4c589812ef`
 - UAMI principal ID: `cf7d7929-5beb-426b-bd19-493c5c0c506d`
@@ -144,7 +144,7 @@ Required runtime configuration:
 - Blob account URL derived from the target Azure environment
 - SQL hostname derived from the target Azure environment
 - Foundry endpoint: `https://cict-ai-cus-foundry.openai.azure.com/`
-- Foundry deployment: `gpt-6.1-sol`
+- Foundry deployment: `gpt-5.1`
 - TaskMaster region: `US`
 - TaskMaster SHA-256: governed workbook hash
 - Prompt version: `task-determination-v1`
@@ -274,7 +274,7 @@ Before changing Azure:
 3. Run all `test_capex*.py` modules successfully.
 4. Compile the Service Bus, Function, and RBAC Bicep files.
 5. Build the Function package and record its SHA-256.
-6. Confirm the Foundry endpoint and `gpt-6.1-sol` deployment still exist.
+6. Confirm the Foundry endpoint and `gpt-5.1` deployment still exist.
 7. Confirm the CapEx UAMI IDs match this plan.
 8. Confirm the SQL database is reachable using approved Microsoft Entra authentication.
 9. Capture current Service Bus topic settings.
@@ -329,7 +329,7 @@ verify them before the code deployment:
 4. Verify the dedicated subscription receives and completes the message.
 5. Verify the Function loads the matching invoice package.
 6. Verify the Function loads the governed TaskMaster catalog.
-7. Verify the CapEx UAMI invokes `gpt-6.1-sol`.
+7. Verify the CapEx UAMI invokes `gpt-5.1`.
 8. Verify strict JSON is accepted only when every source line is represented exactly once.
 9. Verify all returned task codes exist in `pub.v1_TaskMaster`.
 10. Verify one `task.TaskSuggestion` row per invoice line.

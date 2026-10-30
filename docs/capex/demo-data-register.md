@@ -1,6 +1,10 @@
 # CICT-41 CapEx Demo Data Register
 
 > Related work item: CICT-41
+>
+> Demo V2 expands this original two-invoice register. See
+> [CapEx Demo V2 Data Inventory and Gap Register](./demo-v2-data-inventory.md)
+> for the JC project files, current field coverage, and synthetic-data rules.
 
 ## Objective
 

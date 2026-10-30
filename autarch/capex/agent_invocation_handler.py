@@ -179,7 +179,7 @@ def invoke_task_determination_agent(
     foundry_endpoint: str,
     managed_identity_client_id: str,
     task_catalog: Sequence[Mapping[str, Any]],
-    deployment_name: str = "gpt-6.1-sol",
+    deployment_name: str = "gpt-5.1",
 ) -> TaskSuggestion:
     """Invoke Foundry and return validated line-level task results."""
 

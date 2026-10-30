@@ -13,7 +13,7 @@
    - Create new agent with:
      - **Name:** invoice-task-determination-v1
      - **Display Name:** Invoice Task Determination Agent
-     - **Model:** gpt-6-sol
+     - **Model:** gpt-5.1
      - **Description:** Analyzes invoice packages and determines CapEx/OpEx categorization
 
 2. **Copy System Prompt**
@@ -58,7 +58,7 @@ task_suggestion = agent.analyze_invoice(
 The Foundry agent is already integrated into the Invoice Agent Invocation Function:
 
 1. **Current Flow:**
-   - Service Bus Message → Function App → Foundry Agent Client → gpt-6-sol Model → SQL
+   - Service Bus Message → Function App → Foundry Agent Client → gpt-5.1 Model → SQL
 
 2. **Using Foundry Agent Instead of Direct Model Call:**
    
@@ -139,7 +139,7 @@ After the demo, consider:
 ## Fallback Strategy
 
 If Foundry agent fails:
-- CICT-33 Function automatically falls back to direct gpt-6-sol model call
+- CICT-33 Function automatically falls back to direct gpt-5.1 model call
 - Ensures demo continues even if agent deployment delayed
 - Both approaches produce identical output format
 
@@ -156,4 +156,3 @@ For issues:
 1. Check Foundry platform logs: https://cict-ai-cus-foundry.openai.azure.com/logs
 2. Review test output: `pytest tests/test_capex_foundry_agent.py -v`
 3. Check agent execution trace: Look for `foundry_agent_analysis_*` events in function logs
-

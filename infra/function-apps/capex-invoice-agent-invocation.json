@@ -103,7 +103,7 @@
     },
     "foundryDeployment": {
       "type": "string",
-      "defaultValue": "gpt-6.1-sol",
+      "defaultValue": "gpt-5.1",
       "metadata": {
         "description": "Foundry deployment name."
       }
