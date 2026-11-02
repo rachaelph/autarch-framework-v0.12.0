@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "2.0-policy",
+  "policyId": "circle-k-na-demo-unapproved-2026-10-30",
+  "approvalStatus": "PROPOSED_DEMO_ASSUMPTION",
+  "region": "NORTH_AMERICA",
+  "capitalization": {
+    "currency": "USD",
+    "baseThreshold": 1000.0,
+    "thresholdComparison": "GREATER_THAN_OR_EQUAL",
+    "thresholdBasis": "UNIT_COST",
+    "belowThresholdSiteMinimum": 300.0,
+    "belowThresholdProjectMinimum": 30000.0,
+    "belowThresholdExceptionEnabled": false,
+    "majorReplacementReference": 10000.0,
+    "nonUsdBehavior": "REVIEW",
+    "missingUnitCostBehavior": "REVIEW",
+    "unknownNatureBehavior": "REVIEW",
+    "operationalNatureRulesApproved": false
+  },
+  "bundling": {
+    "groupingKey": [
+      "TASK_CODE",
+      "SITE_ID",
+      "PROJECT_ID",
+      "CURRENCY"
+    ],
+    "allowCrossInvoice": true,
+    "allowCrossVendor": true,
+    "allowCrossPurchaseOrder": true,
+    "minimumCandidateMembers": 2,
+    "mixedCurrencyBehavior": "REVIEW",
+    "missingGroupingInputBehavior": "REVIEW",
+    "historicalLookbackEnabled": false
+  },
+  "jcReferenceHandling": {
+    "sourceTaskCodes": [
+      "0303",
+      "0601",
+      "0604",
+      "1201",
+      "3307"
+    ],
+    "governedMappingAvailable": false,
+    "includedTransactionTypes": [
+      "AI"
+    ],
+    "excludedTransactionTypes": {
+      "OV": "Not approved for invoice aggregation; retain as excluded review evidence.",
+      "JP": "Accrual/reversal rows are excluded to prevent double counting."
+    },
+    "resultWithoutMapping": "REVIEW",
+    "status": "PROPOSED_DEMO_ASSUMPTION"
+  },
+  "settings": [
+    {
+      "settingId": "base-threshold",
+      "value": {
+        "amount": 1000,
+        "currency": "USD"
+      },
+      "status": "POLICY_SUPPORTED",
+      "evidence": "Circle K Reporting Manual, April 2026, pages 46-51.",
+      "reviewWhenUnconfirmed": false
+    },
+    {
+      "settingId": "threshold-equality",
+      "value": "GREATER_THAN_OR_EQUAL",
+      "status": "BUSINESS_CONFIRMATION_REQUIRED",
+      "evidence": "Manual says less than 1,000 is expense; workflow diagram requests explicit equality confirmation.",
+      "reviewWhenUnconfirmed": true
+    },
+    {
+      "settingId": "threshold-basis",
+      "value": "UNIT_COST",
+      "status": "BUSINESS_CONFIRMATION_REQUIRED",
+      "evidence": "Latest workflow diagram uses unit price; supplied policy uses the broader term expenditure.",
+      "reviewWhenUnconfirmed": true
+    },
+    {
+      "settingId": "below-threshold-exception",
+      "value": {
+        "siteMinimum": 300,
+        "projectMinimum": 30000,
+        "enabled": false
+      },
+      "status": "BUSINESS_CONFIRMATION_REQUIRED",
+      "evidence": "Circle K Reporting Manual, April 2026.",
+      "reviewWhenUnconfirmed": true
+    },
+    {
+      "settingId": "nature-rule-library",
+      "value": "NOT_SUPPLIED",
+      "status": "BUSINESS_CONFIRMATION_REQUIRED",
+      "evidence": "Policy principles are available, but no approved operational keyword or classification library was supplied.",
+      "reviewWhenUnconfirmed": true
+    },
+    {
+      "settingId": "bundling-key",
+      "value": [
+        "TASK_CODE",
+        "SITE_ID",
+        "PROJECT_ID",
+        "CURRENCY"
+      ],
+      "status": "WORKFLOW_CONFIRMED",
+      "evidence": "Invoice Bundling Sequence v4.1.",
+      "reviewWhenUnconfirmed": false
+    },
+    {
+      "settingId": "historical-lookback",
+      "value": "DEMO_RUN_ONLY",
+      "status": "BUSINESS_CONFIRMATION_REQUIRED",
+      "evidence": "Historical source and lookback period were not supplied.",
+      "reviewWhenUnconfirmed": true
+    },
+    {
+      "settingId": "budget-exchange-rates",
+      "value": "NOT_SUPPLIED",
+      "status": "BUSINESS_CONFIRMATION_REQUIRED",
+      "evidence": "No governed non-USD budget-rate source was supplied.",
+      "reviewWhenUnconfirmed": true
+    },
+    {
+      "settingId": "nuvolo-prefixes",
+      "value": [
+        "FWKD",
+        "FFX"
+      ],
+      "status": "BUSINESS_CONFIRMATION_REQUIRED",
+      "evidence": "Prefixes were proposed in discovery but not confirmed.",
+      "reviewWhenUnconfirmed": true
+    },
+    {
+      "settingId": "expected-demo-outcomes",
+      "value": "NOT_SUPPLIED",
+      "status": "BUSINESS_CONFIRMATION_REQUIRED",
+      "evidence": "Finance acceptance outcomes have not been supplied.",
+      "reviewWhenUnconfirmed": true
+    }
+  ],
+  "unresolvedConfirmationIds": [
+    "threshold-equality",
+    "threshold-basis",
+    "below-threshold-exception",
+    "nature-rule-library",
+    "historical-lookback",
+    "budget-exchange-rates",
+    "nuvolo-prefixes",
+    "expected-demo-outcomes"
+  ],
+  "evidenceDocuments": [
+    "Reporting Manual - April 2026 - Final",
+    "IAS 16 Property, Plant and Equipment",
+    "Circle K - CapEx CIP - 8 - Invoice Bundling Sequence - v4.1",
+    "Circle K - CapEx CIP - 9a - Class Diagram - Tables - v2.1"
+  ],
+  "defaultUnresolvedBehavior": "REVIEW"
+}

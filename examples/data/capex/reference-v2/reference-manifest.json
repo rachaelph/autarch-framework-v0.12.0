@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "2.0-reference-manifest",
+  "taskMasterArtifact": "task-master-us-v2.json",
+  "taskMasterSha256": "29130f66b5d793b4be93a9d08a1fe725dd2e0b8f1f66adcd8dc6d48a30087cf2",
+  "policyArtifact": "policy-config-v2.json",
+  "policySha256": "e43a747b3f773a04897732a8845da1048b1f64e1a48daab0f414c7a6556f3042",
+  "governedTaskCount": 761,
+  "policyId": "circle-k-na-demo-unapproved-2026-10-30",
+  "unresolvedConfirmationCount": 8
+}

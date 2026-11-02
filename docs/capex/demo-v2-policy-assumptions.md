@@ -123,3 +123,20 @@ Send these questions to Marie and include Éric/Amanda or the designated finance
 ## Engineering decision
 
 Implementation may proceed using the proposed unapproved snapshot for test fixtures and visibly labeled demo output. Production-like persistence must retain the policy ID/version and the evidence used. Any case depending on an unanswered question must produce `REVIEW`.
+
+## CICT-232 generated policy and reference data
+
+CICT-232 materializes the evidence above without upgrading any assumption to approved policy:
+
+- `examples/data/capex/reference-v2/task-master-us-v2.json`
+  contains all 761 active US TaskMaster records from the verified workbook.
+- `examples/data/capex/reference-v2/policy-config-v2.json`
+  contains the versioned capitalization, bundling, and JC review configuration.
+- `examples/data/capex/reference-v2/reference-manifest.json`
+  contains SHA-256 values for both generated artifacts.
+
+The TaskMaster artifact preserves the source workbook, sheet, version, and SHA-256. Each task includes normalized deterministic retrieval text derived from the task code, description, asset categories, and property type. Candidate retrieval cannot create a new task code.
+
+The policy artifact records the 1,000 USD base threshold as policy-supported while keeping threshold equality, unit-cost basis, the below-threshold exception, operational nature rules, historical lookback, exchange rates, Nuvolo prefixes, and expected demo outcomes unresolved. Its default behavior is `REVIEW`.
+
+JC source codes `0303`, `0601`, `0604`, `1201`, and `3307` remain absent from the governed US TaskMaster. The generated configuration does not synthesize mappings for them. Without an approved European mapping, JC produces a governed `REVIEW` result.

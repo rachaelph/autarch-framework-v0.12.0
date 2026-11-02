@@ -11,7 +11,7 @@ The workflow reuses Azure Blob Storage, Azure SQL, managed identity, and existin
 1. A Container Apps Job receives one `DemoWorkflowRequest`.
 2. The job loads each referenced Demo V2 normalized package from Blob Storage and verifies its package ID, invoice ID, and source hash when expected values were supplied.
 3. The job loads the governed TaskMaster snapshot for the requested region.
-4. Task determination first uses exact governed lookup. LangChain is used only when a deterministic match is unavailable.
+4. Deterministic token-overlap retrieval selects a small governed candidate set. Task determination first uses exact governed lookup; LangChain/GPT-5.1 is used only when a deterministic match is unavailable.
 5. Every proposed task code is validated against the loaded TaskMaster before a `TaskDetermination` can be persisted.
 6. Deterministic code applies nature-of-spend, never-capitalize, repair/maintenance, threshold, and missing-context rules to produce a `CapitalizationAssessment`.
 7. Eligible lines are grouped using the approved task code, site, project, and currency. Missing required grouping context produces `REVIEW`; the workflow does not invent values.
@@ -30,6 +30,20 @@ The workflow reuses Azure Blob Storage, Azure SQL, managed identity, and existin
 | `DemoWorkflowResult` | Demo V2 job | Operator/demo harness | Complete execution evidence and status |
 
 The authoritative Python contracts are in `autarch.capex.demo_v2_contracts`. They reject unknown properties, accept camelCase JSON, and can emit JSON Schema with `model_json_schema(by_alias=True)`.
+
+The generated CICT-232 reference artifacts are in `examples/data/capex/reference-v2`:
+
+- `task-master-us-v2.json` contains 761 active, unique US tasks with retrieval text and source metadata.
+- `policy-config-v2.json` contains the evidence-based capitalization and bundling settings, approval states, unresolved confirmation IDs, and JC review behavior.
+- `reference-manifest.json` records artifact hashes, the governed task count, policy ID, and unresolved-confirmation count.
+
+Regenerate them with:
+
+```powershell
+.\.venv314\Scripts\python.exe tools\generate_capex_demo_v2_reference.py
+```
+
+The generator verifies the original workbook SHA-256 before producing output. GPT-5.1 may receive only candidates from this governed snapshot, and every returned code must still pass membership validation.
 
 The evidence-based policy matrix, proposed demo snapshot, and finance confirmation questions are documented in [Demo V2 policy inputs and assumptions](../docs/capex/demo-v2-policy-assumptions.md). Values marked unapproved must not be represented as final Circle K accounting policy.
 
