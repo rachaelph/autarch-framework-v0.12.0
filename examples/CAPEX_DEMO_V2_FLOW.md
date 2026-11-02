@@ -75,6 +75,15 @@ $env:AZURE_OPENAI_DEPLOYMENT = "gpt-5.1"
 
 The validator requires exactly one model call and 10 determinations. Lines 1-9 must resolve to governed task `0007` (`ENVIRONMENTAL`). Line 10 must remain deterministic `REVIEW` because it is a reimbursable expense with no approved task-allocation rule.
 
+Validate the approved JC target and companion accounting artifacts with:
+
+```powershell
+.\.venv314\Scripts\python.exe tools\validate_capex_demo_v2_jc.py `
+  --output examples\data\capex\results-v2\jc.task-reviews.json
+```
+
+The JC validator does not require a Foundry endpoint because GPT-5.1 must not be called. It verifies that the included `AI` rows use configured JC source codes that remain absent from the governed US TaskMaster, produces `REVIEW` for every included line without remapping it, retains the target `OV` row as excluded evidence, and retains the six companion `JP` accrual/reversal rows as excluded evidence. A newly supplied approved European mapping would require a separate policy and TaskMaster update rather than silent model inference.
+
 For direct model invocation, assign the least-privilege `Cognitive Services OpenAI User` role at the Foundry account scope to the developer identity and, later, the Container Apps Job managed identity. This role includes `Microsoft.CognitiveServices/accounts/OpenAI/responses/*`. A broader `Foundry User` assignment also provides model data access but is not required for this direct Responses API validation. If a model key is ever exposed, rotate it before further use.
 
 The evidence-based policy matrix, proposed demo snapshot, and finance confirmation questions are documented in [Demo V2 policy inputs and assumptions](../docs/capex/demo-v2-policy-assumptions.md). Values marked unapproved must not be represented as final Circle K accounting policy.

@@ -1,0 +1,318 @@
+{
+  "schemaVersion": "2.0-jc-task-validation",
+  "validationStatus": "PASSED",
+  "workflowRunId": "cict-236-jc-task-review-validation",
+  "taskMasterVersion": "2026-09-06",
+  "policyId": "circle-k-na-demo-unapproved-2026-10-30",
+  "promptVersion": "demo-v2-task-v1",
+  "modelCallCount": 0,
+  "projectCount": 2,
+  "packageCount": 8,
+  "lineCount": 8,
+  "reviewCount": 8,
+  "resolvedCount": 0,
+  "excludedRecordCount": 7,
+  "excludedTransactionCounts": {
+    "JP": 6,
+    "OV": 1
+  },
+  "validationIssues": [],
+  "target": {
+    "projectId": "JC2000A07814",
+    "sourceSha256": "bdb5a904f1d661a04ca24db2f365c9de4c06916579b0f250a519151a22227510",
+    "sourceCurrencies": [
+      "DKK",
+      "EUR"
+    ],
+    "reviewReasons": [
+      "Mixed source currencies cannot be aggregated without an approved conversion policy.",
+      "Excluded ledger transaction types require Circle K confirmation."
+    ],
+    "packages": [
+      {
+        "packageId": "pkg-8a841383-3ec4-5173-a24d-3c506eb63d24",
+        "invoiceId": "JC2000A07814:20294",
+        "invoiceNumber": "20294",
+        "currency": "EUR",
+        "sourceTaskCodes": [
+          "0303"
+        ],
+        "taskDeterminations": [
+          {
+            "schemaVersion": "2.0",
+            "workflowRunId": "cict-236-jc-task-review-validation",
+            "packageId": "pkg-8a841383-3ec4-5173-a24d-3c506eb63d24",
+            "invoiceId": "JC2000A07814:20294",
+            "lineId": "JC2000A07814:20294:17535596:1",
+            "resolutionStatus": "REVIEW",
+            "suggestedTaskCode": null,
+            "suggestedAssetClass": null,
+            "itemIdentified": null,
+            "matchMethod": "REVIEW",
+            "confidence": 0.0,
+            "unresolvedReason": "Source task code 0303 has no governed TaskMaster mapping.",
+            "rationale": "The supplied source task code is not present in the governed TaskMaster and was not remapped.",
+            "evidenceRefs": [
+              "line:JC2000A07814:20294:17535596:1"
+            ],
+            "taskMasterVersion": "2026-09-06",
+            "taskMasterSha256": "9fed0a705fce66b0fd7d57b15dc475a55cf429c9c5719a798fe6bd503177a4f1",
+            "modelDeployment": null,
+            "promptVersion": "demo-v2-task-v1",
+            "createdAtUtc": "2026-11-02T18:14:41.526861Z"
+          }
+        ]
+      }
+    ]
+  },
+  "companion": {
+    "projectId": "JC2000A07465",
+    "sourceSha256": "6cdb3b8cc42e0a252e4f2716feb4cfa94de7037f537d0b3ca4585092f7ae2e42",
+    "sourceCurrencies": [
+      "DKK"
+    ],
+    "reviewReasons": [
+      "Excluded ledger transaction types require Circle K confirmation."
+    ],
+    "packages": [
+      {
+        "packageId": "pkg-7bb8e391-96a8-5542-8c2e-2bd9e40c4c53",
+        "invoiceId": "JC2000A07465:2001653935",
+        "invoiceNumber": "2001653935",
+        "currency": "DKK",
+        "sourceTaskCodes": [
+          "0604"
+        ],
+        "taskDeterminations": [
+          {
+            "schemaVersion": "2.0",
+            "workflowRunId": "cict-236-jc-task-review-validation",
+            "packageId": "pkg-7bb8e391-96a8-5542-8c2e-2bd9e40c4c53",
+            "invoiceId": "JC2000A07465:2001653935",
+            "lineId": "JC2000A07465:2001653935:17370348:1",
+            "resolutionStatus": "REVIEW",
+            "suggestedTaskCode": null,
+            "suggestedAssetClass": null,
+            "itemIdentified": null,
+            "matchMethod": "REVIEW",
+            "confidence": 0.0,
+            "unresolvedReason": "Source task code 0604 has no governed TaskMaster mapping.",
+            "rationale": "The supplied source task code is not present in the governed TaskMaster and was not remapped.",
+            "evidenceRefs": [
+              "line:JC2000A07465:2001653935:17370348:1"
+            ],
+            "taskMasterVersion": "2026-09-06",
+            "taskMasterSha256": "9fed0a705fce66b0fd7d57b15dc475a55cf429c9c5719a798fe6bd503177a4f1",
+            "modelDeployment": null,
+            "promptVersion": "demo-v2-task-v1",
+            "createdAtUtc": "2026-11-02T18:14:41.535560Z"
+          }
+        ]
+      },
+      {
+        "packageId": "pkg-2da85ee2-e554-5780-81a8-342bd8f096fa",
+        "invoiceId": "JC2000A07465:2001653932",
+        "invoiceNumber": "2001653932",
+        "currency": "DKK",
+        "sourceTaskCodes": [
+          "0604"
+        ],
+        "taskDeterminations": [
+          {
+            "schemaVersion": "2.0",
+            "workflowRunId": "cict-236-jc-task-review-validation",
+            "packageId": "pkg-2da85ee2-e554-5780-81a8-342bd8f096fa",
+            "invoiceId": "JC2000A07465:2001653932",
+            "lineId": "JC2000A07465:2001653932:17370349:1",
+            "resolutionStatus": "REVIEW",
+            "suggestedTaskCode": null,
+            "suggestedAssetClass": null,
+            "itemIdentified": null,
+            "matchMethod": "REVIEW",
+            "confidence": 0.0,
+            "unresolvedReason": "Source task code 0604 has no governed TaskMaster mapping.",
+            "rationale": "The supplied source task code is not present in the governed TaskMaster and was not remapped.",
+            "evidenceRefs": [
+              "line:JC2000A07465:2001653932:17370349:1"
+            ],
+            "taskMasterVersion": "2026-09-06",
+            "taskMasterSha256": "9fed0a705fce66b0fd7d57b15dc475a55cf429c9c5719a798fe6bd503177a4f1",
+            "modelDeployment": null,
+            "promptVersion": "demo-v2-task-v1",
+            "createdAtUtc": "2026-11-02T18:14:41.544723Z"
+          }
+        ]
+      },
+      {
+        "packageId": "pkg-d7eb44af-009a-5e03-af9d-62022d95ecda",
+        "invoiceId": "JC2000A07465:304430",
+        "invoiceNumber": "304430",
+        "currency": "DKK",
+        "sourceTaskCodes": [
+          "3307"
+        ],
+        "taskDeterminations": [
+          {
+            "schemaVersion": "2.0",
+            "workflowRunId": "cict-236-jc-task-review-validation",
+            "packageId": "pkg-d7eb44af-009a-5e03-af9d-62022d95ecda",
+            "invoiceId": "JC2000A07465:304430",
+            "lineId": "JC2000A07465:304430:17372509:1",
+            "resolutionStatus": "REVIEW",
+            "suggestedTaskCode": null,
+            "suggestedAssetClass": null,
+            "itemIdentified": null,
+            "matchMethod": "REVIEW",
+            "confidence": 0.0,
+            "unresolvedReason": "Source task code 3307 has no governed TaskMaster mapping.",
+            "rationale": "The supplied source task code is not present in the governed TaskMaster and was not remapped.",
+            "evidenceRefs": [
+              "line:JC2000A07465:304430:17372509:1"
+            ],
+            "taskMasterVersion": "2026-09-06",
+            "taskMasterSha256": "9fed0a705fce66b0fd7d57b15dc475a55cf429c9c5719a798fe6bd503177a4f1",
+            "modelDeployment": null,
+            "promptVersion": "demo-v2-task-v1",
+            "createdAtUtc": "2026-11-02T18:14:41.552976Z"
+          }
+        ]
+      },
+      {
+        "packageId": "pkg-fe70e7e3-41c1-54be-8e29-1ff66fcc3050",
+        "invoiceId": "JC2000A07465:5063",
+        "invoiceNumber": "5063",
+        "currency": "DKK",
+        "sourceTaskCodes": [
+          "1201"
+        ],
+        "taskDeterminations": [
+          {
+            "schemaVersion": "2.0",
+            "workflowRunId": "cict-236-jc-task-review-validation",
+            "packageId": "pkg-fe70e7e3-41c1-54be-8e29-1ff66fcc3050",
+            "invoiceId": "JC2000A07465:5063",
+            "lineId": "JC2000A07465:5063:17382777:1",
+            "resolutionStatus": "REVIEW",
+            "suggestedTaskCode": null,
+            "suggestedAssetClass": null,
+            "itemIdentified": null,
+            "matchMethod": "REVIEW",
+            "confidence": 0.0,
+            "unresolvedReason": "Source task code 1201 has no governed TaskMaster mapping.",
+            "rationale": "The supplied source task code is not present in the governed TaskMaster and was not remapped.",
+            "evidenceRefs": [
+              "line:JC2000A07465:5063:17382777:1"
+            ],
+            "taskMasterVersion": "2026-09-06",
+            "taskMasterSha256": "9fed0a705fce66b0fd7d57b15dc475a55cf429c9c5719a798fe6bd503177a4f1",
+            "modelDeployment": null,
+            "promptVersion": "demo-v2-task-v1",
+            "createdAtUtc": "2026-11-02T18:14:41.566631Z"
+          }
+        ]
+      },
+      {
+        "packageId": "pkg-d3e410f3-7c4d-5a85-b13b-1cdbac0e5ec0",
+        "invoiceId": "JC2000A07465:2001665940",
+        "invoiceNumber": "2001665940",
+        "currency": "DKK",
+        "sourceTaskCodes": [
+          "0601"
+        ],
+        "taskDeterminations": [
+          {
+            "schemaVersion": "2.0",
+            "workflowRunId": "cict-236-jc-task-review-validation",
+            "packageId": "pkg-d3e410f3-7c4d-5a85-b13b-1cdbac0e5ec0",
+            "invoiceId": "JC2000A07465:2001665940",
+            "lineId": "JC2000A07465:2001665940:17387966:1",
+            "resolutionStatus": "REVIEW",
+            "suggestedTaskCode": null,
+            "suggestedAssetClass": null,
+            "itemIdentified": null,
+            "matchMethod": "REVIEW",
+            "confidence": 0.0,
+            "unresolvedReason": "Source task code 0601 has no governed TaskMaster mapping.",
+            "rationale": "The supplied source task code is not present in the governed TaskMaster and was not remapped.",
+            "evidenceRefs": [
+              "line:JC2000A07465:2001665940:17387966:1"
+            ],
+            "taskMasterVersion": "2026-09-06",
+            "taskMasterSha256": "9fed0a705fce66b0fd7d57b15dc475a55cf429c9c5719a798fe6bd503177a4f1",
+            "modelDeployment": null,
+            "promptVersion": "demo-v2-task-v1",
+            "createdAtUtc": "2026-11-02T18:14:41.574450Z"
+          }
+        ]
+      },
+      {
+        "packageId": "pkg-27f46904-a672-51d1-bf0e-6f604997ee94",
+        "invoiceId": "JC2000A07465:2001069567",
+        "invoiceNumber": "2001069567",
+        "currency": "DKK",
+        "sourceTaskCodes": [
+          "0601"
+        ],
+        "taskDeterminations": [
+          {
+            "schemaVersion": "2.0",
+            "workflowRunId": "cict-236-jc-task-review-validation",
+            "packageId": "pkg-27f46904-a672-51d1-bf0e-6f604997ee94",
+            "invoiceId": "JC2000A07465:2001069567",
+            "lineId": "JC2000A07465:2001069567:17400609:1",
+            "resolutionStatus": "REVIEW",
+            "suggestedTaskCode": null,
+            "suggestedAssetClass": null,
+            "itemIdentified": null,
+            "matchMethod": "REVIEW",
+            "confidence": 0.0,
+            "unresolvedReason": "Source task code 0601 has no governed TaskMaster mapping.",
+            "rationale": "The supplied source task code is not present in the governed TaskMaster and was not remapped.",
+            "evidenceRefs": [
+              "line:JC2000A07465:2001069567:17400609:1"
+            ],
+            "taskMasterVersion": "2026-09-06",
+            "taskMasterSha256": "9fed0a705fce66b0fd7d57b15dc475a55cf429c9c5719a798fe6bd503177a4f1",
+            "modelDeployment": null,
+            "promptVersion": "demo-v2-task-v1",
+            "createdAtUtc": "2026-11-02T18:14:41.582019Z"
+          }
+        ]
+      },
+      {
+        "packageId": "pkg-f9ffc53c-c8c4-5247-b2a6-5074006d4bc7",
+        "invoiceId": "JC2000A07465:2001704723",
+        "invoiceNumber": "2001704723",
+        "currency": "DKK",
+        "sourceTaskCodes": [
+          "0601"
+        ],
+        "taskDeterminations": [
+          {
+            "schemaVersion": "2.0",
+            "workflowRunId": "cict-236-jc-task-review-validation",
+            "packageId": "pkg-f9ffc53c-c8c4-5247-b2a6-5074006d4bc7",
+            "invoiceId": "JC2000A07465:2001704723",
+            "lineId": "JC2000A07465:2001704723:17429385:1",
+            "resolutionStatus": "REVIEW",
+            "suggestedTaskCode": null,
+            "suggestedAssetClass": null,
+            "itemIdentified": null,
+            "matchMethod": "REVIEW",
+            "confidence": 0.0,
+            "unresolvedReason": "Source task code 0601 has no governed TaskMaster mapping.",
+            "rationale": "The supplied source task code is not present in the governed TaskMaster and was not remapped.",
+            "evidenceRefs": [
+              "line:JC2000A07465:2001704723:17429385:1"
+            ],
+            "taskMasterVersion": "2026-09-06",
+            "taskMasterSha256": "9fed0a705fce66b0fd7d57b15dc475a55cf429c9c5719a798fe6bd503177a4f1",
+            "modelDeployment": null,
+            "promptVersion": "demo-v2-task-v1",
+            "createdAtUtc": "2026-11-02T18:14:41.589422Z"
+          }
+        ]
+      }
+    ]
+  }
+}
