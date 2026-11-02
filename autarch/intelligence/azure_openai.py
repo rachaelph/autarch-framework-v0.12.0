@@ -9,7 +9,8 @@ kernel.
 Configuration is read from the environment (never hard-code secrets):
 
     AZURE_OPENAI_ENDPOINT      e.g. https://my-resource.openai.azure.com
-    AZURE_OPENAI_API_KEY       the resource key (kept out of code and logs)
+    AZURE_OPENAI_API_KEY       optional resource key (kept out of code and logs);
+                               managed identity is used when omitted
     AZURE_OPENAI_DEPLOYMENT    your *deployment* name (what you named the model
                                when you deployed it — NOT the base model name)
     AZURE_OPENAI_API_VERSION   optional; defaults to a recent GA version. Newer
@@ -27,10 +28,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
-from typing import Optional
+from typing import Callable, Dict, Optional
 
 from ..errors import ModelError, ModelUnavailable, RateLimited
 from .base import ModelProvider
@@ -38,6 +40,11 @@ from .base import ModelProvider
 # A recent GA api-version. Override via AZURE_OPENAI_API_VERSION for models that
 # require a newer (often preview) version — the newest GPT models frequently do.
 _DEFAULT_API_VERSION = "2024-10-21"
+_AZURE_OPENAI_SCOPE = "https://cognitiveservices.azure.com/.default"
+_RESPONSES_PATH = "/openai/v1/responses"
+_EMAIL = re.compile(
+    r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"
+)
 
 
 class AzureOpenAIProvider(ModelProvider):
@@ -51,10 +58,16 @@ class AzureOpenAIProvider(ModelProvider):
         json_mode: bool = True,
         temperature: Optional[float] = None,
         max_completion_tokens: Optional[int] = None,
+        token_provider: Optional[Callable[[], str]] = None,
+        managed_identity_client_id: Optional[str] = None,
     ):
         # Fall back to environment configuration for anything not passed in.
         self.deployment = deployment or os.environ.get("AZURE_OPENAI_DEPLOYMENT", "")
         self.endpoint = (endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT", "")).rstrip("/")
+        self._uses_responses_api = (
+            self.endpoint.endswith(_RESPONSES_PATH)
+            or self.endpoint.endswith("/openai/v1")
+        )
         self._api_key = api_key or os.environ.get("AZURE_OPENAI_API_KEY", "")
         self.api_version = (
             api_version or os.environ.get("AZURE_OPENAI_API_VERSION") or _DEFAULT_API_VERSION
@@ -66,8 +79,19 @@ class AzureOpenAIProvider(ModelProvider):
         # temperature and reject an explicit one. Set it only when you need to.
         self._temperature = temperature
         self._max_completion_tokens = max_completion_tokens
+        self._token_provider = token_provider
+        self._managed_identity_client_id = (
+            managed_identity_client_id
+            or os.environ.get("AZURE_CLIENT_ID")
+            or None
+        )
+        self._credential = None
 
     def _url(self) -> str:
+        if self._uses_responses_api:
+            if self.endpoint.endswith(_RESPONSES_PATH):
+                return self.endpoint
+            return self.endpoint + "/responses"
         return (
             f"{self.endpoint}/openai/deployments/{self.deployment}"
             f"/chat/completions?api-version={self.api_version}"
@@ -97,13 +121,41 @@ class AzureOpenAIProvider(ModelProvider):
         json_mode = self._json_mode and "json" in (prompt or "").lower()
         return self._chat(messages, json_mode=json_mode, est_prompt=prompt, est_system=system or "")
 
+    def _authentication_headers(self) -> Dict[str, str]:
+        if self._api_key:
+            return {"api-key": self._api_key}
+        if self._token_provider is None:
+            try:
+                from azure.identity import (
+                    DefaultAzureCredential,
+                    ManagedIdentityCredential,
+                    get_bearer_token_provider,
+                )
+            except ImportError as exc:
+                raise ModelError(
+                    "Azure OpenAI managed-identity authentication requires "
+                    "the optional 'azure-identity' package.",
+                    context={"deployment": self.deployment},
+                ) from exc
+
+            if self._managed_identity_client_id:
+                self._credential = ManagedIdentityCredential(
+                    client_id=self._managed_identity_client_id
+                )
+            else:
+                self._credential = DefaultAzureCredential()
+            self._token_provider = get_bearer_token_provider(
+                self._credential,
+                _AZURE_OPENAI_SCOPE,
+            )
+        return {"Authorization": f"Bearer {self._token_provider()}"}
+
     def _chat(self, messages, *, json_mode: bool, est_prompt: str, est_system: str) -> str:
         # Fail fast with an actionable, typed error if misconfigured.
         missing = [
             name
             for name, value in (
                 ("AZURE_OPENAI_ENDPOINT", self.endpoint),
-                ("AZURE_OPENAI_API_KEY", self._api_key),
                 ("AZURE_OPENAI_DEPLOYMENT", self.deployment),
             )
             if not value
@@ -114,35 +166,62 @@ class AzureOpenAIProvider(ModelProvider):
                 context={"missing": missing},
             )
 
-        body: dict = {"messages": messages}
-        if json_mode:
-            # Constrain the model to emit a single valid JSON object (the caller's
-            # prompt must mention JSON, which the extractor's does).
-            body["response_format"] = {"type": "json_object"}
+        if self._uses_responses_api:
+            body = {
+                "model": self.deployment,
+                "input": messages,
+            }
+            if json_mode:
+                body["text"] = {"format": {"type": "json_object"}}
+        else:
+            body = {"messages": messages}
+            if json_mode:
+                # Constrain the model to emit a single valid JSON object (the caller's
+                # prompt must mention JSON, which the extractor's does).
+                body["response_format"] = {"type": "json_object"}
         if self._temperature is not None:
             body["temperature"] = self._temperature
         if self._max_completion_tokens is not None:
-            body["max_completion_tokens"] = self._max_completion_tokens
+            if self._uses_responses_api:
+                body["max_output_tokens"] = self._max_completion_tokens
+            else:
+                body["max_completion_tokens"] = self._max_completion_tokens
 
         data = json.dumps(body).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        headers.update(self._authentication_headers())
         request = urllib.request.Request(
             self._url(),
             data=data,
-            headers={"Content-Type": "application/json", "api-key": self._api_key},
+            headers=headers,
         )
         _t0 = time.time()
         try:
             with urllib.request.urlopen(request, timeout=self._timeout) as response:
                 payload = json.loads(response.read().decode("utf-8"))
                 _t1 = time.time()
-                choices = payload.get("choices") or []
-                content = choices[0].get("message", {}).get("content", "") if choices else ""
+                if self._uses_responses_api:
+                    content = ""
+                    for output in payload.get("output") or []:
+                        if output.get("type") != "message":
+                            continue
+                        for item in output.get("content") or []:
+                            if item.get("type") == "output_text":
+                                content += item.get("text", "")
+                else:
+                    choices = payload.get("choices") or []
+                    content = choices[0].get("message", {}).get("content", "") if choices else ""
                 try:  # record token usage (real from the API, else estimated) — never break the call
                     from .usage import record_usage
                     from .pricing import estimate_tokens
 
                     usage = payload.get("usage") or {}
-                    pt, ct = usage.get("prompt_tokens"), usage.get("completion_tokens")
+                    if self._uses_responses_api:
+                        pt = usage.get("input_tokens")
+                        ct = usage.get("output_tokens")
+                    else:
+                        pt = usage.get("prompt_tokens")
+                        ct = usage.get("completion_tokens")
                     if pt is None and ct is None:
                         record_usage(self.deployment, estimate_tokens((est_system or "") + (est_prompt or "")),
                                      estimate_tokens(content or ""), estimated=True, source="azure", started=_t0, ended=_t1)
@@ -157,6 +236,7 @@ class AzureOpenAIProvider(ModelProvider):
             detail = ""
             try:
                 detail = exc.read().decode("utf-8", errors="replace")[:500]
+                detail = _EMAIL.sub("[redacted-principal]", detail)
             except Exception:
                 detail = ""
             if exc.code == 429:

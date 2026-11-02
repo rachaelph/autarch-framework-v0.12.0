@@ -11,6 +11,23 @@ from typing import Dict, List, Literal, Mapping, Optional, Sequence, Set
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
+_RETRIEVAL_STOP_WORDS = {
+    "back",
+    "black",
+    "clear",
+    "color",
+    "degree",
+    "depth",
+    "front",
+    "height",
+    "length",
+    "line",
+    "non",
+    "red",
+    "width",
+}
+
+
 def _to_camel(value: str) -> str:
     first, *rest = value.split("_")
     return first + "".join(part.capitalize() for part in rest)
@@ -484,7 +501,15 @@ def rank_task_candidates(
     """Return deterministic token-overlap candidates from governed tasks."""
     if limit < 1:
         raise ValueError("limit must be at least 1")
-    query_tokens = set(_search_text((query,)).split())
+    query_tokens = {
+        token
+        for token in _search_text((query,)).split()
+        if (
+            len(token) > 1
+            and not token.isdigit()
+            and token not in _RETRIEVAL_STOP_WORDS
+        )
+    }
     if not query_tokens:
         return []
 

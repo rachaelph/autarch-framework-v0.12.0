@@ -111,6 +111,34 @@ def test_candidate_retrieval_rejects_invalid_limit() -> None:
         rank_task_candidates("equipment", snapshot, limit=0)
 
 
+def test_candidate_retrieval_ignores_numeric_dimensions() -> None:
+    snapshot = load_task_master_snapshot(
+        REFERENCE_DIR / "task-master-us-v2.json"
+    )
+
+    candidates = rank_task_candidates(
+        'Infostrip 10PK length 27" 685.8mm',
+        snapshot,
+        limit=10,
+    )
+
+    assert candidates == []
+
+
+def test_candidate_retrieval_ignores_generic_product_attributes() -> None:
+    snapshot = load_task_master_snapshot(
+        REFERENCE_DIR / "task-master-us-v2.json"
+    )
+
+    candidates = rank_task_candidates(
+        "Non-Anodized black front retainer depth width color",
+        snapshot,
+        limit=10,
+    )
+
+    assert candidates == []
+
+
 def test_jc_source_codes_are_not_synthesized_into_us_task_master() -> None:
     snapshot = load_task_master_snapshot(
         REFERENCE_DIR / "task-master-us-v2.json"

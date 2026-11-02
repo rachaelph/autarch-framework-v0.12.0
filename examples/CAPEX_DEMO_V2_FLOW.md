@@ -12,7 +12,7 @@ The workflow reuses Azure Blob Storage, Azure SQL, managed identity, and existin
 2. The job loads each referenced Demo V2 normalized package from Blob Storage and verifies its package ID, invoice ID, and source hash when expected values were supplied.
 3. The job loads the governed TaskMaster snapshot for the requested region.
 4. Deterministic token-overlap retrieval selects a small governed candidate set. Task determination first uses exact governed lookup; LangChain/GPT-5.1 is used only when a deterministic match is unavailable.
-5. Every proposed task code is validated against the loaded TaskMaster before a `TaskDetermination` can be persisted.
+5. Candidate-backed unresolved lines from the same invoice are sent in one structured LangChain call. Every returned line and task code is validated against both the request and loaded TaskMaster before a `TaskDetermination` can be persisted.
 6. Deterministic code applies nature-of-spend, never-capitalize, repair/maintenance, threshold, and missing-context rules to produce a `CapitalizationAssessment`.
 7. Eligible lines are grouped using the approved task code, site, project, and currency. Missing required grouping context produces `REVIEW`; the workflow does not invent values.
 8. Task determinations, assessments, and bundle candidates are persisted transactionally by workflow run.
@@ -45,6 +45,25 @@ Regenerate them with:
 
 The generator verifies the original workbook SHA-256 before producing output. GPT-5.1 may receive only candidates from this governed snapshot, and every returned code must still pass membership validation.
 
+The CICT-233 task-suggestion implementation is in `autarch.capex.demo_v2_task_suggestion`. Its production builder wraps the Autarch Azure OpenAI provider in a LangChain structured-output pipeline. Azure OpenAI uses an API key only when one is explicitly configured; otherwise the provider acquires a Microsoft Entra token through `azure-identity`, using `AZURE_CLIENT_ID` for a user-assigned managed identity when supplied. The active deployment name remains `gpt-5.1`.
+
+The task stage makes no model call when a governed source task code or unique exact task description is available. An unknown supplied source task code, including the supplied JC code `0303`, is returned as `REVIEW` without asking GPT-5.1 to invent a mapping. If any remaining line has governed retrieval candidates, all such lines for that invoice are sent in one model call.
+
+Candidate retrieval ignores numeric-only tokens so dimensions such as `10`, `20`, and `886` do not match unrelated numeric task-code fragments. Line-level candidates are supplemented with bounded invoice-level candidates, which gives proprietary product descriptions such as Bruegmann `FlexRoller` access to the governed shelving candidates found elsewhere on the same invoice.
+
+Validate the approved Bruegmann package with:
+
+```powershell
+$env:AZURE_OPENAI_ENDPOINT = "<Foundry OpenAI v1 Responses endpoint>"
+$env:AZURE_OPENAI_DEPLOYMENT = "gpt-5.1"
+.\.venv314\Scripts\python.exe tools\validate_capex_demo_v2_bruegmann.py `
+  --output examples\data\capex\results-v2\bruegmann.task-suggestions.json
+```
+
+The validator requires exactly one model call and 12 determinations. It keeps shipping in `REVIEW` because the governed TaskMaster has no shipping/freight task and flags any resolved Bruegmann product line whose governed task is not shelving-related. Authentication uses an explicitly configured API key only when present; otherwise it uses Microsoft Entra authentication. Do not place model keys in source files, command arguments, screenshots, or committed configuration.
+
+For direct model invocation, assign the least-privilege `Cognitive Services OpenAI User` role at the Foundry account scope to the developer identity and, later, the Container Apps Job managed identity. This role includes `Microsoft.CognitiveServices/accounts/OpenAI/responses/*`. A broader `Foundry User` assignment also provides model data access but is not required for this direct Responses API validation. If a model key is ever exposed, rotate it before further use.
+
 The evidence-based policy matrix, proposed demo snapshot, and finance confirmation questions are documented in [Demo V2 policy inputs and assumptions](../docs/capex/demo-v2-policy-assumptions.md). Values marked unapproved must not be represented as final Circle K accounting policy.
 
 ## AI and deterministic boundaries
@@ -54,11 +73,13 @@ The evidence-based policy matrix, proposed demo snapshot, and finance confirmati
 - Interpret ambiguous invoice-line descriptions.
 - Select a candidate only from the supplied governed TaskMaster records.
 - Return task rationale and evidence references.
+- Return exactly one structured result for each requested unresolved line.
 
 ### Deterministic responsibility
 
 - Exact part/task lookup before model invocation.
 - TaskMaster membership validation.
+- Candidate-set, line-completeness, duplicate-line, and evidence-reference validation.
 - OpEx-by-nature and never-capitalize rules.
 - Repair and maintenance handling.
 - Capitalization threshold comparison.
