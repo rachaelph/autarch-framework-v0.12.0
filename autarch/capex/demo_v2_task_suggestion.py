@@ -41,6 +41,7 @@ _ANCILLARY_REVIEW_DESCRIPTIONS = {
     "shipping",
     "shipping charge",
 }
+_ANCILLARY_REVIEW_TERMS = {"reimbursable"}
 
 _SYSTEM_PROMPT = """\
 You determine governed TaskMaster task codes for invoice lines.
@@ -243,6 +244,14 @@ def _normalized_text(value: str) -> str:
         " ",
         _NON_WORD.sub(" ", value.strip().lower()),
     ).strip()
+
+
+def _is_ancillary_review_line(description: str) -> bool:
+    normalized = _normalized_text(description)
+    return (
+        normalized in _ANCILLARY_REVIEW_DESCRIPTIONS
+        or bool(set(normalized.split()) & _ANCILLARY_REVIEW_TERMS)
+    )
 
 
 def _task_snapshot_sha256(snapshot: TaskMasterSnapshot) -> str:
@@ -534,9 +543,13 @@ def suggest_tasks_for_invoice(
             )
             continue
 
-        if _normalized_text(line.description) in (
-            _ANCILLARY_REVIEW_DESCRIPTIONS
-        ):
+        if _is_ancillary_review_line(line.description):
+            normalized_description = _normalized_text(line.description)
+            ancillary_type = (
+                "reimbursable expense"
+                if "reimbursable" in normalized_description.split()
+                else "shipping or freight"
+            )
             determinations[line.line_id] = _determination(
                 package=package,
                 line=line,
@@ -549,12 +562,12 @@ def suggest_tasks_for_invoice(
                 match_method=TaskMatchMethod.REVIEW,
                 confidence=0.0,
                 rationale=(
-                    "Ancillary shipping or freight cannot be assigned to "
-                    "a product task without an approved allocation rule."
+                    f"Ancillary {ancillary_type} cannot be assigned to a "
+                    "task without an approved allocation rule."
                 ),
                 evidence_refs=[f"line:{line.line_id}"],
                 unresolved_reason=(
-                    "No governed standalone shipping or freight task is "
+                    f"No governed standalone {ancillary_type} task is "
                     "available."
                 ),
             )

@@ -326,6 +326,33 @@ def test_shipping_is_reviewed_without_being_sent_to_gpt() -> None:
     assert "shipping" in (results[1].unresolved_reason or "").lower()
 
 
+def test_reimbursable_expense_is_reviewed_without_being_sent_to_gpt() -> None:
+    provider = RecordingProvider(
+        _model_response(
+            [_resolved("line-1", "0007", "Environmental assessment")]
+        )
+    )
+
+    results = suggest_tasks_for_invoice(
+        _package(
+            [
+                _line("line-1", "Environmental assessment"),
+                _line("line-2", "Line 10 level reimbursable expenses"),
+            ]
+        ),
+        _snapshot(),
+        workflow_run_id="workflow-1",
+        model=LangChainTaskSuggestionModel(provider),
+        created_at_utc=NOW,
+    )
+
+    assert len(provider.calls) == 1
+    assert "line-2" not in provider.calls[0][0]
+    assert results[1].resolution_status == TaskResolutionStatus.REVIEW
+    assert results[1].suggested_task_code is None
+    assert "reimbursable" in (results[1].unresolved_reason or "").lower()
+
+
 def test_langchain_can_return_explicit_review() -> None:
     response = {
         "lineId": "line-1",

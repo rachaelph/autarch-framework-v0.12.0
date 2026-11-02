@@ -139,6 +139,31 @@ def test_candidate_retrieval_ignores_generic_product_attributes() -> None:
     assert candidates == []
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "AIR QUALITY & GREENHOUSE GAS EMISSIONS ASSESSMENT",
+        "BIOLOGICAL RESOURCES ASSESSMENT",
+        "CUTLURAL RESOURCES ASSESSMENT",
+        "HEALTH RISK ASSESSMENT",
+        "NOISE & VIBRATION",
+        "WESTERN JOSHUA TREE PROJECT SITE CENSUS",
+        "WESTERN JOSHUA TREE CONSERVATION ACT INCIDENTAL",
+        "ENVRIONMENTAL PROJECT MGMT, MEETINGS, HEARINGS",
+    ],
+)
+def test_environmental_specialties_retrieve_governed_task(
+    query: str,
+) -> None:
+    snapshot = load_task_master_snapshot(
+        REFERENCE_DIR / "task-master-us-v2.json"
+    )
+
+    candidates = rank_task_candidates(query, snapshot, limit=10)
+
+    assert candidates[0].task_code == "0007"
+
+
 def test_jc_source_codes_are_not_synthesized_into_us_task_master() -> None:
     snapshot = load_task_master_snapshot(
         REFERENCE_DIR / "task-master-us-v2.json"

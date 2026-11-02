@@ -26,6 +26,22 @@ _RETRIEVAL_STOP_WORDS = {
     "red",
     "width",
 }
+_ENVIRONMENTAL_RETRIEVAL_MARKERS = {
+    "air quality",
+    "biological",
+    "conservation",
+    "cultural",
+    "cutlural",
+    "emissions",
+    "environment",
+    "environmental",
+    "envrionmental",
+    "greenhouse gas",
+    "health risk",
+    "joshua tree",
+    "noise",
+    "vibration",
+}
 
 
 def _to_camel(value: str) -> str:
@@ -501,15 +517,22 @@ def rank_task_candidates(
     """Return deterministic token-overlap candidates from governed tasks."""
     if limit < 1:
         raise ValueError("limit must be at least 1")
+    normalized_query = _search_text((query,))
     query_tokens = {
         token
-        for token in _search_text((query,)).split()
+        for token in normalized_query.split()
         if (
             len(token) > 1
             and not token.isdigit()
             and token not in _RETRIEVAL_STOP_WORDS
         )
     }
+    environmental_context = any(
+        marker in normalized_query
+        for marker in _ENVIRONMENTAL_RETRIEVAL_MARKERS
+    )
+    if environmental_context:
+        query_tokens.add("environmental")
     if not query_tokens:
         return []
 
@@ -519,8 +542,13 @@ def rank_task_candidates(
         overlap = query_tokens & search_tokens
         if not overlap:
             continue
+        semantic_bonus = (
+            2
+            if environmental_context and "environmental" in search_tokens
+            else 0
+        )
         score = (
-            len(overlap),
+            len(overlap) + semantic_bonus,
             len(overlap) / len(query_tokens),
             -len(search_tokens),
         )

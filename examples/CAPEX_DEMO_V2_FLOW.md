@@ -51,6 +51,8 @@ The task stage makes no model call when a governed source task code or unique ex
 
 Candidate retrieval ignores numeric-only tokens so dimensions such as `10`, `20`, and `886` do not match unrelated numeric task-code fragments. Line-level candidates are supplemented with bounded invoice-level candidates, which gives proprietary product descriptions such as Bruegmann `FlexRoller` access to the governed shelving candidates found elsewhere on the same invoice.
 
+Environmental specialty descriptions are normalized to the governed `0007` `ENVIRONMENTAL` candidate when they contain bounded domain markers such as air-quality emissions, biological or cultural resources, health risk, noise and vibration, Joshua-tree conservation, or common source misspellings. Reimbursable expenses are held in deterministic `REVIEW` because TaskMaster has no standalone reimbursable-expense task and no approved allocation rule maps them to a project task.
+
 Validate the approved Bruegmann package with:
 
 ```powershell
@@ -61,6 +63,17 @@ $env:AZURE_OPENAI_DEPLOYMENT = "gpt-5.1"
 ```
 
 The validator requires exactly one model call and 12 determinations. It keeps shipping in `REVIEW` because the governed TaskMaster has no shipping/freight task and flags any resolved Bruegmann product line whose governed task is not shelving-related. Authentication uses an explicitly configured API key only when present; otherwise it uses Microsoft Entra authentication. Do not place model keys in source files, command arguments, screenshots, or committed configuration.
+
+Validate the approved Kimley-Horn package with:
+
+```powershell
+$env:AZURE_OPENAI_ENDPOINT = "<Foundry OpenAI v1 Responses endpoint>"
+$env:AZURE_OPENAI_DEPLOYMENT = "gpt-5.1"
+.\.venv314\Scripts\python.exe tools\validate_capex_demo_v2_kimley_horn.py `
+  --output examples\data\capex\results-v2\kimley-horn.task-suggestions.json
+```
+
+The validator requires exactly one model call and 10 determinations. Lines 1-9 must resolve to governed task `0007` (`ENVIRONMENTAL`). Line 10 must remain deterministic `REVIEW` because it is a reimbursable expense with no approved task-allocation rule.
 
 For direct model invocation, assign the least-privilege `Cognitive Services OpenAI User` role at the Foundry account scope to the developer identity and, later, the Container Apps Job managed identity. This role includes `Microsoft.CognitiveServices/accounts/OpenAI/responses/*`. A broader `Foundry User` assignment also provides model data access but is not required for this direct Responses API validation. If a model key is ever exposed, rotate it before further use.
 
