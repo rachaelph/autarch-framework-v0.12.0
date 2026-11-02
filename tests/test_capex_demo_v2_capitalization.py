@@ -387,6 +387,53 @@ def test_current_unapproved_policy_returns_review_with_partial_threshold() -> No
     )
 
 
+def test_synthetic_rule_set_requires_explicit_opt_in() -> None:
+    synthetic_rule = CAPITAL_RULE.model_copy(
+        update={"assumption_refs": ["SYN-CAP-TEST"]}
+    )
+    synthetic_rules = CapitalizationRuleSet(
+        rule_set_id="synthetic-test-rules",
+        approved=False,
+        synthetic=True,
+        assumption_refs=["SYN-CAP-RULESET-TEST"],
+        rules=[synthetic_rule],
+    )
+    package = _package([_line("line-1", "Equipment", unit_cost=1500.0)])
+
+    safe_result = assess_capitalization_for_invoice(
+        package,
+        [_task("line-1")],
+        build_demo_policy_snapshot(),
+        workflow_run_id="workflow-1",
+        rule_set=synthetic_rules,
+        created_at_utc=NOW,
+    )[0]
+    synthetic_result = assess_capitalization_for_invoice(
+        package,
+        [_task("line-1")],
+        build_demo_policy_snapshot(),
+        workflow_run_id="workflow-1",
+        rule_set=synthetic_rules,
+        created_at_utc=NOW,
+        allow_synthetic=True,
+        synthetic_setting_ids=[
+            "threshold-equality",
+            "threshold-basis",
+        ],
+    )[0]
+
+    assert safe_result.recommendation == CapitalizationRecommendation.REVIEW
+    assert synthetic_result.recommendation == (
+        CapitalizationRecommendation.CAPEX
+    )
+    assert "synthetic:SYN-CAP-TEST" in (
+        synthetic_result.policy_citations
+    )
+    assert "synthetic-setting:threshold-basis" in (
+        synthetic_result.policy_citations
+    )
+
+
 def test_unconfirmed_threshold_policy_retains_comparison_for_review() -> None:
     policy = _approved_policy()
     payload = policy.model_dump(mode="json", by_alias=True)

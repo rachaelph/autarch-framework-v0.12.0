@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "2.0-synthetic-input-register",
+  "registerId": "capex-demo-v2-synthetic-inputs-2026-11-02",
+  "status": "DEMO_ONLY_AWAITING_CIRCLE_K_CONFIRMATION",
+  "scope": "CapEx Demo V2 only",
+  "usageConstraints": [
+    "Never represent these values as approved Circle K policy or source data.",
+    "Keep source-normalized artifacts unchanged.",
+    "Persist synthetic outputs separately from governed current-policy outputs.",
+    "Replace each assumption when Circle K supplies an approved value."
+  ],
+  "syntheticSettingIds": [
+    "threshold-equality",
+    "threshold-basis",
+    "below-threshold-exception"
+  ],
+  "syntheticInputs": [
+    {
+      "assumptionId": "SYN-CAP-RULESET-001",
+      "category": "RULE_SET",
+      "value": "Use the separate synthetic nature-rule set for demo execution.",
+      "affectedRecords": [
+        "Bruegmann task-resolved lines",
+        "Kimley-Horn task-resolved lines"
+      ],
+      "rationale": "An approved Circle K operational nature-rule library has not been supplied.",
+      "circleKQuestion": "Please provide the approved CapEx-by-nature, OpEx-by-nature, never-capitalize, and repair/maintenance rule library with task/category mappings, priority, scope, effective dates, and policy citations.",
+      "replacementData": "Approved versioned operational nature-rule file",
+      "status": "AWAITING_CIRCLE_K"
+    },
+    {
+      "assumptionId": "SYN-CAP-001",
+      "category": "NATURE_RULE",
+      "value": "Task 5225 WIRE SHELVING is CAPITALIZABLE by nature.",
+      "affectedRecords": [
+        "Bruegmann lines resolved to task 5225"
+      ],
+      "rationale": "Needed to demonstrate below-threshold equipment and future bundling behavior.",
+      "circleKQuestion": "Is TaskMaster task 5225 WIRE SHELVING capitalizable by nature, and are there exclusions for replacement, repair, consumables, shipping, or merchandising components?",
+      "replacementData": "Approved task 5225 nature classification and exceptions",
+      "status": "AWAITING_CIRCLE_K"
+    },
+    {
+      "assumptionId": "SYN-CAP-002",
+      "category": "NATURE_RULE",
+      "value": "Task 0007 ENVIRONMENTAL is CAPITALIZABLE by nature.",
+      "affectedRecords": [
+        "Kimley-Horn lines 1-9"
+      ],
+      "rationale": "Needed to demonstrate professional-fee capitalization behavior.",
+      "circleKQuestion": "When are TaskMaster task 0007 ENVIRONMENTAL professional fees capitalizable versus expensed, and what project/asset linkage evidence is required?",
+      "replacementData": "Approved task 0007 nature classification and directly-attributable-cost criteria",
+      "status": "AWAITING_CIRCLE_K"
+    },
+    {
+      "assumptionId": "SYN-CAP-003",
+      "category": "THRESHOLD",
+      "value": "Unit cost greater than or equal to 1,000 USD meets the base threshold.",
+      "affectedRecords": [
+        "All North America synthetic capitalization assessments"
+      ],
+      "rationale": "The reporting manual says less than 1,000 USD is expense, but equality still requires confirmation.",
+      "circleKQuestion": "Does exactly 1,000 USD meet the capitalization threshold?",
+      "replacementData": "Approved threshold comparison operator",
+      "status": "AWAITING_CIRCLE_K"
+    },
+    {
+      "assumptionId": "SYN-CAP-004",
+      "category": "THRESHOLD_BASIS",
+      "value": "Use invoice-line unit cost as the threshold basis.",
+      "affectedRecords": [
+        "All North America synthetic capitalization assessments"
+      ],
+      "rationale": "The latest workflow diagram uses unit price, while the reporting manual uses the broader term expenditure.",
+      "circleKQuestion": "Should the 1,000 USD threshold use unit cost, line amount, invoice total, asset total, or project aggregate?",
+      "replacementData": "Approved threshold basis and calculation instructions",
+      "status": "AWAITING_CIRCLE_K"
+    },
+    {
+      "assumptionId": "SYN-CAP-005",
+      "category": "BELOW_THRESHOLD_EXCEPTION",
+      "value": "Do not auto-apply the 300 USD per-site / 30,000 USD project exception; retain eligible open-project lines as future bundling candidates.",
+      "affectedRecords": [
+        "Below-threshold Bruegmann and Kimley-Horn lines"
+      ],
+      "rationale": "The exception is described in policy but implementation scope and complete project population are not approved.",
+      "circleKQuestion": "Should the 300 USD per-site / 30,000 USD project exception be enabled, what spend qualifies, and what period/source defines the complete project aggregate?",
+      "replacementData": "Approved exception configuration and project aggregate source",
+      "status": "AWAITING_CIRCLE_K"
+    },
+    {
+      "assumptionId": "SYN-DATA-001",
+      "category": "MISSING_SOURCE_VALUE",
+      "value": "For Kimley-Horn only, use synthetic quantity 1 and synthetic unit cost equal to source line amount.",
+      "affectedRecords": [
+        "58aceec5-f35a-48a7-8faa-2f1a195af203:1",
+        "58aceec5-f35a-48a7-8faa-2f1a195af203:2",
+        "58aceec5-f35a-48a7-8faa-2f1a195af203:3",
+        "58aceec5-f35a-48a7-8faa-2f1a195af203:4",
+        "58aceec5-f35a-48a7-8faa-2f1a195af203:5",
+        "58aceec5-f35a-48a7-8faa-2f1a195af203:6",
+        "58aceec5-f35a-48a7-8faa-2f1a195af203:7",
+        "58aceec5-f35a-48a7-8faa-2f1a195af203:8",
+        "58aceec5-f35a-48a7-8faa-2f1a195af203:9",
+        "58aceec5-f35a-48a7-8faa-2f1a195af203:10"
+      ],
+      "rationale": "The source provides line amount but no quantity or unit cost.",
+      "circleKQuestion": "For Kimley-Horn professional-service lines, what do quantity and unit cost represent, and may line amount be used as unit cost when quantity is absent?",
+      "replacementData": "Authoritative quantity/unit-cost values or approved line-amount threshold basis",
+      "status": "AWAITING_CIRCLE_K"
+    },
+    {
+      "assumptionId": "SYN-CTX-001",
+      "category": "PROJECT_CONTEXT",
+      "value": "Use the existing DEMO-prefixed project/site overlays, OPEN status, and bundling-in-scope flag.",
+      "affectedRecords": [
+        "Bruegmann",
+        "Kimley-Horn",
+        "JC2000A07814"
+      ],
+      "rationale": "The supplied invoice sources do not contain authoritative project/site context.",
+      "circleKQuestion": "Please provide authoritative project ID, site ID, project status, bundling scope, and the exact allowed status values for each demo invoice.",
+      "replacementData": "Authoritative project/site/status feed or approved demo mapping",
+      "status": "AWAITING_CIRCLE_K"
+    }
+  ],
+  "explicitlyNotAssumed": [
+    "Shipping or freight is never-capitalize.",
+    "Reimbursable expenses are automatically OpEx.",
+    "JC source task codes map to US TaskMaster codes.",
+    "Non-USD amounts may be converted without an approved budget rate.",
+    "ACTIVE, COMPLETE, or COMPLETED are approved project-status aliases."
+  ],
+  "expectedSyntheticOutcomeCounts": {
+    "lineCount": 23,
+    "capexCount": 7,
+    "opexCount": 11,
+    "reviewCount": 5
+  }
+}

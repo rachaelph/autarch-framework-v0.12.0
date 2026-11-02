@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import Dict, List, Literal, Mapping, Optional, Sequence
+from typing import Dict, List, Literal, Mapping, Optional, Sequence, Set
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -32,8 +32,8 @@ _CONFIRMED_STATUSES = {
     ApprovalStatus.POLICY_SUPPORTED,
     ApprovalStatus.WORKFLOW_CONFIRMED,
 }
-_OPEN_PROJECT_STATUSES = {"OPEN", "ACTIVE"}
-_CLOSED_PROJECT_STATUSES = {"CLOSED", "COMPLETE", "COMPLETED"}
+_OPEN_PROJECT_STATUSES = {"OPEN"}
+_CLOSED_PROJECT_STATUSES = {"CLOSED"}
 
 
 def _to_camel(value: str) -> str:
@@ -63,6 +63,7 @@ class CapitalizationNatureRule(_CapitalizationRuleModel):
     repair_maintenance_indicator: bool = False
     never_capitalize: bool = False
     policy_citation: str = Field(min_length=1)
+    assumption_refs: List[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_rule(self) -> "CapitalizationNatureRule":
@@ -97,6 +98,8 @@ class CapitalizationRuleSet(_CapitalizationRuleModel):
 
     rule_set_id: str = Field(min_length=1)
     approved: bool
+    synthetic: bool = False
+    assumption_refs: List[str] = Field(default_factory=list)
     rules: List[CapitalizationNatureRule] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -104,6 +107,14 @@ class CapitalizationRuleSet(_CapitalizationRuleModel):
         rule_ids = [rule.rule_id for rule in self.rules]
         if len(rule_ids) != len(set(rule_ids)):
             raise ValueError("rules must not contain duplicate ruleId values")
+        if self.approved and self.synthetic:
+            raise ValueError(
+                "a synthetic rule set cannot be marked approved"
+            )
+        if self.synthetic and not self.assumption_refs:
+            raise ValueError(
+                "a synthetic rule set requires assumptionRefs"
+            )
         return self
 
 
@@ -131,13 +142,14 @@ def _setting_confirmed(
     policy: DemoPolicySnapshot,
     settings: Mapping[str, PolicySetting],
     setting_id: str,
+    synthetic_setting_ids: Set[str],
 ) -> bool:
     setting = settings.get(setting_id)
     return bool(
         setting is not None
         and setting.status in _CONFIRMED_STATUSES
         and setting_id not in policy.unresolved_confirmation_ids
-    )
+    ) or setting_id in synthetic_setting_ids
 
 
 def _matching_rules(
@@ -145,11 +157,25 @@ def _matching_rules(
     task: TaskDetermination,
     rule_set: Optional[CapitalizationRuleSet],
     policy: DemoPolicySnapshot,
+    allow_synthetic: bool,
 ) -> List[CapitalizationNatureRule]:
+    usable_rule_set = bool(
+        rule_set is not None
+        and (
+            (
+                rule_set.approved
+                and policy.capitalization.operational_nature_rules_approved
+            )
+            or (
+                allow_synthetic
+                and rule_set.synthetic
+                and not rule_set.approved
+            )
+        )
+    )
     if (
         rule_set is None
-        or not rule_set.approved
-        or not policy.capitalization.operational_nature_rules_approved
+        or not usable_rule_set
     ):
         return []
     description = _normalized_text(line.description)
@@ -216,6 +242,10 @@ def _rule_evidence(
                 rule.policy_citation,
             ]
         )
+        evidence.extend(
+            f"synthetic:{reference}"
+            for reference in rule.assumption_refs
+        )
     return list(dict.fromkeys(evidence))
 
 
@@ -273,6 +303,8 @@ def _assess_line(
     *,
     workflow_run_id: str,
     created_at_utc: datetime,
+    allow_synthetic: bool,
+    synthetic_setting_ids: Set[str],
 ) -> CapitalizationAssessment:
     settings = _settings_by_id(policy)
     citations = [f"policy:{policy.policy_id}"]
@@ -288,7 +320,13 @@ def _assess_line(
         )
         outcome_category = "REVIEW_TASK_UNRESOLVED"
 
-    rules = _matching_rules(line, task, rule_set, policy)
+    rules = _matching_rules(
+        line,
+        task,
+        rule_set,
+        policy,
+        allow_synthetic,
+    )
     nature_result = NatureResult.REVIEW
     repair_maintenance = False
     never_capitalize = False
@@ -319,6 +357,11 @@ def _assess_line(
             )
             if rule_set is not None:
                 citations.append(f"ruleset:{rule_set.rule_set_id}")
+                if allow_synthetic and rule_set.synthetic:
+                    citations.extend(
+                        f"synthetic:{reference}"
+                        for reference in rule_set.assumption_refs
+                    )
             citations.extend(_rule_evidence(rules))
 
     threshold_amount: Optional[float] = None
@@ -436,6 +479,11 @@ def _assess_line(
             "threshold-equality",
             "threshold-basis",
         )
+        citations.extend(
+            f"synthetic-setting:{setting_id}"
+            for setting_id in required_threshold_settings
+            if setting_id in synthetic_setting_ids
+        )
         unresolved_threshold_settings = [
             setting_id
             for setting_id in required_threshold_settings
@@ -443,6 +491,7 @@ def _assess_line(
                 policy,
                 settings,
                 setting_id,
+                synthetic_setting_ids,
             )
         ]
         if unresolved_threshold_settings:
@@ -511,6 +560,7 @@ def _assess_line(
         policy,
         settings,
         "below-threshold-exception",
+        synthetic_setting_ids,
     ):
         citations.append("setting:below-threshold-exception")
         return _review_assessment(
@@ -537,6 +587,10 @@ def _assess_line(
                 "is unresolved."
             ),
             policy_citations=citations,
+        )
+    if "below-threshold-exception" in synthetic_setting_ids:
+        citations.append(
+            "synthetic-setting:below-threshold-exception"
         )
 
     overlay = package.context_overlay
@@ -642,10 +696,17 @@ def assess_capitalization_for_invoice(
     workflow_run_id: str,
     rule_set: Optional[CapitalizationRuleSet] = None,
     created_at_utc: Optional[datetime] = None,
+    allow_synthetic: bool = False,
+    synthetic_setting_ids: Sequence[str] = (),
 ) -> List[CapitalizationAssessment]:
     """Return one deterministic assessment per normalized invoice line."""
     task_by_line = _task_map(package, task_determinations)
     created_at = created_at_utc or datetime.now(timezone.utc)
+    synthetic_settings = set(synthetic_setting_ids)
+    if synthetic_settings and not allow_synthetic:
+        raise CapitalizationInputError(
+            "synthetic_setting_ids require allow_synthetic=True"
+        )
     return [
         _assess_line(
             package,
@@ -655,6 +716,8 @@ def assess_capitalization_for_invoice(
             rule_set,
             workflow_run_id=workflow_run_id,
             created_at_utc=created_at,
+            allow_synthetic=allow_synthetic,
+            synthetic_setting_ids=synthetic_settings,
         )
         for line in package.lines
     ]

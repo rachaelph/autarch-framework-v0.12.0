@@ -1,0 +1,40 @@
+{
+  "ruleSetId": "demo-v2-synthetic-capitalization-rules-2026-11-02",
+  "approved": false,
+  "synthetic": true,
+  "assumptionRefs": [
+    "SYN-CAP-RULESET-001"
+  ],
+  "rules": [
+    {
+      "ruleId": "synthetic-wire-shelving-capitalizable",
+      "version": "2026-11-02",
+      "natureResult": "CAPITALIZABLE",
+      "taskCodes": [
+        "5225"
+      ],
+      "exactDescriptions": [],
+      "repairMaintenanceIndicator": false,
+      "neverCapitalize": false,
+      "policyCitation": "Synthetic demo assumption only; Circle K approval is pending.",
+      "assumptionRefs": [
+        "SYN-CAP-001"
+      ]
+    },
+    {
+      "ruleId": "synthetic-environmental-services-capitalizable",
+      "version": "2026-11-02",
+      "natureResult": "CAPITALIZABLE",
+      "taskCodes": [
+        "0007"
+      ],
+      "exactDescriptions": [],
+      "repairMaintenanceIndicator": false,
+      "neverCapitalize": false,
+      "policyCitation": "Synthetic demo assumption only; Circle K approval is pending.",
+      "assumptionRefs": [
+        "SYN-CAP-002"
+      ]
+    }
+  ]
+}

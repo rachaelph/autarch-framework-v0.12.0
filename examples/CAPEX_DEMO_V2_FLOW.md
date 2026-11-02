@@ -124,6 +124,17 @@ Validate the three current demo targets with the committed unapproved policy sna
 
 The current snapshot intentionally produces `REVIEW` for all three targets because the operational nature-rule library and several threshold/exception decisions still require finance confirmation. This is not a model failure: threshold comparisons that can be calculated safely are retained as partial evidence, and the validator proves that capitalization uses zero model calls. Approved synthetic test fixtures cover CapEx, OpEx-by-nature, repair/maintenance, never-capitalize, boundary equality, missing unit cost, non-USD, unresolved task, rule conflict, project status, and below-threshold bundling-context behavior.
 
+For demo progress before Circle K supplies the missing inputs, synthetic execution is available only through an explicit opt-in. The source-normalized packages and current-policy assessment artifact remain unchanged. Every assumption is tracked in `examples/data/capex/reference-v2/synthetic-input-register-v2.json`, and the separate rule set is `synthetic-capitalization-rules-v2.json`. Each register entry records the affected records, rationale, Circle K question, and required replacement data.
+
+Generate the separately labeled synthetic result with:
+
+```powershell
+.\.venv314\Scripts\python.exe tools\validate_capex_demo_v2_synthetic_capitalization.py `
+  --output examples\data\capex\results-v2\capitalization.synthetic-assessments.json
+```
+
+Synthetic execution is disabled by default in the capitalization API. The caller must set `allow_synthetic=True` and explicitly name each proposed setting being used. Synthetic rules cannot be marked approved. Shipping, freight, reimbursable-expense treatment, JC task mappings, non-USD conversion, and unconfirmed project-status aliases are intentionally not assumed.
+
 ## Review behavior
 
 The workflow returns `REVIEW`, not a fabricated decision, when required context or policy is unavailable. A review assessment must include at least one `reviewReason`; missing fields are listed in `missingInputs`. A bundle can be accepted as a non-review candidate only when task code, site, project, and currency are present.
