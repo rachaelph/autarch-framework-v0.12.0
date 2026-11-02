@@ -153,7 +153,7 @@ class CapitalizationPolicy(ReferenceModel):
     non_usd_behavior: ReviewBehavior = ReviewBehavior.REVIEW
     missing_unit_cost_behavior: ReviewBehavior = ReviewBehavior.REVIEW
     unknown_nature_behavior: ReviewBehavior = ReviewBehavior.REVIEW
-    operational_nature_rules_approved: Literal[False] = False
+    operational_nature_rules_approved: bool = False
 
 
 class BundlingPolicy(ReferenceModel):

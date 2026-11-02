@@ -1,5 +1,11 @@
 """CapEx invoice preparation and contract assembly."""
 
+from .demo_v2_capitalization import (
+    CapitalizationInputError,
+    CapitalizationNatureRule,
+    CapitalizationRuleSet,
+    assess_capitalization_for_invoice,
+)
 from .demo_v2_contracts import (
     BundleCandidateGroup,
     BundleCandidateMember,
@@ -98,8 +104,11 @@ __all__ = [
     "BundlingDisposition",
     "BundlingPolicy",
     "CapitalizationAssessment",
+    "CapitalizationInputError",
+    "CapitalizationNatureRule",
     "CapitalizationPolicy",
     "CapitalizationRecommendation",
+    "CapitalizationRuleSet",
     "ClaimedOutboxMessage",
     "DemoWorkflowRequest",
     "DemoWorkflowResult",
@@ -143,6 +152,7 @@ __all__ = [
     "WorkflowExecutionStatus",
     "WorkflowPackageSummary",
     "build_invoice_package",
+    "assess_capitalization_for_invoice",
     "build_demo_policy_snapshot",
     "build_azure_task_suggestion_model",
     "build_task_master_snapshot",

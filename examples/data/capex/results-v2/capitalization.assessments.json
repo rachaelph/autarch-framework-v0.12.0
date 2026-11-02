@@ -1,0 +1,860 @@
+{
+  "schemaVersion": "2.0-capitalization-validation",
+  "validationStatus": "PASSED",
+  "workflowRunId": "cict-237-capitalization-validation",
+  "policyId": "circle-k-na-demo-unapproved-2026-10-30",
+  "policyApprovalStatus": "PROPOSED_DEMO_ASSUMPTION",
+  "usedLlm": false,
+  "modelCallCount": 0,
+  "packageCount": 3,
+  "lineCount": 23,
+  "reviewCount": 23,
+  "capexCount": 0,
+  "opexCount": 0,
+  "thresholdEvaluatedCount": 11,
+  "validationIssues": [],
+  "packages": [
+    {
+      "name": "bruegmann",
+      "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+      "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+      "invoiceNumber": "INV12-62027",
+      "assessmentCount": 12,
+      "assessments": [
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:1",
+          "suggestedTaskCode": null,
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_TASK_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "suggestedTaskCode",
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "A governed task determination is required before capitalization.",
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:2",
+          "suggestedTaskCode": null,
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_TASK_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "suggestedTaskCode",
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "A governed task determination is required before capitalization.",
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:3",
+          "suggestedTaskCode": "5225",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:4",
+          "suggestedTaskCode": "5225",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:5",
+          "suggestedTaskCode": "5225",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:6",
+          "suggestedTaskCode": "5225",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:7",
+          "suggestedTaskCode": "5225",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:8",
+          "suggestedTaskCode": "5225",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:9",
+          "suggestedTaskCode": "5225",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:10",
+          "suggestedTaskCode": "5225",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:11",
+          "suggestedTaskCode": "5225",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": false,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-56a5c9fc-5b7c-5cef-9828-65c320c18048",
+          "invoiceId": "135d03ac-3598-498a-83fe-d273d046bfea",
+          "lineId": "135d03ac-3598-498a-83fe-d273d046bfea:12",
+          "suggestedTaskCode": null,
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_TASK_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "suggestedTaskCode",
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "A governed task determination is required before capitalization.",
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.652032Z"
+        }
+      ]
+    },
+    {
+      "name": "kimley-horn",
+      "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+      "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+      "invoiceNumber": "36764068-GRP005",
+      "assessmentCount": 10,
+      "assessments": [
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+          "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+          "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:1",
+          "suggestedTaskCode": "0007",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653150Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+          "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+          "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:2",
+          "suggestedTaskCode": "0007",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653150Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+          "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+          "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:3",
+          "suggestedTaskCode": "0007",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653150Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+          "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+          "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:4",
+          "suggestedTaskCode": "0007",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653150Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+          "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+          "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:5",
+          "suggestedTaskCode": "0007",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653150Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+          "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+          "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:6",
+          "suggestedTaskCode": "0007",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653150Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+          "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+          "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:7",
+          "suggestedTaskCode": "0007",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653150Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+          "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+          "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:8",
+          "suggestedTaskCode": "0007",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653150Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+          "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+          "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:9",
+          "suggestedTaskCode": "0007",
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_NATURE_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653150Z"
+        },
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
+          "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
+          "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:10",
+          "suggestedTaskCode": null,
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": 1000.0,
+          "thresholdCurrency": "USD",
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_TASK_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "suggestedTaskCode",
+            "approvedNatureRule",
+            "unitCost"
+          ],
+          "reviewReasons": [
+            "A governed task determination is required before capitalization.",
+            "No approved operational nature rule matched this line.",
+            "The source unit cost required by the configured threshold basis is missing."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library",
+            "setting:base-threshold"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653150Z"
+        }
+      ]
+    },
+    {
+      "name": "jc2000a07814",
+      "packageId": "pkg-8a841383-3ec4-5173-a24d-3c506eb63d24",
+      "invoiceId": "JC2000A07814:20294",
+      "invoiceNumber": "20294",
+      "assessmentCount": 1,
+      "assessments": [
+        {
+          "schemaVersion": "2.0",
+          "workflowRunId": "cict-237-capitalization-validation",
+          "packageId": "pkg-8a841383-3ec4-5173-a24d-3c506eb63d24",
+          "invoiceId": "JC2000A07814:20294",
+          "lineId": "JC2000A07814:20294:17535596:1",
+          "suggestedTaskCode": null,
+          "natureResult": "REVIEW",
+          "repairMaintenanceIndicator": false,
+          "neverCapitalizeHit": false,
+          "unitCostMeetsThreshold": null,
+          "thresholdAmount": null,
+          "thresholdCurrency": null,
+          "recommendation": "REVIEW",
+          "outcomeCategory": "REVIEW_TASK_UNRESOLVED",
+          "bundlingDisposition": "REVIEW",
+          "bundleGroupId": null,
+          "missingInputs": [
+            "suggestedTaskCode",
+            "approvedNatureRule",
+            "approvedRegionalPolicy"
+          ],
+          "reviewReasons": [
+            "A governed task determination is required before capitalization.",
+            "No approved operational nature rule matched this line.",
+            "No approved capitalization policy was supplied for Europe."
+          ],
+          "rationale": "Deterministic partial results were retained, but the line cannot receive a governed CapEx/OpEx recommendation.",
+          "policyCitations": [
+            "policy:circle-k-na-demo-unapproved-2026-10-30",
+            "setting:nature-rule-library"
+          ],
+          "usedLlm": false,
+          "modelVersion": null,
+          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
+          "createdAtUtc": "2026-11-02T18:39:50.653526Z"
+        }
+      ]
+    }
+  ]
+}

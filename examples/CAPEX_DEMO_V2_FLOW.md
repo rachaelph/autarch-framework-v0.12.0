@@ -111,6 +111,19 @@ The evidence-based policy matrix, proposed demo snapshot, and finance confirmati
 
 The task stage does not produce a CapEx/OpEx recommendation. Capitalization and bundling are separate contract stages so model output cannot bypass policy rules.
 
+The CICT-237 implementation is in `autarch.capex.demo_v2_capitalization`. It consumes normalized lines, governed task determinations, the versioned policy snapshot, and an optional approved exact-match operational nature-rule set. It never invokes a model. The engine applies the task gate and nature gate before the unit-cost threshold, retains safe partial results, records policy/rule versions and citations, and returns explicit `REVIEW` results when a required input or approval is unavailable.
+
+Approved nature rules may select only governed task codes or exact normalized descriptions. They can mark a line capitalizable, OpEx by nature, repair/maintenance, or never-capitalize. Unapproved keyword inference is not used. For an approved capitalizable line, exact unit cost of 1,000 USD meets the proposed `GREATER_THAN_OR_EQUAL` boundary. Below-threshold lines require confirmed exception handling and governed site/project/status context before they can become OpEx with a future bundling disposition.
+
+Validate the three current demo targets with the committed unapproved policy snapshot:
+
+```powershell
+.\.venv314\Scripts\python.exe tools\validate_capex_demo_v2_capitalization.py `
+  --output examples\data\capex\results-v2\capitalization.assessments.json
+```
+
+The current snapshot intentionally produces `REVIEW` for all three targets because the operational nature-rule library and several threshold/exception decisions still require finance confirmation. This is not a model failure: threshold comparisons that can be calculated safely are retained as partial evidence, and the validator proves that capitalization uses zero model calls. Approved synthetic test fixtures cover CapEx, OpEx-by-nature, repair/maintenance, never-capitalize, boundary equality, missing unit cost, non-USD, unresolved task, rule conflict, project status, and below-threshold bundling-context behavior.
+
 ## Review behavior
 
 The workflow returns `REVIEW`, not a fabricated decision, when required context or policy is unavailable. A review assessment must include at least one `reviewReason`; missing fields are listed in `missingInputs`. A bundle can be accepted as a non-review candidate only when task code, site, project, and currency are present.
