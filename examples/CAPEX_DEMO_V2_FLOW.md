@@ -135,6 +135,26 @@ Generate the separately labeled synthetic result with:
 
 Synthetic execution is disabled by default in the capitalization API. The caller must set `allow_synthetic=True` and explicitly name each proposed setting being used. Synthetic rules cannot be marked approved. Shipping, freight, reimbursable-expense treatment, JC task mappings, non-USD conversion, and unconfirmed project-status aliases are intentionally not assumed.
 
+The CICT-238 deterministic bundling implementation is in `autarch.capex.demo_v2_bundling`. It consumes normalized packages and line-level capitalization assessments, prefers an optional human-final task code over the latest suggestion, and groups only `CANDIDATE` lines sharing the exact governed task, site, project, and currency. Different invoices, vendors, and purchase orders may participate in one group. The evaluator never invokes a model, produces stable run-scoped group IDs, sums member values deterministically, and returns copied assessments with traceable group references without mutating prior-run evidence.
+
+Generate the truthful current-policy bundling result:
+
+```powershell
+.\.venv314\Scripts\python.exe tools\validate_capex_demo_v2_bundling.py `
+  --output examples\data\capex\results-v2\bundling.assessments.json
+```
+
+Generate the separate synthetic demo result:
+
+```powershell
+.\.venv314\Scripts\python.exe tools\validate_capex_demo_v2_bundling.py `
+  --synthetic `
+  --workflow-run-id cict-238-synthetic-bundling-demo `
+  --output examples\data\capex\results-v2\bundling.synthetic-assessments.json
+```
+
+Both artifacts are current-run-only because no governed historical lookback source or period has been supplied. A group reaching the threshold is still only an analyst-review candidate; grouping never proves that its members form one asset. Synthetic groups remain explicitly unapproved and retain their synthetic context citation.
+
 ## Review behavior
 
 The workflow returns `REVIEW`, not a fabricated decision, when required context or policy is unavailable. A review assessment must include at least one `reviewReason`; missing fields are listed in `missingInputs`. A bundle can be accepted as a non-review candidate only when task code, site, project, and currency are present.

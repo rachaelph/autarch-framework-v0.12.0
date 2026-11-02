@@ -1,5 +1,10 @@
 """CapEx invoice preparation and contract assembly."""
 
+from .demo_v2_bundling import (
+    BundlingEvaluation,
+    BundlingInputError,
+    evaluate_bundle_candidates,
+)
 from .demo_v2_capitalization import (
     CapitalizationInputError,
     CapitalizationNatureRule,
@@ -102,6 +107,8 @@ __all__ = [
     "BundleCandidateGroup",
     "BundleCandidateMember",
     "BundlingDisposition",
+    "BundlingEvaluation",
+    "BundlingInputError",
     "BundlingPolicy",
     "CapitalizationAssessment",
     "CapitalizationInputError",
@@ -163,6 +170,7 @@ __all__ = [
     "derive_bundle_group_id",
     "derive_package_id",
     "dispatch_next_invoice_ready",
+    "evaluate_bundle_candidates",
     "normalize_abbyy_for_demo_v2",
     "normalize_jc_workbook",
     "load_demo_policy_snapshot",
