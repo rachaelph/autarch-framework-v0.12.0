@@ -345,6 +345,11 @@ completed for both truthful and synthetic modes.
 
 ### CICT-242
 
-Prepared the operator runbook, ten-minute presenter script, exact local and
-Azure commands, expected results, fallback evidence, data-request checklist,
-and Jira close-outs.
+**Status: In progress. Do not close yet.**
+
+The operator runbook, presenter script, commands, expected results, fallback
+evidence, and data-request checklist are prepared. Closure additionally
+requires presenter training, a complete SQL inventory, review of all
+synthetic assumptions with their Circle K replacement requests, and at least
+one timed rehearsal plus a question-and-answer rehearsal. Use
+`docs/capex/demo-v2-presenter-walkthrough.md` as the training guide.
