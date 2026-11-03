@@ -27,6 +27,7 @@ def test_sql_assets_use_ordered_migrations() -> None:
         "004_create_task_suggestion_table.sql",
         "005_create_task_master.sql",
         "006_align_task_suggestion.sql",
+        "007_create_capex_assessment_store.sql",
     ]
 
     assert (
@@ -149,6 +150,31 @@ def test_sql_readme_documents_contract_boundary() -> None:
     assert "`pub` exposes versioned, read-only contracts" in readme
     assert "invoice-package-v1.schema.json" in readme
     assert "Raw ABBYY documents are not stored" in readme
+
+
+def test_capex_assessment_verification_is_transactional_and_append_only() -> None:
+    verification = read_text(
+        SQL_TESTS / "003_verify_capex_assessment_store.sql"
+    )
+
+    required_fragments = [
+        "BEGIN TRANSACTION",
+        "INSERT INTO capex.AssessmentRun",
+        "INSERT INTO capex.Assessment",
+        "INSERT INTO capex.BundleCandidateGroup",
+        "INSERT INTO capex.BundleCandidateMember",
+        "FROM pub.v1_Assessment",
+        "bundleMemberCount <> 2",
+        "ROLLBACK TRANSACTION",
+        "CapEx assessment store verification passed.",
+    ]
+
+    for fragment in required_fragments:
+        assert fragment in verification
+
+    assert "COMMIT TRANSACTION" not in verification
+    assert "UPDATE capex." not in verification
+    assert "DELETE FROM capex." not in verification
 
 
 

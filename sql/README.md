@@ -5,6 +5,8 @@ Azure SQL assets for prepared CapEx invoices.
 - `migrations/` contains ordered, rerunnable schema migrations.
 - `tests/` contains executable, rollback-based verification scripts.
 - `prep` is the durable operational schema.
+- `task` stores governed task-determination results.
+- `capex` stores append-only assessment and bundle evidence.
 - `pub` exposes versioned, read-only contracts to downstream components.
 
 Apply migrations in filename order:
@@ -12,11 +14,25 @@ Apply migrations in filename order:
 1. `001_create_invoice_operational_store.sql`
 2. `002_create_published_invoice_package_view.sql`
 3. `003_create_invoice_outbox.sql`
+4. `004_create_task_suggestion_table.sql`
+5. `005_create_task_master.sql`
+6. `006_align_task_suggestion.sql`
+7. `007_create_capex_assessment_store.sql`
 
 `contracts/invoice-package-v1.schema.json` is the source of truth for the
 published `InvoicePackage v1` shape. `contracts/invoice-ready-v1.schema.json`
 is the source of truth for the pointer-only event stored in
 `prep.InvoiceOutbox`.
+
+The Demo V2 persistence boundary writes one immutable
+`capex.AssessmentRun`, its `capex.Assessment` rows, and any
+`capex.BundleCandidateGroup` and `capex.BundleCandidateMember` rows in one
+transaction. The run-level result hash makes exact retries idempotent and
+rejects changed content under an existing workflow run ID.
+
+`pub.v1_Assessment` exposes the line-level rule outcome, review flags, model
+and policy provenance, and joined bundle context. Human-final decisions must
+be stored separately; they do not update these AI-original records.
 
 A package and its outbox event are written in one database transaction. The
 package remains `PREPARING` until all header, line, warning, and outbox rows

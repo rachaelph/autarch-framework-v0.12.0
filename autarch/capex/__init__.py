@@ -42,6 +42,10 @@ from .demo_v2_normalization import (
     normalize_abbyy_for_demo_v2,
     normalize_jc_workbook,
 )
+from .demo_v2_persistence import (
+    DemoV2PersistenceError,
+    persist_demo_v2_results,
+)
 from .demo_v2_reference import (
     ApprovalStatus,
     BundlingPolicy,
@@ -119,6 +123,7 @@ __all__ = [
     "ClaimedOutboxMessage",
     "DemoWorkflowRequest",
     "DemoWorkflowResult",
+    "DemoV2PersistenceError",
     "DemoPolicySnapshot",
     "DemoContextOverlay",
     "DEFAULT_CANDIDATE_LIMIT",
@@ -178,6 +183,7 @@ __all__ = [
     "rank_task_candidates",
     "suggest_tasks_for_invoice",
     "persist_invoice_package",
+    "persist_demo_v2_results",
     "validate_invoice_package",
     "validate_invoice_ready",
 ]

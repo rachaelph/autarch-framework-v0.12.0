@@ -170,7 +170,13 @@ For the demo, synthetic site, project, or PO context may be used only when it is
 | Bundle header | `capex.BundleCandidateGroup` |
 | Bundle members | `capex.BundleCandidateMember` |
 
-The assessment and bundle tables are contract targets and require their own migration and persistence subtask. Existing V1 Service Bus and Function resources remain untouched but are outside this execution path.
+CICT-239 implements these targets in `sql/migrations/007_create_capex_assessment_store.sql` and `autarch.capex.demo_v2_persistence`. `capex.AssessmentRun` stores one immutable workflow-run identity, canonical result SHA-256, and expected row counts. The assessment, bundle header, and bundle member rows are inserted in the same SQL transaction. An exact retry returns the original counts without inserting duplicate rows; reuse of a workflow run ID with changed content is rejected and rolled back.
+
+`capex.Assessment` retains the structured rule outcome, review flags, bundle reference, rationale, policy citations, `usedLlm`, model version, policy version, contract version, and original creation timestamp. Bundle membership is constrained to one group per line within a workflow run, and the Python persistence boundary reconciles every group total to its members before opening a database transaction.
+
+`pub.v1_Assessment` is the published line-level read model. It exposes the assessment fields plus joined bundle task, site, project, currency, total, threshold, disposition, and member count. These records are append-only; human-final decisions must be stored separately rather than updating the AI-original assessment.
+
+Existing V1 Service Bus and Function resources remain untouched and outside this execution path. Applying migration 007 to the target Azure SQL database and wiring the direct job to `persist_demo_v2_results` are deployment/orchestration steps for CICT-240.
 
 ## Failure and replay behavior
 
