@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "jobName": {
+      "value": "capex-demo-v2"
+    },
+    "tags": {
+      "value": {
+        "application": "capex-demo-v2",
+        "environment": "sandbox",
+        "maintainer": "AI Team",
+        "owner": "CICT AI Team",
+        "project": "CICT"
+      }
+    },
+    "containerAppsEnvironmentId": {
+      "value": "/subscriptions/0451df15-250e-42f5-b15c-f19a9bb9c21a/resourceGroups/cict-aisandbox-cus-rg/providers/Microsoft.App/managedEnvironments/cict-ai-cus-acaenv"
+    },
+    "image": {
+      "value": "cictaicusacr.azurecr.io/capex/demo-v2:20261104.1"
+    },
+    "registryServer": {
+      "value": "cictaicusacr.azurecr.io"
+    },
+    "userAssignedIdentityResourceId": {
+      "value": "/subscriptions/0451df15-250e-42f5-b15c-f19a9bb9c21a/resourceGroups/cict-aisandbox-cus-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/cict-ai-cus-capex-id"
+    },
+    "userAssignedIdentityClientId": {
+      "value": "562512ef-d515-428a-8df5-6c4c589812ef"
+    },
+    "requestUri": {
+      "value": "https://cictaicusst.blob.core.windows.net/landing/capex/demo-v2/requests/synthetic-20261104.json"
+    },
+    "taskMasterUri": {
+      "value": "https://cictaicusst.blob.core.windows.net/landing/capex/demo-v2/reference/task-master-us-v2.json"
+    },
+    "policyUri": {
+      "value": "https://cictaicusst.blob.core.windows.net/landing/capex/demo-v2/reference/policy-config-v2.json"
+    },
+    "ruleSetUri": {
+      "value": "https://cictaicusst.blob.core.windows.net/landing/capex/demo-v2/reference/synthetic-capitalization-rules-v2.json"
+    },
+    "syntheticRegisterUri": {
+      "value": "https://cictaicusst.blob.core.windows.net/landing/capex/demo-v2/reference/synthetic-input-register-v2.json"
+    },
+    "outputUri": {
+      "value": "https://cictaicusst.blob.core.windows.net/landing/capex/demo-v2/results/synthetic-20261104.json"
+    },
+    "azureOpenAiEndpoint": {
+      "value": "https://cict-ai-cus-foundry.openai.azure.com/"
+    }
+  }
+}

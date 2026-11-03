@@ -24,6 +24,7 @@ autarch = "autarch.cli:main"
 capex-prepare = "autarch.capex.job:main"
 capex-prepare-blob = "autarch.capex.blob_job:main"
 capex-dispatch = "autarch.capex.dispatch_job:main"
+capex-demo-v2 = "autarch.capex.demo_v2_job:main"
 
 [tool.setuptools.packages.find]
 include = ["autarch*"]

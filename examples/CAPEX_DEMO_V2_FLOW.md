@@ -176,7 +176,28 @@ CICT-239 implements these targets in `sql/migrations/007_create_capex_assessment
 
 `pub.v1_Assessment` is the published line-level read model. It exposes the assessment fields plus joined bundle task, site, project, currency, total, threshold, disposition, and member count. These records are append-only; human-final decisions must be stored separately rather than updating the AI-original assessment.
 
-Existing V1 Service Bus and Function resources remain untouched and outside this execution path. Applying migration 007 to the target Azure SQL database and wiring the direct job to `persist_demo_v2_results` are deployment/orchestration steps for CICT-240.
+Existing V1 Service Bus and Function resources remain untouched and outside this execution path.
+
+CICT-240 implements the direct finite batch in `autarch.capex.demo_v2_job`. The `capex-demo-v2` console command loads local or managed-identity Blob URIs, verifies package identity and source hashes, invokes governed task determination, applies deterministic capitalization and bundling, writes task and assessment evidence, and creates one immutable result artifact. It returns exit code `0` for success, `2` for a partial result, and `1` for failure. Synthetic inputs require all three controls: `allowSyntheticInputs: true` in the request, an unapproved synthetic rule set, and the tracked synthetic-input register.
+
+The Container Apps assets are:
+
+- `Dockerfile.capex-v2` for the non-root Python 3.12 and ODBC Driver 18 runtime.
+- `infra/container-apps/capex-demo-v2-job.bicep` for the manual, no-ingress job.
+- `infra/container-apps/capex-demo-v2-job.parameters.json` for the approved CICT sandbox target.
+- `tools/build_capex_demo_v2_request.py` for immutable local or Blob-backed three-invoice requests.
+
+Validate the complete three-invoice workflow without making additional model calls:
+
+```powershell
+.\.venv314\Scripts\python.exe tools\validate_capex_demo_v2_workflow.py
+```
+
+The validator replays the prior governed task evidence, runs both the truthful current-policy result and the explicitly synthetic result, exercises the SQL transaction adapters with a stateful recording connection, and then performs an exact replay. The committed evidence is `examples/data/capex/results-v2/workflow.synthetic-validation.json`.
+
+The live direct CLI was also executed against GPT-5.1 for all three packages. The truthful run produced 23 task determinations, 23 review-only assessments, and no bundle groups. The separate synthetic run produced 7 CapEx, 11 OpEx, 5 Review, 2 bundle groups, and 11 group members. These local live runs did not claim Azure SQL persistence.
+
+Applying migration 007 and deploying the Container Apps Job remain blocked until the operator has ARM deployment permission and network access to Azure SQL. ARM validation on 2026-11-04 returned `AuthorizationFailed` for `Microsoft.Resources/deployments/validate/action` and `Microsoft.Resources/deployments/whatIf/action`; direct Azure SQL connectivity from the current workstation timed out. These are environment authorization/network blockers, not source validation failures.
 
 ## Failure and replay behavior
 

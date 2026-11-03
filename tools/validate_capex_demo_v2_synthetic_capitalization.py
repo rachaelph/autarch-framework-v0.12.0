@@ -23,6 +23,10 @@ from autarch.capex.demo_v2_reference import (
     DemoPolicySnapshot,
     load_demo_policy_snapshot,
 )
+from autarch.capex.demo_v2_synthetic import (
+    apply_synthetic_line_values as _apply_synthetic_line_values,
+    validate_synthetic_register,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -100,77 +104,10 @@ def load_demo_targets() -> List[
 
 
 def load_synthetic_register(path: Path) -> Dict[str, object]:
-    """Load and minimally validate the machine-readable assumption register."""
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
-    if payload.get("schemaVersion") != "2.0-synthetic-input-register":
-        raise ValueError("Unsupported synthetic input register schema")
-    inputs = payload.get("syntheticInputs")
-    if not isinstance(inputs, list) or not inputs:
-        raise ValueError("Synthetic input register must contain inputs")
-    assumption_ids = [
-        item.get("assumptionId")
-        for item in inputs
-        if isinstance(item, dict)
-    ]
-    if len(assumption_ids) != len(set(assumption_ids)):
-        raise ValueError(
-            "Synthetic input register contains duplicate assumption IDs"
-        )
-    required_fields = {
-        "assumptionId",
-        "category",
-        "value",
-        "affectedRecords",
-        "rationale",
-        "circleKQuestion",
-        "replacementData",
-        "status",
-    }
-    for item in inputs:
-        if not isinstance(item, dict) or not required_fields <= set(item):
-            raise ValueError(
-                "Every synthetic input requires traceability and a "
-                "Circle K replacement question"
-            )
-    return payload
-
-
-def _apply_synthetic_line_values(
-    package: NormalizedInvoicePackage,
-    register: Mapping[str, object],
-) -> tuple[NormalizedInvoicePackage, List[str]]:
-    inputs = register["syntheticInputs"]
-    assert isinstance(inputs, list)
-    override = next(
-        (
-            item
-            for item in inputs
-            if isinstance(item, dict)
-            and item.get("assumptionId") == "SYN-DATA-001"
-        ),
-        None,
+    """Load and validate the machine-readable assumption register."""
+    return validate_synthetic_register(
+        json.loads(Path(path).read_text(encoding="utf-8"))
     )
-    if override is None:
-        return package, []
-    affected = override["affectedRecords"]
-    assert isinstance(affected, list)
-    affected_ids = {str(value) for value in affected}
-    source_line_ids = {line.line_id for line in package.lines}
-    applicable_ids = affected_ids & source_line_ids
-    if not applicable_ids:
-        return package, []
-    lines = [
-        line.model_copy(
-            update={
-                "quantity": 1.0,
-                "unit_cost": line.line_amount,
-            }
-        )
-        if line.line_id in applicable_ids
-        else line
-        for line in package.lines
-    ]
-    return package.model_copy(update={"lines": lines}), ["SYN-DATA-001"]
 
 
 def validate_synthetic_demo_capitalization(

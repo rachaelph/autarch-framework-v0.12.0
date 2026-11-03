@@ -128,6 +128,7 @@ class DemoWorkflowRequest(DemoV2Model):
     bundling_policy_version: Optional[NonEmptyString] = None
     persist_results: bool = True
     fail_on_review: bool = False
+    allow_synthetic_inputs: bool = False
 
     _validate_requested_at_utc = field_validator("requested_at_utc")(
         _require_utc

@@ -1,17 +1,140 @@
-# CapEx TaskSuggestion Demo Deployment Plan
+# CapEx Demo V2 Direct Batch Deployment Plan
 
-## Plan status
+> **Status:** Ready for Validation
 
-- Status: Validated
-- Approval required before deployment: Yes
-- Deployment target: Circle K CICT Azure sandbox
-- Planned deployment date: 2026-10-22
-- Owner: CapEx demo team
-- Change type: Additive database, messaging, RBAC, and Function deployment
+Generated: 2026-11-04
 
-No Azure resource changes may be made under this plan until its status is changed to `Approved`.
+## Current Demo V2 scope
 
-## Objective
+### Goal and approval
+
+Add the direct CapEx Demo V2 finite batch to the existing Circle K CICT
+sandbox so CICT-240 through CICT-242 can be validated and demonstrated.
+This is a small development/demo workload. The user asked to complete all
+remaining demo subtasks and previously approved the existing subscription,
+resource group, Central US environment, and managed identity.
+
+### Azure context
+
+| Attribute | Value |
+|---|---|
+| Classification | Development / client demo |
+| Scale | Small; one manual job execution at a time |
+| Budget | Cost-optimized; manual scale-to-zero job |
+| Subscription | NA AI Dev/Test (`0451df15-250e-42f5-b15c-f19a9bb9c21a`) |
+| Resource group | `cict-aisandbox-cus-rg` |
+| Location | Central US |
+
+The Azure CLI context and target tenant were reconfirmed on 2026-11-04.
+
+### Components and recipe
+
+| Component | Type | Technology | Path |
+|---|---|---|---|
+| Demo V2 batch | Worker | Python 3.12 / LangChain / ODBC | `autarch/capex/demo_v2_job.py` |
+| Batch image | Container | Debian slim / ODBC Driver 18 | `Dockerfile.capex-v2` |
+| Job definition | Infrastructure | Standalone Bicep | `infra/container-apps/capex-demo-v2-job.bicep` |
+| Assessment store | Data | Azure SQL migration 007 | `sql/migrations/007_create_capex_assessment_store.sql` |
+
+**Selected recipe:** Standalone Bicep. This adds one manual Container Apps
+Job to existing infrastructure and does not create a new environment,
+registry, storage account, SQL server, model deployment, or identity.
+
+### Service mapping
+
+| Component | Azure service | Existing/new |
+|---|---|---|
+| Finite workflow worker | Azure Container Apps Job | New job in existing environment |
+| Runtime image | Azure Container Registry | Existing registry; new immutable image tag |
+| Normalized/reference/result artifacts | Azure Blob Storage | Existing account/container; new blobs |
+| Task, assessment, bundle evidence | Azure SQL Database | Existing database; additive migration 007 |
+| Governed task interpretation | Foundry OpenAI `gpt-5.1` | Existing deployment |
+| Secretless authentication | User-assigned managed identity | Existing identity |
+
+The V2 path does not use Service Bus, Azure Functions, Microsoft Agent
+Framework, or a hosted Foundry agent.
+
+### Provisioning-limit evidence
+
+| Resource type | New | Total after deployment | Limit/quota | Evidence |
+|---|---:|---:|---:|---|
+| `Microsoft.App/managedEnvironments` | 0 | 1 | 50 | `az quota`: 1 used, 49 available |
+| `Microsoft.App/jobs` | 1 | 8 | Covered by existing environment and available SandboxCores | Azure resource inventory |
+| Container Apps SandboxCores | <= 1 CPU active | <= 1 additional active CPU | 200 | `az quota`: 0 used, 200 available |
+
+Quota was checked with the Azure quota CLI for `Microsoft.App` in
+`centralus` on 2026-11-04. No new fixed-capacity PaaS resources are
+provisioned.
+
+### Security and operational constraints
+
+- Use UAMI `cict-ai-cus-capex-id`; no stored keys or connection strings.
+- Use managed-identity ACR pull, Blob access, SQL access, and direct model
+  access.
+- The identity must retain `Cognitive Services OpenAI User`.
+- The job has no ingress and uses a manual trigger, one replica, and a
+  30-minute timeout.
+- Synthetic data is rejected unless the request explicitly opts in and
+  both the rule set and tracked synthetic-input register are supplied.
+- Blob output uses create-only semantics so a run cannot overwrite prior
+  evidence.
+- SQL migration 007 is additive. Human decisions remain separate from
+  immutable AI-original evidence.
+
+### Current execution checklist
+
+- [x] User approved completion of the remaining Demo V2 subtasks.
+- [x] Existing subscription, resource group, location, and identity confirmed.
+- [x] Container Apps quota/capacity checked.
+- [x] Direct batch, image, and Bicep generated.
+- [x] Bicep compiled.
+- [x] Focused orchestration and three-invoice acceptance tests passed.
+- [x] Complete CapEx suite passed (242 tests).
+- [ ] Azure ARM validation and what-if completed.
+- [ ] Migration 007 applied to live Azure SQL.
+- [ ] Immutable container image built and pushed.
+- [ ] Blob inputs staged.
+- [ ] Container Apps Job deployed and executed.
+- [ ] Blob result, SQL rows, and execution logs reconciled.
+
+### All validation checks pass
+
+- [ ] Core validation
+  - [x] Azure CLI installed and authenticated.
+  - [x] Bicep template compiles.
+  - [ ] ARM resource-group validation passes. Blocked by caller permission.
+  - [ ] ARM what-if reports no destructive changes. Blocked by caller permission.
+- [x] Focused Python tests and three-invoice acceptance validation pass.
+- [x] Installed `capex-demo-v2` entrypoint imports and displays CLI help.
+- [ ] Container image build. Docker is unavailable on the current workstation;
+  use the documented ACR build from an authorized operator account.
+- [x] Azure Policy reviewed: Central US is allowed and the job supplies all
+  five required organizational tags.
+- [x] Static managed-identity design uses no secrets and least-privilege
+  resource scopes; live role verification remains a deployment check.
+
+### Current validation proof and blockers
+
+- ARM validation returned `AuthorizationFailed` for
+  `Microsoft.Resources/deployments/validate/action`.
+- ARM what-if returned `AuthorizationFailed` for
+  `Microsoft.Resources/deployments/whatIf/action`.
+- The current user has Blob data-plane and direct model access but no
+  resource-group deployment role.
+- The UAMI was verified with `AcrPull`, `Storage Blob Data Contributor`, and
+  `Cognitive Services OpenAI User`.
+- Direct Azure SQL connectivity from the current workstation timed out, so
+  migration 007 was not applied and no live SQL persistence claim is made.
+- Because validation did not pass, no Azure deployment was attempted.
+
+---
+
+## Legacy V1 deployment record
+
+The remainder of this document preserves the earlier Function and Service
+Bus deployment evidence. It is not the execution architecture for Demo V2.
+
+## Legacy objective
 
 Deploy and prove the customer-demo path:
 
