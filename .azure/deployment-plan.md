@@ -6,6 +6,63 @@ Generated: 2026-11-04
 
 ## Current Demo V2 scope
 
+### Expanded SQL rehearsal update
+
+The current target is ten SQL-staged invoices/thirty lines, not the historical
+three-package artifact request below. The operator reported all source and
+synthetic-reference prerequisite checks PASS and confirmed migration 011 with
+`SQL_DEMO_INPUT_READ_ACCESS_GRANTED`.
+
+Use `infra/container-apps/capex-demo-v2-sql-job.bicep` to add one manual job,
+`capex-demo-v2-sql`, in the same approved environment, registry and identity.
+No existing job is changed. Its command is `capex-demo-v2-sql`, with explicit
+read-only snapshot arguments initially. It has no model endpoint or LLM calls.
+The older artifact-runner template and model-assisted configuration remain
+separate historical paths.
+
+The SQL preflight writes only a new private Blob snapshot. It must report
+ten invoices/thirty lines and retain `inputSha256` before any decision
+processing or SQL result writes. Later execution requires that reviewed
+digest and fresh workflow/artifact identifiers. It does not publish legacy
+events, mark packages READY, or populate approvals.
+
+Current code verification: 122 related tests passed; the new SQL module has
+zero Pyright diagnostics. Separate source-regeneration checks fail against
+the current JC07465 workbook's changed header. That workbook was preserved;
+the SQL runner does not regenerate or reload those source files.
+
+Live SQL runtime deployment and execution are still pending. Revalidate
+current ARM permissions; the historical authorization failures below are
+not evidence of current access. Registry endpoint returned HTTP 401
+(reachable, authentication required); both existing private ACR agent pools
+have zero instances. Do not scale unrelated pools or enable public access.
+
+#### Current SQL validation proof (2026-11-04)
+
+| Check | Result |
+|---|---|
+| Azure CLI authentication | PASS |
+| SQL-specific Bicep compilation | PASS |
+| ARM target validation with inherited organizational tags | PASS |
+| Exact what-if | One Create: `capex-demo-v2-sql`; no modifications/deletions |
+| Compiled job/preflight contract | Manual, one replica, zero retries, SQL command, 10/30 expectations, no execution/persistence flags or model endpoint |
+| Authenticated registry data request | BLOCKED by registry network rules |
+| Proposed snapshot existence check | BLOCKED by storage network rules |
+| Image build/entrypoint verification | BLOCKED; not attempted without approved private-network build access |
+| Deployment or SQL workflow execution | NOT STARTED |
+
+Core validation used the azure-validate Bicep helper with the SQL-specific
+template and session-local preflight parameters. Its text change counter
+reported two Create mentions; a subsequent structured what-if confirmed
+exactly one resource creation. No existing jobs are affected.
+
+The template reuses the approved UAMI and existing data-role assignments;
+it creates no roles or secrets. Registry pull and Blob write permissions
+remain runtime verification requirements. The operator confirmed SQL
+migration 011. Do not mark the overall plan Validated or deploy until an
+approved private-network runner builds the updated image and remaining
+checks pass. No firewall or agent-pool changes were made.
+
 ### Goal and approval
 
 Add the direct CapEx Demo V2 finite batch to the existing Circle K CICT
@@ -98,6 +155,17 @@ provisioned.
 - [ ] Blob result, SQL rows, and execution logs reconciled.
 
 ### All validation checks pass
+
+The expanded SQL job must independently complete the following checks before
+deployment; the historical artifact-runner results do not satisfy them:
+
+- [ ] SQL job core validation: CLI/authentication, Bicep compilation, ARM
+  validation and what-if using the SQL-specific parameters.
+- [ ] SQL job policy validation, including inherited organizational tags.
+- [ ] Updated image build and verification of the SQL CLI entrypoint.
+- [ ] Static identity review: existing UAMI, registry pull, Blob snapshot
+  access and operator-reported SQL grants; no new role assignments.
+- [ ] Record current validation proof and resolve all errors before deployment.
 
 - [ ] Core validation
   - [x] Azure CLI installed and authenticated.

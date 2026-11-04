@@ -2,8 +2,63 @@
 
 **Prepared:** October 30, 2026  
 **Demo:** November 6, 2026  
-**Target invoices:** Bruegmann, Kimley-Horn, and JC2000A07814  
-**Companion project extract:** JC2000A07465
+**Original V2 workflow targets:** Bruegmann, Kimley-Horn, and JC2000A07814  
+**Additional source extract:** JC2000A07465
+
+## November 4 source-first SQL extraction
+
+The operator requested extraction from **both JC workbooks**, before any
+synthetic SQL seeding. Both are readable. They have different business-unit/
+project IDs and different invoice identifiers; they cannot be merged into
+one third invoice. The source-only SQL handoff now includes all ten distinct
+invoice-type records below. The earlier V2 request remains a three-invoice,
+23-line processing selection, not proof of processing the expanded inventory.
+
+| Source | Invoice number | Vendor name | Explicit vendor ID | Currency | Header amount | Lines |
+|---|---|---|---|---|---:|---:|
+| Bruegmann | INV12-62027 | Bruegmann USA, Inc. | 2153631 | USD | 1,627.50 | 12 |
+| Kimley-Horn | 36764068-GRP005 | KIMLEY-HORN AND ASSOCIATES, INC. | 2117718 | USD | 28,805.00 | 10 |
+| JC2000A07465 | 2001653935 | Miele A/S | Missing | DKK | 721,074.28 | 1 |
+| JC2000A07465 | 2001653932 | Miele A/S | Missing | DKK | 237,537.70 | 1 |
+| JC2000A07465 | 304430 | Doms Metrology ApS | Missing | DKK | 12,334.55 | 1 |
+| JC2000A07465 | 5063 | SMEDEN VVS APS | Missing | DKK | 4,645.70 | 1 |
+| JC2000A07465 | 2001665940 | Miele A/S | Missing | DKK | 40,132.00 | 1 |
+| JC2000A07465 | 2001069567 | Miele A/S | Missing | DKK | 38,014.39 | 1 |
+| JC2000A07465 | 2001704723 | Miele A/S | Missing | DKK | 36,552.80 | 1 |
+| JC2000A07814 | 20294 | GILBARCO GMBH | Missing | EUR | 16,123.79 | 1 |
+
+The JC names are the source `Explanation` values, not newly looked-up
+vendor-master records. Source `Address Number` values are preserved as
+candidates under their original label, not asserted as confirmed vendor IDs.
+Likewise G/L, service/tax, and batch date serials are not invoice dates.
+Bruegmann and Kimley-Horn invoice dates are explicitly 2026-08-26 and
+2026-07-31. The eight JC invoice dates remain NULL.
+
+All ten source records have linked invoice/package/line IDs in
+[invoice-source-extract.json](../../examples/data/capex/source-load/invoice-source-extract.json).
+There are 30 lines, with 19 missing quantities and 19 missing unit costs.
+The Bruegmann header/line difference of USD 99.33 matches its explicit source
+`Taxes/Total Taxes` field; it is retained as header provenance, not fabricated
+as an extra line. Source order candidates, source account/task codes, business
+units, document numbers/types, and data-quality evidence are retained in the
+new package/line JSON provenance fields. Bank details are not part of this
+invoice-model extraction.
+
+The six JC `JP` rows and one `OV` row are related accounting evidence, not
+invoice lines. In particular `12038910` belongs to the `OV` row and is not
+assigned to invoice `20294`. The three Bruegmann order candidates are all
+unchecked and do not establish one authoritative PO. No dummy data, FX
+conversion, synthetic task mapping, or approved accounting outcome is loaded.
+
+See the [SQL source-load handoff](../../sql/README.md#load-real-invoice-headers-packages-and-lines-first)
+for migration 010, the committing loader, source hashes, replay checks, and
+the PREPARING/no-event boundary. These local extractions do not verify current
+private Blob contents or prove a successful live SQL load.
+The older SHA-256 values in the inventory below identify the October 30
+snapshots. The generated extraction records current raw hashes alongside
+the historical normalized-reference hashes. Workbook metadata changed during
+validation, while all business cell values remained unchanged; neither
+workbook was edited or reverted by the extraction tool.
 
 ## Purpose
 

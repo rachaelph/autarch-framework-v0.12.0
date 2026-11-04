@@ -110,6 +110,35 @@
       "status": "AWAITING_CIRCLE_K"
     },
     {
+      "assumptionId": "SYN-SQL-001",
+      "category": "SQL_PREREQUISITE_FIXTURE",
+      "value": "Mirror the three DEMO project/site context overlays into SQL. Use ProjectTotalBudget 0 and ProjectType SYNTHETIC_DEMO solely as required-column placeholders; leave ProjectStartDate and IsLeased unknown.",
+      "affectedRecords": [
+        "DEMO-PROJECT-BRUEGMANN",
+        "DEMO-PROJECT-KIMLEY-HORN",
+        "DEMO-PROJECT-JC2000A07814",
+        "DEMO-SITE-001",
+        "DEMO-SITE-002",
+        "DEMO-SITE-EU-001"
+      ],
+      "rationale": "The logical SQL project requires a budget and type, but no authoritative values were supplied. Zero is explicitly synthetic, not an actual budget or evidence for a project-budget exception. The V2 runtime currently reads JSON context, not these SQL rows.",
+      "circleKQuestion": "Please supply the authoritative project budgets, project types, project start dates, and site lease status, along with approved invoice-to-project/site mappings.",
+      "replacementData": "Approved project/site master feed; remove the synthetic SQL placeholders",
+      "status": "AWAITING_CIRCLE_K"
+    },
+    {
+      "assumptionId": "SYN-SQL-002",
+      "category": "SQL_PREREQUISITE_FIXTURE",
+      "value": "Mirror the synthetic 1,000 USD unit-cost >= threshold into SQL as SYNTHETIC_DEMO_UNIT_COST_GTE. Use 2026-10-30 as a fixture-only EffectiveFrom, not an approved policy effective date. Do not create an EUR threshold or project-budget exception.",
+      "affectedRecords": [
+        "ref.CapitalizationThreshold synthetic demo row"
+      ],
+      "rationale": "The SQL model requires an effective date. The selected date matches the demo policy artifact date but does not establish business approval. This SQL row does not replace the runtime JSON policy or nature-rule library.",
+      "circleKQuestion": "Please confirm the threshold basis, comparison operator, regional scope, policy approval, and effective dates before any operational use.",
+      "replacementData": "Approved effective-dated capitalization policy; remove the synthetic threshold row",
+      "status": "AWAITING_CIRCLE_K"
+    },
+    {
       "assumptionId": "SYN-CTX-001",
       "category": "PROJECT_CONTEXT",
       "value": "Use the existing DEMO-prefixed project/site overlays, OPEN status, and bundling-in-scope flag.",

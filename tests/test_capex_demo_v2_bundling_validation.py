@@ -82,13 +82,12 @@ def test_synthetic_bundling_is_traceable_and_separate() -> None:
     register = json.loads(
         (REFERENCE_DIR / "synthetic-input-register-v2.json").read_text(encoding="utf-8")
     )
-    expected_assumptions = {item["assumptionId"] for item in register["syntheticInputs"]}
     expected_artifact_assumptions = {
         item["assumptionId"] for item in register["syntheticInputs"]
         if item["category"] != "SQL_PREREQUISITE_FIXTURE"
     }
     assert set(report["syntheticInputRefs"]) == expected_artifact_assumptions
-    assert {item["assumptionId"] for item in report["openCircleKQuestions"]} == expected_assumptions
+    assert {item["assumptionId"] for item in report["openCircleKQuestions"]} == expected_artifact_assumptions
     assert report["eligibleMemberCount"] == 11
     assert report["groupedMemberCount"] == 9
     assert report["ungroupedCandidateCount"] == 2

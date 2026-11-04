@@ -2607,8 +2607,8 @@
           "thresholdCurrency": "USD",
           "recommendation": "OPEX",
           "outcomeCategory": "OPEX_POTENTIAL_FUTURE_BUNDLING",
-          "bundlingDisposition": "GROUPED",
-          "bundleGroupId": "bundle-0e968e53524e198539e26b63",
+          "bundlingDisposition": "CANDIDATE",
+          "bundleGroupId": null,
           "missingInputs": [],
           "reviewReasons": [],
           "rationale": "The approved capitalizable nature rule matched, but unit cost is below the governed base threshold.",
@@ -2788,8 +2788,8 @@
           "thresholdCurrency": "USD",
           "recommendation": "OPEX",
           "outcomeCategory": "OPEX_POTENTIAL_FUTURE_BUNDLING",
-          "bundlingDisposition": "GROUPED",
-          "bundleGroupId": "bundle-0e968e53524e198539e26b63",
+          "bundlingDisposition": "CANDIDATE",
+          "bundleGroupId": null,
           "missingInputs": [],
           "reviewReasons": [],
           "rationale": "The approved capitalizable nature rule matched, but unit cost is below the governed base threshold.",
@@ -2924,46 +2924,6 @@
         {
           "schemaVersion": "2.0",
           "workflowRunId": "capex-demo-v2-synthetic-2026-11-04",
-          "bundleGroupId": "bundle-0e968e53524e198539e26b63",
-          "suggestedTaskCode": "0007",
-          "siteId": "DEMO-SITE-002",
-          "projectId": "DEMO-PROJECT-KIMLEY-HORN",
-          "currency": "USD",
-          "totalAmount": 0.0,
-          "thresholdAmount": 1000.0,
-          "disposition": "CANDIDATE",
-          "members": [
-            {
-              "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
-              "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
-              "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:3",
-              "quantity": 1.0,
-              "unitCost": 0.0,
-              "lineAmount": 0.0
-            },
-            {
-              "packageId": "pkg-ebdd3ca9-ed08-519c-b2eb-28d6627fb6be",
-              "invoiceId": "58aceec5-f35a-48a7-8faa-2f1a195af203",
-              "lineId": "58aceec5-f35a-48a7-8faa-2f1a195af203:8",
-              "quantity": 1.0,
-              "unitCost": 0.0,
-              "lineAmount": 0.0
-            }
-          ],
-          "missingInputs": [],
-          "rationale": "2 eligible lines share the governed task, site, project, and currency. Their combined current-run value of 0.00 USD remains below the governed threshold and is retained as a potential future bundle while the project is open.",
-          "policyCitations": [
-            "policy:circle-k-na-demo-unapproved-2026-10-30",
-            "setting:base-threshold",
-            "setting:bundling-key",
-            "synthetic-context:demo-v2-context-2026-10-30"
-          ],
-          "policyVersion": "circle-k-na-demo-unapproved-2026-10-30",
-          "createdAtUtc": "2026-11-04T17:00:00Z"
-        },
-        {
-          "schemaVersion": "2.0",
-          "workflowRunId": "capex-demo-v2-synthetic-2026-11-04",
           "bundleGroupId": "bundle-ab5d60c30f61b6281e7c049d",
           "suggestedTaskCode": "5225",
           "siteId": "DEMO-SITE-001",
@@ -3061,8 +3021,8 @@
       "persistence": {
         "taskSuggestions": 23,
         "assessments": 23,
-        "bundleGroups": 2,
-        "bundleMembers": 11
+        "bundleGroups": 1,
+        "bundleMembers": 9
       },
       "errors": []
     }
@@ -3073,15 +3033,15 @@
     "logicalPersistenceCounts": {
       "taskSuggestions": 23,
       "assessments": 23,
-      "bundleGroups": 2,
-      "bundleMembers": 11
+      "bundleGroups": 1,
+      "bundleMembers": 9
     }
   },
   "recordingSqlEvidence": {
     "purpose": "Exercise transaction and replay orchestration without claiming a live Azure SQL deployment.",
-    "firstRunInsertOperationCount": 60,
+    "firstRunInsertOperationCount": 57,
     "commitCountIncludingReplay": 8,
     "rollbackCount": 0
   },
-  "sha256": "ed1dc997dcc4234be0ae074b69773bd08b0062618d084c26d7fa9843df8b54aa"
+  "sha256": "5e690a6af0c4c6a99bde1fb483a77fb3ff9f0321f46392dec2b49c641baed10b"
 }

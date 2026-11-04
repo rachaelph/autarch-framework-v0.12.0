@@ -44,10 +44,13 @@ The known live Bruegmann V1 identifiers are:
 | Correlation | `corr-82167cbd-60d4-5c1d-b854-f6e335fd7b6a` |
 | Outbox final state | `PUBLISHED`, attempt count 1 |
 
-### What is not yet verified in live Azure SQL
+### Updated SQL state: November 4
 
-Migration 007 has not been applied or verified from the current workstation.
-Therefore, do **not** claim that the following tables contain live V2 rows:
+The presenter reported successful application of migrations 007 and 008,
+and supplied a column inventory confirming the assessment/bundle tables.
+The subsequent `capex.AssessmentRun` query returned **no rows**. Schema
+creation is complete for those objects, but no persisted V2 workflow run
+has been demonstrated. Do **not** claim the following contain live demo results:
 
 - `capex.AssessmentRun`
 - `capex.Assessment`
@@ -58,6 +61,13 @@ Therefore, do **not** claim that the following tables contain live V2 rows:
 The V2 persistence adapter was validated with a stateful SQL recording
 harness. The live GPT-5.1 V2 runs wrote JSON result artifacts, not live Azure
 SQL assessment rows.
+
+Migration 009 now prepares additive coverage of the remaining v2.1 model
+tables/columns. It preserves runtime identifiers rather than replacing them
+with the diagram's incompatible key types. Run
+`sql/validation/validate_capex_model_schema.sql` after applying 009 and read
+`sql/README.md` for physical differences and deferred relationships. These
+schema checks do not require a workflow run ID.
 
 Run
 `sql/validation/validate_capex_demo_v2_inventory.sql` from a network path
@@ -70,7 +80,7 @@ all live rows, replay groups, key TaskMaster entries, and whether migration
 > “The demo takes three normalized invoice packages, uses governed
 > TaskMaster data plus GPT-5.1 only to suggest task codes, applies
 > deterministic accounting rules for CapEx/OpEx/Review, identifies possible
-> cross-invoice bundles, and preserves every result and assumption as
+> bundle candidates, and preserves every result and assumption as
 > auditable evidence.”
 
 ## Architecture you should describe
@@ -318,11 +328,11 @@ expose governed projections of physical tables.
 
 | Object | Purpose | Expected synthetic run rows | Live state |
 |---|---|---:|---|
-| `capex.AssessmentRun` | Run ID, canonical hash, and expected counts | 1 | Not yet verified/deployed |
-| `capex.Assessment` | One immutable accounting result per line | 23 | Not yet verified/deployed |
-| `capex.BundleCandidateGroup` | One header per bundle candidate | 2 | Not yet verified/deployed |
-| `capex.BundleCandidateMember` | Exact lines included in each group | 11 | Not yet verified/deployed |
-| `pub.v1_Assessment` | Read-only reporting view joining assessments and groups | 23 visible rows | Not yet verified/deployed |
+| `capex.AssessmentRun` | Run ID, canonical hash, and expected counts | 1 | Created; presenter query returned no runs |
+| `capex.Assessment` | One immutable accounting result per line | 23 | Created; workflow results not demonstrated |
+| `capex.BundleCandidateGroup` | One header per bundle candidate | 1 | Created; workflow results not demonstrated |
+| `capex.BundleCandidateMember` | Exact lines included in each group | 9 | Created; workflow results not demonstrated |
+| `pub.v1_Assessment` | Read-only reporting view joining assessments and groups | 23 visible rows | 007 reported applied; workflow results not demonstrated |
 
 ## Complete synthetic output
 
@@ -375,7 +385,8 @@ amount.
 | 9 | Environmental project management/meetings | 1,700.00 | 0007 | CapEx |
 | 10 | Reimbursable expenses | 500.00 | Review | Review |
 
-Lines 3 and 8 form a two-member USD 0.00 candidate group. Line 10 remains
+Lines 3 and 8 remain ungrouped candidates: zero combined value does not
+create a bundle group. Line 10 remains
 Review because there is no approved reimbursable allocation or nature rule.
 
 ### JC line result
@@ -391,7 +402,11 @@ The workflow deliberately does not ask GPT-5.1 to invent a mapping.
 | Task | Site | Project | Members | Total | Disposition |
 |---|---|---|---:|---:|---|
 | 5225 | `DEMO-SITE-001` | `DEMO-PROJECT-BRUEGMANN` | 9 | USD 455.56 | Candidate |
-| 0007 | `DEMO-SITE-002` | `DEMO-PROJECT-KIMLEY-HORN` | 2 | USD 0.00 | Candidate |
+
+This is a within-invoice candidate below the threshold, not a demonstrated
+cross-invoice bundle or approved capitalization. The source invoices do not
+share the required grouping keys. Cross-invoice grouping is tested separately
+with synthetic matching invoices.
 
 ## Why truthful and synthetic outputs are both shown
 
@@ -476,8 +491,8 @@ Show:
 - 7 CapEx.
 - 11 OpEx.
 - 5 Review.
-- 2 bundle groups.
-- 11 bundle members.
+- 1 bundle group.
+- 9 bundle members.
 
 Use the line tables above to explain why.
 
@@ -487,8 +502,8 @@ If migration 007 is live, show:
 
 - one `AssessmentRun`;
 - 23 `Assessment` rows;
-- 2 group rows;
-- 11 member rows;
+- 1 group row;
+- 9 member rows;
 - exact replay does not add rows.
 
 If migration 007 is not live, show the deterministic validation JSON and say
