@@ -28,6 +28,10 @@ def test_sql_assets_use_ordered_migrations() -> None:
         "005_create_task_master.sql",
         "006_align_task_suggestion.sql",
         "007_create_capex_assessment_store.sql",
+        "008_grant_capex_demo_v2_access.sql",
+        "009_complete_capex_model_tables.sql",
+        "010_preserve_source_invoice_gaps.sql",
+        "011_grant_sql_demo_input_read_access.sql",
     ]
 
     assert (

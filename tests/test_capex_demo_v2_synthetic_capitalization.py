@@ -63,7 +63,9 @@ def test_synthetic_demo_is_labeled_tracked_and_separate() -> None:
     assert report["capexCount"] == 7
     assert report["opexCount"] == 11
     assert report["reviewCount"] == 5
-    assert len(report["openCircleKQuestions"]) == 8
+    assert {item["assumptionId"] for item in report["openCircleKQuestions"]} == {
+        item["assumptionId"] for item in register["syntheticInputs"]
+    }
     assert report["validationIssues"] == []
 
 

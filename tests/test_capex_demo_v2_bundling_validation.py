@@ -79,12 +79,20 @@ def test_synthetic_bundling_is_traceable_and_separate() -> None:
     assert report["syntheticRegisterId"] == (
         "capex-demo-v2-synthetic-inputs-2026-11-02"
     )
-    assert len(report["syntheticInputRefs"]) == 8
-    assert len(report["openCircleKQuestions"]) == 8
+    register = json.loads(
+        (REFERENCE_DIR / "synthetic-input-register-v2.json").read_text(encoding="utf-8")
+    )
+    expected_assumptions = {item["assumptionId"] for item in register["syntheticInputs"]}
+    expected_artifact_assumptions = {
+        item["assumptionId"] for item in register["syntheticInputs"]
+        if item["category"] != "SQL_PREREQUISITE_FIXTURE"
+    }
+    assert set(report["syntheticInputRefs"]) == expected_artifact_assumptions
+    assert {item["assumptionId"] for item in report["openCircleKQuestions"]} == expected_assumptions
     assert report["eligibleMemberCount"] == 11
-    assert report["groupedMemberCount"] == 11
-    assert report["ungroupedCandidateCount"] == 0
-    assert report["groupCount"] == 2
+    assert report["groupedMemberCount"] == 9
+    assert report["ungroupedCandidateCount"] == 2
+    assert report["groupCount"] == 1
     assert report["thresholdReachedGroupCount"] == 0
     assert report["modelCallCount"] == 0
     groups = report["bundleGroups"]
@@ -92,7 +100,7 @@ def test_synthetic_bundling_is_traceable_and_separate() -> None:
     assert sorted(
         (len(group["members"]), group["totalAmount"])
         for group in groups
-    ) == [(2, 0.0), (9, 455.56)]
+    ) == [(9, 455.56)]
     assert all(
         any(
             citation.startswith("synthetic-context:")

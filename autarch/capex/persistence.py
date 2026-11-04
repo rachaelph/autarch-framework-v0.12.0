@@ -53,6 +53,9 @@ class DatabaseConnection(Protocol):
     def rollback(self) -> None:
         ...
 
+    def close(self) -> None:
+        ...
+
 
 _TRANSACTION_PREAMBLE = """
 SET XACT_ABORT ON;

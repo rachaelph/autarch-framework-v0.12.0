@@ -20,11 +20,16 @@ def test_complete_three_invoice_workflow_reconciles_and_replays() -> None:
     synthetic = evidence["syntheticDemo"]["result"]
     assert len(synthetic["taskDeterminations"]) == 23
     assert len(synthetic["assessments"]) == 23
-    assert len(synthetic["bundleGroups"]) == 2
+    assert len(synthetic["bundleGroups"]) == 1
+    assert synthetic["bundleGroups"][0]["totalAmount"] == 455.56
+    assert {
+        member["invoiceId"]
+        for member in synthetic["bundleGroups"][0]["members"]
+    } == {"135d03ac-3598-498a-83fe-d273d046bfea"}
     assert synthetic["persistence"] == {
         "taskSuggestions": 23,
         "assessments": 23,
-        "bundleGroups": 2,
-        "bundleMembers": 11,
+        "bundleGroups": 1,
+        "bundleMembers": 9,
     }
     assert evidence["replayEvidence"]["additionalInsertCount"] == 0

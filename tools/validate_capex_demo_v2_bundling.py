@@ -171,9 +171,9 @@ def validate_demo_bundling(
     expected = (
         {
             "eligibleMemberCount": 11,
-            "groupedMemberCount": 11,
-            "ungroupedCandidateCount": 0,
-            "groupCount": 2,
+            "groupedMemberCount": 9,
+            "ungroupedCandidateCount": 2,
+            "groupCount": 1,
         }
         if synthetic
         else {
@@ -200,7 +200,7 @@ def validate_demo_bundling(
             (len(group.members), group.total_amount)
             for group in evaluation.groups
         )
-        if group_summary != [(2, 0.0), (9, 455.56)]:
+        if group_summary != [(9, 455.56)]:
             issues.append(
                 "Synthetic group membership or totals changed: "
                 f"received {group_summary}."

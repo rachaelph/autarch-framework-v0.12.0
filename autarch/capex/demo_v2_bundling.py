@@ -184,6 +184,7 @@ def evaluate_bundle_candidates(
     workflow_run_id: str,
     final_task_codes: Optional[Mapping[LineKey, str]] = None,
     created_at_utc: Optional[datetime] = None,
+    currency_policies: Optional[Mapping[str, DemoPolicySnapshot]] = None,
 ) -> BundlingEvaluation:
     """Group eligible lines by effective task, site, project, and currency."""
     if not workflow_run_id.strip():
@@ -225,6 +226,9 @@ def evaluate_bundle_candidates(
         if len(candidates) < minimum_members:
             continue
         task_code, site_id, project_id, currency = key
+        group_policy = (currency_policies or {}).get(currency, policy)
+        if group_policy.capitalization.currency != currency:
+            raise BundlingInputError("Bundle currency has no matching threshold policy")
         group_id = derive_bundle_group_id(
             workflow_run_id,
             task_code,
@@ -236,10 +240,12 @@ def evaluate_bundle_candidates(
             (Decimal(str(item.line.line_amount)) for item in candidates),
             start=Decimal("0"),
         )
+        if total_decimal == 0:
+            continue
         total_amount = float(total_decimal)
-        threshold_amount = policy.capitalization.base_threshold
+        threshold_amount = group_policy.capitalization.base_threshold
         citations = {
-            f"policy:{policy.policy_id}",
+            f"policy:{group_policy.policy_id}",
             "setting:base-threshold",
             "setting:bundling-key",
         }
@@ -281,7 +287,7 @@ def evaluate_bundle_candidates(
                     currency=currency,
                 ),
                 policy_citations=sorted(citations),
-                policy_version=policy.policy_id,
+                policy_version=group_policy.policy_id,
                 created_at_utc=created_at,
             )
         )

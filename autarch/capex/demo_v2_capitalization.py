@@ -372,7 +372,14 @@ def _assess_line(
     threshold_outcome_category: Optional[str] = None
     region_matches = (
         _normalized_text(package.country_region)
-        == _normalized_text("North America")
+        == _normalized_text(policy.region.replace("_", " "))
+        and (
+            allow_synthetic
+            or (
+                policy.region == "NORTH_AMERICA"
+                and policy.capitalization.currency == "USD"
+            )
+        )
     )
     if region_matches:
         threshold_amount = policy.capitalization.base_threshold
@@ -547,7 +554,7 @@ def _assess_line(
             outcome_category="CAPEX_MEETS_UNIT_THRESHOLD",
             bundling_disposition=BundlingDisposition.NOT_IN_SCOPE,
             rationale=(
-                "The approved capitalizable nature rule matched and unit "
+                "The applicable capitalizable nature rule matched and unit "
                 "cost meets the governed threshold."
             ),
             policy_citations=citations,
@@ -678,7 +685,7 @@ def _assess_line(
         outcome_category=outcome_category,
         bundling_disposition=bundling_disposition,
         rationale=(
-            "The approved capitalizable nature rule matched, but unit cost "
+            "The applicable capitalizable nature rule matched, but unit cost "
             "is below the governed base threshold."
         ),
         policy_citations=citations,

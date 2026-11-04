@@ -9,7 +9,7 @@ import sys
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence
 from urllib.parse import unquote, urlparse
 
 from pydantic import ValidationError
@@ -278,6 +278,7 @@ def _persist_task_determinations(
                 line_id=determination.line_id,
                 recommendation="REVIEW",
                 task_code=determination.suggested_task_code,
+                asset_class_code=determination.suggested_asset_class,
                 confidence=determination.confidence,
                 rationale=determination.rationale,
                 evidence_refs=list(determination.evidence_refs),
@@ -318,11 +319,31 @@ def run_demo_v2_workflow(
     connection: Any = None,
     requested_at_utc: Optional[datetime] = None,
     completed_at_utc: Optional[datetime] = None,
+    currency_policies: Optional[Mapping[str, DemoPolicySnapshot]] = None,
 ) -> DemoWorkflowResult:
     """Run one complete, finite Demo V2 workflow request."""
     requested_at = requested_at_utc or request.requested_at_utc
     completed_at = completed_at_utc or _utc_now()
     errors = _validate_request_inputs(request, packages, task_master, policy)
+    if currency_policies is not None:
+        if not request.allow_synthetic_inputs:
+            errors.append(_stage_error(
+                stage="VALIDATION", code="SYNTHETIC_POLICY_OPT_IN_REQUIRED",
+                message="SQL currency policies require explicit synthetic input mode.",
+            ))
+        for package in packages:
+            selected = currency_policies.get(package.currency or "")
+            if (
+                selected is None
+                or selected.capitalization.currency != package.currency
+                or selected.policy_id != policy.policy_id
+                or selected.bundling != policy.bundling
+            ):
+                errors.append(_stage_error(
+                    stage="VALIDATION", code="CURRENCY_POLICY_MISMATCH",
+                    message="Each currency requires a matching, consistently versioned policy.",
+                    package_id=package.package_id,
+                ))
     if errors:
         return DemoWorkflowResult(
             workflowRunId=request.workflow_run_id,
@@ -383,7 +404,7 @@ def run_demo_v2_workflow(
             assessments = assess_capitalization_for_invoice(
                 assessment_package,
                 determinations,
-                policy,
+                (currency_policies or {}).get(package.currency or "", policy),
                 workflow_run_id=request.workflow_run_id,
                 rule_set=rule_set,
                 allow_synthetic=request.allow_synthetic_inputs,
@@ -413,6 +434,7 @@ def run_demo_v2_workflow(
                 policy,
                 workflow_run_id=request.workflow_run_id,
                 created_at_utc=requested_at,
+                currency_policies=currency_policies,
             )
             all_assessments = bundling.assessments
             bundle_groups = bundling.groups
@@ -461,6 +483,7 @@ def run_demo_v2_workflow(
                     bundleMembers=persistence_outcome.bundle_members,
                 )
             except Exception as exc:
+                persistence = PersistenceCounts(task_suggestions=persisted_tasks)
                 errors.append(
                     _stage_error(
                         stage="PERSISTENCE",
@@ -608,13 +631,24 @@ def _write_result(
     *,
     credential: Any = None,
 ) -> None:
+    _write_json(uri, result.model_dump(mode="json", by_alias=True), credential=credential)
+
+
+def _write_json(
+    uri: str,
+    document: object,
+    *,
+    credential: Any = None,
+    exclusive: bool = False,
+) -> None:
     payload = (
-        result.model_dump_json(by_alias=True, indent=2) + "\n"
+        json.dumps(document, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
     ).encode("utf-8")
     if _is_windows_path(uri):
         path = Path(uri)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(payload)
+        with path.open("xb" if exclusive else "wb") as stream:
+            stream.write(payload)
         return
     parsed = urlparse(uri)
     if parsed.scheme in {"http", "https"}:
@@ -633,7 +667,8 @@ def _write_result(
     else:
         path = Path(uri)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(payload)
+    with path.open("xb" if exclusive else "wb") as stream:
+        stream.write(payload)
 
 
 def _parser() -> argparse.ArgumentParser:

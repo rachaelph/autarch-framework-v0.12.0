@@ -142,7 +142,7 @@ class PolicySetting(ReferenceModel):
 class CapitalizationPolicy(ReferenceModel):
     """Deterministic capitalization settings for the demo."""
 
-    currency: Literal["USD"] = "USD"
+    currency: str = Field(default="USD", pattern=r"^[A-Z]{3}$")
     base_threshold: float = Field(ge=0.0)
     threshold_comparison: Literal["GREATER_THAN_OR_EQUAL"]
     threshold_basis: Literal["UNIT_COST"]
@@ -213,7 +213,7 @@ class DemoPolicySnapshot(ReferenceModel):
     approval_status: Literal[
         ApprovalStatus.PROPOSED_DEMO_ASSUMPTION
     ] = ApprovalStatus.PROPOSED_DEMO_ASSUMPTION
-    region: Literal["NORTH_AMERICA"] = "NORTH_AMERICA"
+    region: Literal["NORTH_AMERICA", "EUROPE"] = "NORTH_AMERICA"
     capitalization: CapitalizationPolicy
     bundling: BundlingPolicy
     jc_reference_handling: JCReferenceHandling

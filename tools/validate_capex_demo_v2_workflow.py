@@ -272,12 +272,14 @@ def _validate_counts(result: Any, *, synthetic: bool) -> None:
             raise ValueError(
                 f"Unexpected synthetic recommendations: {recommendations}"
             )
-        if len(result.bundle_groups) != 2:
-            raise ValueError("Expected exactly two synthetic bundle groups.")
+        if len(result.bundle_groups) != 1:
+            raise ValueError("Expected exactly one synthetic bundle group.")
         if sum(
             len(group.members) for group in result.bundle_groups
-        ) != 11:
-            raise ValueError("Expected 11 synthetic bundle members.")
+        ) != 9:
+            raise ValueError("Expected 9 synthetic bundle members.")
+        if any(group.total_amount <= 0 for group in result.bundle_groups):
+            raise ValueError("Bundle groups must have positive combined value.")
     else:
         if any(
             item.recommendation.value != "REVIEW"
@@ -359,8 +361,8 @@ def validate_workflow() -> Dict[str, object]:
     if synthetic.persistence.model_dump() != {
         "task_suggestions": 23,
         "assessments": 23,
-        "bundle_groups": 2,
-        "bundle_members": 11,
+        "bundle_groups": 1,
+        "bundle_members": 9,
     }:
         raise ValueError(
             f"Persistence counts did not reconcile: {synthetic.persistence}"

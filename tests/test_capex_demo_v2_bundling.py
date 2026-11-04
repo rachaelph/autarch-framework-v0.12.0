@@ -283,6 +283,47 @@ def test_different_currency_candidates_do_not_match() -> None:
     assert result.ungrouped_candidate_count == 2
 
 
+def test_zero_value_candidates_do_not_create_a_bundle() -> None:
+    first = _package("package-1", "invoice-1", "line-1", 0)
+    second = _package("package-2", "invoice-2", "line-2", 0)
+
+    result = evaluate_bundle_candidates(
+        [first, second],
+        [_assessment(first), _assessment(second)],
+        build_demo_policy_snapshot(),
+        workflow_run_id="bundle-run-1",
+        created_at_utc=NOW,
+    )
+
+    assert result.groups == []
+    assert result.eligible_member_count == 2
+    assert result.grouped_member_count == 0
+    assert result.ungrouped_candidate_count == 2
+    assert all(
+        assessment.bundling_disposition == BundlingDisposition.CANDIDATE
+        and assessment.bundle_group_id is None
+        for assessment in result.assessments
+    )
+
+
+def test_zero_value_line_can_remain_in_a_positive_value_bundle() -> None:
+    first = _package("package-1", "invoice-1", "line-1", 0)
+    second = _package("package-2", "invoice-2", "line-2", 100)
+
+    result = evaluate_bundle_candidates(
+        [first, second],
+        [_assessment(first), _assessment(second)],
+        build_demo_policy_snapshot(),
+        workflow_run_id="bundle-run-1",
+        created_at_utc=NOW,
+    )
+
+    assert len(result.groups) == 1
+    assert result.groups[0].total_amount == 100
+    assert result.grouped_member_count == 2
+    assert result.ungrouped_candidate_count == 0
+
+
 def test_candidate_with_inconsistent_context_or_values_fails_explicitly() -> None:
     missing_context = _package(
         "package-1",

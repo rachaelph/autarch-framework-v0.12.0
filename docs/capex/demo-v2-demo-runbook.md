@@ -2,6 +2,131 @@
 
 ## What this workflow does
 
+### SQL-backed expanded rehearsal
+
+The original artifact-based runner below still uses three packages/23 lines.
+For the expanded SQL-staged input set, use
+[`capex-demo-v2-sql`](../../autarch/capex/demo_v2_sql_job.py) instead.
+This is an opt-in **synthetic reference rehearsal**, not automatic ingestion
+from landing and not proof of a deployed or completed Azure execution.
+Do not rerun an old seed/reset or start the old preparation/dispatch jobs.
+
+The SQL path reads all packages tagged with the supplied fixture ID, validates
+explicit expected invoice/line counts, and reads actual SQL Project, Site,
+PurchaseOrder/Line, PartMaster, threshold, keyword-rule and active TaskMaster
+rows. It checks header/package consistency, PO/part associations, reference
+provenance, effective dates, catalog hashes and preservation of known source
+values. Missing source quantities, prices, vendor IDs and dates remain NULL
+in SQL and in the captured source packages. Substitutes exist only in the
+processing copies and retain synthetic provenance.
+
+An unambiguous PO/PartMaster agreement produces an exact-reference task
+determination. A conflict/inactive code produces Review; codes are never
+invented. **This path makes no LLM calls.** Do not describe the seeded task
+codes as model-generated suggestions or the US catalog proxies as governed
+European mappings. The existing model-assisted artifact runner is separate.
+Native USD/EUR/DKK demo thresholds are selected per currency without FX
+conversion or mixed-currency totals. The old USD-only/current-policy path
+retains its Review behavior for unsupported regions/currencies.
+The repair/never-capitalize sentinel examples do not demonstrate those
+branches unless an actual line description matches their keywords.
+
+Execution prerequisites:
+
+1. Apply [011_grant_sql_demo_input_read_access.sql](../../sql/migrations/011_grant_sql_demo_input_read_access.sql)
+   using the authorized SQL operator connection. It grants the existing runtime
+   identity SELECT on eleven input tables, creates no tables/data, and does not
+   replace migration 008's append-only result permissions.
+2. Build an updated image using the existing
+   [Dockerfile.capex-v2](../../Dockerfile.capex-v2). A local test does not update
+   the deployed image. Use an authorized private-network Azure host with the
+   assigned managed identity, ODBC driver, SQL grants and Blob artifact access.
+   The job command must be `["capex-demo-v2-sql"]`; the old image entrypoint
+   `capex-demo-v2` does not select this mode automatically.
+   Use [capex-demo-v2-sql-job.bicep](../../infra/container-apps/capex-demo-v2-sql-job.bicep)
+   for this mode, not the original artifact-runner template. Supply
+   `jobArguments` using the read-only CLI flags below, without `--execute`
+   or `--persist-results` for the first checkpoint. The job is manual,
+   single-replica and has automatic retries disabled to avoid replaying a
+   partially persisted execution.
+3. Give every snapshot/result a fresh private artifact URI. Do not overwrite
+   preflight evidence or use an already-evidenced workflow run ID.
+
+**Private build prerequisite:** use an approved runner that can authenticate
+to the private registry and Blob endpoints. Build from a clean context
+containing only the Dockerfile, package manifest, README and required
+`autarch` source/assets; do not upload local environments, secrets or source
+invoices. A network-rule denial is not fixed by signing in again. Do not
+enable public access or resize unrelated build pools to bypass this blocker.
+
+Run the following on that host (PowerShell argument-continuation form shown):
+
+```powershell
+python -m autarch.capex.demo_v2_sql_job `
+  --fixture-id '<operator-supplied-fixture-id>' `
+  --allow-synthetic-inputs `
+  --expected-invoices 10 --expected-lines 30 `
+  --snapshot-uri '<fresh-private-preflight-snapshot-uri>'
+```
+
+Default behavior is read-only SQL preparation/validation plus creation of an
+immutable input artifact. It performs no task/accounting/bundling processing,
+publishes no events and writes no SQL results. Require `SQL_INPUTS_VALIDATED`,
+ten invoices/thirty lines and retain `inputSha256`. Inspect the snapshot's
+original versus processing packages, policies and reference matches.
+The `sqlSnapshot` section retains the actual input/reference rows, including
+their SQL identifiers, so the digest and reference provenance can be audited
+without relying on later database contents.
+
+After review, use a fresh execution snapshot/result URI and pass the retained
+digest. Changed source/reference data fail before processing:
+
+```powershell
+python -m autarch.capex.demo_v2_sql_job `
+  --fixture-id '<same-fixture-id>' `
+  --allow-synthetic-inputs `
+  --expected-invoices 10 --expected-lines 30 `
+  --snapshot-uri '<fresh-private-execution-snapshot-uri>' `
+  --expected-input-sha256 '<preflight-inputSha256>' `
+  --workflow-run-id '<new-workflow-id>' `
+  --output-uri '<fresh-private-result-uri>' `
+  --execute --persist-results
+```
+
+Omit `--persist-results` for a processing-only rehearsal. Result exit codes
+are 0/SUCCEEDED, 2/PARTIAL and 1/FAILED. Require exactly one determination and
+assessment for each of the thirty source line IDs, the same workflow ID in
+task correlation IDs and assessments, and bundle totals/membership that
+reconcile to eligible processing lines. Never assert historical result counts
+without inspecting the actual run.
+
+This direct-batch path intentionally leaves legacy package status PREPARING
+and emits no v1 InvoiceReady events: the v1 publication contract is not
+nullable-aware. Normalized v2 packages are prepared in memory and captured
+in the input artifact. `AssessmentRun` and result evidence, not a manually
+changed legacy status, demonstrate processing. Source ingestion remains the
+earlier manual SQL handoff.
+
+Task persistence commits per package; accounting/group/member persistence is
+a separate atomic transaction. A failure can leave committed task evidence.
+Inspect PARTIAL errors and actual SQL rows; do not delete results or hide
+partial execution. This SQL command requires a new run ID rather than
+claiming a fresh-read/model rerun is an identical replay. It does not write
+review decisions, approvals, handoffs or either outbox.
+
+Presenter checkpoints:
+
+| Stage | Evidence and truthful wording |
+|---|---|
+| Inputs | "Ten invoices/thirty lines were manually staged from source exports; supporting reference data are synthetic." |
+| Preparation | "The original facts are preserved; the processing copy applies explicitly labeled demo enrichment." |
+| Tasks | "The workflow calculates exact PO/PartMaster matches against the active catalog; this branch did not call an LLM." |
+| Accounting | "Deterministic native-currency demo policies produce CapEx, OpEx or Review with citations; these are not approved business policy." |
+| Bundling | "Only compatible eligible members form candidates. A candidate is not an approved asset." |
+| Audit | "SQL rows and artifacts identify the execution, source lines and synthetic assumptions. Human approval/handoff are not prefilled." |
+
+### Original artifact-based three-package workflow
+
 The workflow processes the three demo invoice packages in one finite batch:
 
 1. Verifies each normalized package, invoice, run, and source hash.
