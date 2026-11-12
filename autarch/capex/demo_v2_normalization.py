@@ -138,8 +138,8 @@ class NormalizedInvoicePackage(NormalizationModel):
     created_at_utc: datetime
 
     @field_validator("created_at_utc")
-    @classmethod
-    def validate_utc(cls, value: datetime) -> datetime:
+    @staticmethod
+    def validate_utc(value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() != timedelta(0):
             raise ValueError("createdAtUtc must include a UTC offset")
         return value

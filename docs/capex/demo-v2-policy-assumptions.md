@@ -2,11 +2,23 @@
 
 **Prepared:** October 30, 2026  
 **Demo:** November 6, 2026  
-**Scope:** North America demo using Bruegmann, Kimley-Horn, and JC2000A07814
+**Scope:** Ten SQL-staged real-source invoices/thirty lines, including Bruegmann,
+Kimley-Horn, seven JC07465 invoices and one JC07814 invoice
 
 ## Purpose
 
 This document separates policy supported by supplied Circle K material from implementation assumptions that still require business approval. Demo V2 must not turn an unconfirmed assumption into an accounting decision. When a required rule or business attribute is unavailable, the workflow returns `REVIEW` and records the reason.
+
+The requested SQL `--llm-workflow` mode uses GPT-5.1 for actual task, accounting
+and cross-invoice bundling **recommendations**, not advisory explanations.
+This is an explicitly gated demo behavior, not approved finance authority.
+Code validates catalog identities, policy constraints, currencies and exact
+amounts; human approval and posting remain separate. Native model outcomes are
+stored in `task.TaskSuggestion`, `capex.Assessment` (`UsedLlm=1`) and
+`capex.BundleDecision`, with optional candidate groups/members. The default
+zero-call reference mode and historical advisory mode remain distinct.
+USD 1000, EUR 1000 and DKK 7500 are labeled native-currency rehearsal
+assumptions, not an approved exchange-rate or regional policy implementation.
 
 ## Evidence reviewed
 
@@ -32,24 +44,24 @@ The reporting manual is the strongest supplied source for the numeric threshold 
 | Area | Evidence-based rule | Status | Demo V2 treatment |
 |---|---|---|---|
 | Task determination order | Determine and validate the governed task before capitalization and bundling. | Workflow confirmed | Task stage runs first; unknown task codes cannot proceed as resolved. |
-| AI boundary | AI may interpret ambiguous line descriptions; thresholds, exclusions, grouping, and persistence are deterministic. | Workflow confirmed | LangChain is limited to governed task determination. |
-| Nature gate | Apply CapEx/OpEx-by-nature guidance before the monetary threshold. | Workflow confirmed; rule list missing | Use only approved entries. An unknown nature rule returns `REVIEW`. |
+| AI boundary | Keep approved financial authority separate from model interpretation and recommendations. | Original workflow confirmed; native three-stage mode is a requested demo assumption | GPT-5.1 recommends tasks, CapEx/OpEx and cross-invoice asset groups in `--llm-workflow`; code validates policy/math and persists recommendations, not approvals. Default reference and older advisory modes remain unchanged. |
+| Nature gate | Apply CapEx/OpEx-by-nature guidance before the monetary threshold. | Workflow confirmed; approved rule list missing | Default reference uses explicit rules. Native GPT mode interprets source nature as an unapproved recommendation; unknown nature requires `REVIEW`, never fabricated approval. |
 | Base threshold | Property-and-equipment expenditure below **$1,000 USD** must normally be expensed. | Policy supported | Proposed governed NA threshold is 1,000 USD, pending confirmation that this manual/version applies to the demo. |
 | Below-threshold project exception | A below-$1,000 item may qualify when it is at least **$300 USD per site** and the aggregate project is at least **$30,000 USD**, with all stated policy criteria met. | Policy supported | Do not auto-apply until project aggregate and finance approval are available; otherwise return `REVIEW`. |
 | Other threshold exceptions | A below-threshold item may require reporting-team consideration when it is critical, provides long-term benefit, or is below threshold because of scale/geography. | Policy supported | Always return `REVIEW`; never auto-capitalize this exception. |
 | Threshold equality | The manual says “less than $1,000,” which implies 1,000 meets the threshold, but the latest sequence diagram explicitly requests confirmation of equality handling. | Business confirmation required | Proposed demo comparison is `unit cost >= 1,000 USD`; label the policy snapshot as unapproved until confirmed. |
 | Threshold basis | The reporting manual describes an “expenditure”; the latest sequence diagram says the threshold applies to **unit price**, not invoice total. | Business confirmation required | Proposed demo basis is normalized line `unitCost`, because that is the latest workflow direction. |
-| Currency | The manual uses USD and budget-rate conversion for Canadian, European, and Hong Kong currencies. | Policy supported; exchange-rate source missing | Demo only USD invoices. Non-USD records return `REVIEW` until a governed budget rate is supplied. |
+| Currency | The manual uses USD and budget-rate conversion for Canadian, European, and Hong Kong currencies. | Policy supported; exchange-rate source missing | Expanded SQL rehearsal uses explicitly unapproved native USD/EUR/DKK thresholds with no FX. Do not claim these are approved regional or converted policy decisions. |
 | Directly attributable costs | Delivery, handling, installation, site preparation, testing, and professional fees may form asset cost when directly related and recognition criteria are met. | Policy supported | Treat as possible bundle-related cost, not automatic CapEx. Require an associated asset/task and evidence. |
 | Labor | Directly attributable labor may be capitalizable, while day-to-day servicing labor is expense. The diagram still asks what labor is included in unit price. | Policy principle supported; calculation unconfirmed | Do not add or allocate labor to unit cost without an approved rule. Ambiguous labor lines return `REVIEW`. |
-| Routine repair and maintenance | Repairs that only preserve existing performance, including repainting, cleaning, and minor surface repair, are expensed. | Policy supported | Deterministic `OPEX` when an approved nature rule matches. |
+| Routine repair and maintenance | Repairs that only preserve existing performance, including repainting, cleaning, and minor surface repair, are expensed. | Policy supported | Reference rules or GPT nature interpretation can identify repair/maintenance; validation rejects capitalizable nature or CapEx when repair/never-capitalize indicators are present. Expense nature may remain Review with an explicit unresolved input. Invalid model responses receive at most one audited regeneration, never a code-authored replacement. |
 | Replacement or improvement | Work that restores/enhances service potential, extends useful life, increases capacity, or improves efficiency may be capitalized when recognition criteria are met. | Policy supported | Require evidence of replacement/improvement; ambiguous descriptions return `REVIEW`. |
 | Major replacement reference | The manual identifies major replacement costs at **$10,000 or more per asset or project**, while minor replacements require greater judgment. | Policy supported | Preserve as policy evidence; do not add a separate automatic demo threshold unless finance requests it. |
 | Major inspection | A major inspection can be recognized as replacement cost when the recognition criteria are met; ordinary tank-inspection examples were discussed as OpEx by nature. | Policy supported but fact-sensitive | Generic inspection lines return `REVIEW` unless an approved nature rule clearly resolves them. |
 | Bundling key | Match the same governed task, site, project, and currency. Different POs and vendors may match. | Workflow confirmed | Use a deterministic stable group key; require all key fields. |
 | Bundling scope | The latest diagram applies bundling to new and existing projects when required context is available. | Workflow confirmed; historical lookback missing | Process only the candidate activity loaded for the demo run. Do not imply complete historical coverage. |
 | Missing site/project | A line cannot be safely bundled without site and project context. | Workflow confirmed | Return `REVIEW`, identify missing fields, and do not invent context. |
-| Combined value | Sum the current line and matching sibling lines deterministically. | Workflow confirmed | No model call is permitted for aggregation or threshold comparison. |
+| Combined value | Sum the current line and matching sibling lines deterministically. | Workflow confirmed | GPT can propose asset members and a combined value; code independently verifies the exact Decimal sum. Wrong amounts or mixed task/site/project/currency groups fail, rather than becoming persisted successes. |
 | Above-threshold bundle | Matching lines above the threshold create a bundling candidate; matching fields and amount do not prove one asset. | Workflow confirmed | Output `CapEx - Bundling Candidate - Above Threshold` for human confirmation; do not auto-reclassify. |
 | Below-threshold/open project | A future matching line may arrive while a project remains open. | Workflow confirmed; timing/lookback unconfirmed | Output `OpEx - Potential Future Bundling` and preserve the candidate evidence. |
 | Below-threshold/closed project | If the complete candidate total remains below threshold, the documented outcome is OpEx. | Workflow confirmed; project-status source required | Apply only when project status and candidate-pool completeness are trustworthy; otherwise return `REVIEW`. |

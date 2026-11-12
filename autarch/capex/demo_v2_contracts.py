@@ -142,17 +142,31 @@ class DemoWorkflowRequest(DemoV2Model):
         return self
 
 
+class PotentialTagEvidence(DemoV2Model):
+    line_id: NonEmptyString
+    quote: NonEmptyString
+
+
+class PotentialReviewTag(DemoV2Model):
+    tag: Literal["POTENTIAL_BUNDLING", "POTENTIAL_REPAIR_MAINTENANCE_OPEX", "POTENTIAL_ARO"]
+    reason: NonEmptyString
+    evidence: List[PotentialTagEvidence] = Field(min_length=1)
+    reference_ids: List[NonEmptyString] = Field(default_factory=list)
+
+
 class TaskDetermination(DemoV2Model):
-    """Governed task-code result for one invoice line."""
+    """Task or EU asset-class classification for one invoice line."""
 
     schema_version: Literal["2.0"] = "2.0"
     workflow_run_id: NonEmptyString
     package_id: NonEmptyString
     invoice_id: NonEmptyString
     line_id: NonEmptyString
+    classification_type: Literal["TASK", "ASSET_CLASS"] = "TASK"
     resolution_status: TaskResolutionStatus
     suggested_task_code: Optional[NonEmptyString] = None
     suggested_asset_class: Optional[NonEmptyString] = None
+    potential_tags: Optional[List[PotentialReviewTag]] = None
     item_identified: Optional[NonEmptyString] = None
     match_method: TaskMatchMethod
     confidence: float = Field(ge=0.0, le=1.0)
@@ -170,9 +184,12 @@ class TaskDetermination(DemoV2Model):
     @model_validator(mode="after")
     def validate_resolution(self) -> "TaskDetermination":
         if self.resolution_status == TaskResolutionStatus.RESOLVED:
-            if self.suggested_task_code is None:
+            if (self.suggested_task_code if self.classification_type == "TASK"
+                    else self.suggested_asset_class) is None:
                 raise ValueError(
                     "resolved task determination requires suggestedTaskCode"
+                    if self.classification_type == "TASK"
+                    else "resolved asset-class determination requires suggestedAssetClass"
                 )
             if self.match_method == TaskMatchMethod.REVIEW:
                 raise ValueError(
@@ -191,6 +208,8 @@ class TaskDetermination(DemoV2Model):
                 raise ValueError(
                     "review task determination must use REVIEW matchMethod"
                 )
+        if self.classification_type == "ASSET_CLASS" and self.suggested_task_code is not None:
+            raise ValueError("EU asset-class determinations cannot contain a US task code.")
         return self
 
 
@@ -203,6 +222,7 @@ class CapitalizationAssessment(DemoV2Model):
     invoice_id: NonEmptyString
     line_id: NonEmptyString
     suggested_task_code: Optional[NonEmptyString] = None
+    suggested_asset_class_code: Optional[NonEmptyString] = None
     nature_result: NatureResult
     repair_maintenance_indicator: bool
     never_capitalize_hit: bool
@@ -211,6 +231,7 @@ class CapitalizationAssessment(DemoV2Model):
     threshold_currency: Optional[CurrencyCode] = None
     recommendation: CapitalizationRecommendation
     outcome_category: NonEmptyString
+    category_suggestion: Optional[NonEmptyString] = None
     bundling_disposition: BundlingDisposition
     bundle_group_id: Optional[NonEmptyString] = None
     missing_inputs: List[NonEmptyString] = Field(default_factory=list)
@@ -224,8 +245,16 @@ class CapitalizationAssessment(DemoV2Model):
 
     _validate_created_at_utc = field_validator("created_at_utc")(_require_utc)
 
+    @property
+    def classification_key(self) -> Optional[str]:
+        if self.suggested_asset_class_code is not None:
+            return f"EU_ASSET_CLASS:{self.suggested_asset_class_code}"
+        return self.suggested_task_code
+
     @model_validator(mode="after")
     def validate_assessment(self) -> "CapitalizationAssessment":
+        if self.suggested_task_code is not None and self.suggested_asset_class_code is not None:
+            raise ValueError("An assessment cannot use both a task code and an EU asset-class code.")
         if (self.threshold_amount is None) != (
             self.threshold_currency is None
         ):
@@ -249,6 +278,7 @@ class CapitalizationAssessment(DemoV2Model):
             )
         if self.bundling_disposition == BundlingDisposition.REVIEW and (
             self.recommendation != CapitalizationRecommendation.REVIEW
+            and not (self.used_llm and self.outcome_category.startswith(("CONDITIONAL_DEMO_", "SQL_GOVERNED_")))
         ):
             raise ValueError(
                 "REVIEW bundling disposition requires a REVIEW recommendation"
@@ -284,7 +314,8 @@ class BundleCandidateGroup(DemoV2Model):
     schema_version: Literal["2.0"] = "2.0"
     workflow_run_id: NonEmptyString
     bundle_group_id: NonEmptyString
-    suggested_task_code: NonEmptyString
+    suggested_task_code: Optional[NonEmptyString] = None
+    suggested_asset_class_code: Optional[NonEmptyString] = None
     site_id: Optional[NonEmptyString] = None
     project_id: Optional[NonEmptyString] = None
     currency: CurrencyCode
@@ -302,6 +333,8 @@ class BundleCandidateGroup(DemoV2Model):
 
     @model_validator(mode="after")
     def validate_group(self) -> "BundleCandidateGroup":
+        if (self.suggested_task_code is None) == (self.suggested_asset_class_code is None):
+            raise ValueError("A bundle requires exactly one task code or EU asset-class code.")
         member_keys = [
             (item.package_id, item.line_id) for item in self.members
         ]
@@ -342,13 +375,16 @@ class WorkflowPackageSummary(DemoV2Model):
     line_count: int = Field(ge=1)
     resolved_task_count: int = Field(ge=0)
     review_task_count: int = Field(ge=0)
+    resolved_asset_class_count: int = Field(default=0, ge=0)
+    review_asset_class_count: int = Field(default=0, ge=0)
     capex_count: int = Field(ge=0)
     opex_count: int = Field(ge=0)
     review_assessment_count: int = Field(ge=0)
 
     @model_validator(mode="after")
     def validate_counts(self) -> "WorkflowPackageSummary":
-        if self.resolved_task_count + self.review_task_count != self.line_count:
+        if (self.resolved_task_count + self.review_task_count + self.resolved_asset_class_count
+                + self.review_asset_class_count) != self.line_count:
             raise ValueError(
                 "task counts must equal lineCount"
             )
@@ -368,6 +404,7 @@ class PersistenceCounts(DemoV2Model):
     """Rows written by a Demo V2 execution."""
 
     task_suggestions: int = Field(default=0, ge=0)
+    asset_class_suggestions: int = Field(default=0, ge=0)
     assessments: int = Field(default=0, ge=0)
     bundle_groups: int = Field(default=0, ge=0)
     bundle_members: int = Field(default=0, ge=0)

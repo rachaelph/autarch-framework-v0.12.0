@@ -2,6 +2,330 @@
 
 Azure SQL assets for prepared CapEx invoices.
 
+## JC/EU asset classes, potential review tags and result reset
+
+These are prerequisites for the local worker; apply only missing steps.
+Read-only private-network execution `capex-task-determination-proof-4lh8zrn`
+verified the EU catalog, migration-018 columns and committed policy imports.
+All seven references are readable: 761 tasks, 79 EU classes, three thresholds,
+three exclusions, 31 maintenance indicators, 22 ARO indicators and seven categories.
+The SQL-governed worker is published. ADF run
+`d6ca5111-e1ab-4f6f-b186-454fad2b1d40` and its named worker succeeded.
+Completion telemetry reports 21 NA task rows, eight EU asset rows and 29
+assessments across ten invoices. Independent SQL acceptance remains pending:
+Azure rejected the verifier start with `JobStartOverrideAuthorizationFailed`.
+No new tables or imports are requested. An authorized SQL operator can set the
+first RunId declaration in
+[validate_capex_adf_demo_run.sql](validation/validate_capex_adf_demo_run.sql)
+and [present_capex_adf_demo_run.sql](validation/present_capex_adf_demo_run.sql)
+to that exact ID and run both read-only queries. Do not reset or rerun invoices
+to address this separate verification-access issue.
+The full prerequisite sequence is:
+
+1. [015_create_eu_asset_class_stores.sql](migrations/015_create_eu_asset_class_stores.sql):
+   creates `ref.assetClassMaster` and `task.assetClassSuggestion`, plus exclusive
+   task/asset-class assessment links and EU bundle classification fields.
+   Migration 009's computed `BundleCandidateGroup.TaskCode` depends on
+   `SuggestedTaskCode`. Migration 015 temporarily removes that computed alias,
+   makes the source nullable for EU groups, then restores its original
+   expression/persistence within the same transaction. Stored group rows and
+   US task values are retained. Unexpected physical `TaskCode` columns or
+   column-specific permissions cause a rollback rather than being discarded.
+2. [006_seed_eu_asset_class_master.sql](data/006_seed_eu_asset_class_master.sql):
+   seeds 79 classes, retaining all 869 original account mappings from `Sheet2`
+   of [Asset classes EU.xlsx](../examples/data/capex/Asset%20classes%20EU.xlsx).
+   `Pivot` is not the detailed reference. Existing differing catalog data is
+   rejected rather than overwritten. Regenerate the snapshot and seed with
+   `.\.venv314\Scripts\python.exe -m tools.generate_capex_eu_asset_classes`.
+   For a web/query editor, use the numbered SQL files in
+   [006_eu_asset_class_batches](data/006_eu_asset_class_batches), **one complete
+   file per execution**, in numeric order. Each query is at most 60,000 UTF-16
+   characters, with short, individually escaped literals and a payload
+   checksum. Do not paste all files together: the combined query can be clipped
+   even when each line is short. Batches insert missing classes, verify any
+   existing matching classes and reject conflicting source data. They commit
+   separately and can be resumed; partial progress is not a complete catalog.
+   Finish with
+   [999_verify_eu_asset_classes.sql](data/006_eu_asset_class_batches/999_verify_eu_asset_classes.sql),
+   which checks every class's names, group, mapping-data hash and source
+   metadata. Do not run ADF until it reports `EU_ASSET_CLASS_CATALOG_VERIFIED`
+   with 79 classes and 869 mappings. The combined 006 script remains available
+   for clients that execute a complete local file without paste-size limits.
+3. [016_add_potential_review_tags.sql](migrations/016_add_potential_review_tags.sql):
+   adds `PotentialBundling`, `PotentialRepairMaintenanceOpex`, `PotentialAro`
+   and `PotentialTagsJson` to both suggestion tables. NULL means not screened;
+   false flags plus `[]` mean screened with no supported signal.
+4. [018_align_assessment_review_categories.sql](migrations/018_align_assessment_review_categories.sql):
+   moves the repair/ARO flag ownership to `capex.Assessment` and creates the
+   outcome-category catalog. See the controlled handoff below.
+
+The updated ADF worker routes the two original XLSX files to the EU catalog
+and writes only `task.assetClassSuggestion` for those invoices. The two original
+NA ZIPs use TaskMaster and `task.TaskSuggestion`, regardless of a `JC` prefix. Both link into
+`capex.Assessment`; EU codes are not disguised as US task codes.
+Reference hashes and full catalog contents are checked before model calls.
+The EU asset reference does not approve accounting thresholds or policies.
+
+Potential tags contain a reason and source-line quotations; multiple tags may
+coexist. ARO is a possible retirement/removal/closure review signal, not a
+liability calculation. Contextual supporting lines must be in the same invoice.
+Tags do not change accounting, create approved assets, post to GL, or implement
+final Power BI categories. Existing `capex.BundleDecision`,
+`BundleCandidateGroup`, `BundleCandidateMember` and assessment bundling fields
+remain the bundling proposal mechanism. The reporting manual has not been
+adopted as an approved machine-executable accounting policy.
+
+### Clear results immediately before the next approved run
+
+**Not part of the current workflow. Do not execute a reset for the SQL-governed
+run: preserve prepared packages, policy references and historical results.**
+The legacy script below has a broader, destructive scope and requires separate
+explicit approval; in particular, it can remove the newly imported exclusions.
+
+Use [reset_capex_demo_results.sql](admin/reset_capex_demo_results.sql), not the
+older all-tables reset (which also targets source/reference data).
+It targets **all rows** in these result/prepared-data stores in this demo database:
+
+- `task.TaskSuggestion`, `task.assetClassSuggestion` if installed.
+- `capex.Assessment`, `capex.AssessmentRun`.
+- `capex.BundleDecision`, `capex.BundleCandidateGroup`, `capex.BundleCandidateMember`.
+- `capex.LlmShowcaseRun`.
+- `mvp_review.documents`, then `mvp_review.imports` (child before parent).
+- `prep.InvoicePackage`, with `InvoiceLine`, `InvoiceDataQualityWarning` and
+  `InvoiceOutbox` explicitly archived/deleted first instead of unarchived cascades.
+- `prep.PurchaseOrderLine`, `prep.PurchaseOrder`, `prep.Project`, `prep.Site`
+  in foreign-key-safe order.
+- `ref.NeverCapitalizeException` and `ref.PartMaster`, after their dependent
+  result rows. `ref.TaskMaster` and `ref.assetClassMaster` are not cleared.
+
+Run unchanged for a preview. Pause invoice jobs and other application writers;
+copy the preview's exact `ExpectedCountsJson` into `@ExpectedCountsJson`, set
+`@WritersPaused=1` and `@CommitReset=1`, and run again. All source rows are
+archived to uniquely named `ops.CapexResultBackup_*` tables before deletion.
+Counts are rechecked under locks; any mismatch or deletion failure rolls back
+the entire reset. Existing native or MVP human-review decisions block it.
+Do not delete those decisions merely to bypass this guard.
+
+Each scope expansion requires a fresh preview and new counts JSON, including
+the `mvp_review` and `prep` tables. Do not reuse earlier confirmation counts.
+`prep.Invoice` is preserved: the preview reports invoice-to-PO links and commit
+is blocked if any retained invoices reference purchase orders being cleared.
+Do not delete or detach those invoices merely to bypass this guard.
+
+The script preserves schemas, views, processing/bundling logic, TaskMaster,
+EU asset master, capitalization thresholds, repair indicators, `prep.Invoice` headers, and original
+landing/source blobs. It clears the listed prepared/project/PO/site data as
+well as SQL review handoff
+envelopes and stored document-byte copies, after archiving them in `ops`;
+it does not delete the original blobs. Archived rows remain available to the
+DBA; they are not an automatic restore workflow.
+This script does not reload project/PO/site data; the current ADF invoice demo
+has no authoritative POPA/PO/site feed to repopulate those master tables.
+Historical runs' native-table verifiers will no longer reconcile after a
+committed reset. Use a fresh ADF RunId and same-run reconciliation afterward.
+
+**No reset has been executed by the assistant.** After SQL prerequisites, build,
+validate and publish a new worker image through the approved deployment workflow
+before rerunning ADF. The currently published image does not contain these
+EU/tag changes. Run the updated read-only
+[presenter](validation/present_capex_adf_demo_run.sql) and
+[verifier](validation/validate_capex_adf_demo_run.sql) only after migrations
+015/016/018, using the new completed RunId.
+
+### Assessment categories, review flags and scoped exclusions
+
+Pause writers before running
+[018_align_assessment_review_categories.sql](migrations/018_align_assessment_review_categories.sql).
+It creates `ref.AssessmentOutcomeCategory` and adds nullable
+`CategorySuggestion`, `RepairMaintenanceFlag`, `AroFlag` and
+`PotentialTagsJson` to `capex.Assessment`. `CategorySuggestion` references
+the catalog's stable `CategoryCode`; join to `CategoryName` for display.
+The existing `Recommendation` and its computed `CapExOpExSuggestion` alias
+are retained: the accounting choice CAPEX/OPEX/REVIEW is not the same as
+the slide's overlapping review categories.
+
+The migration copies existing suggestion flags through the assessment's
+`TaskSuggestionID`/`AssetClassSuggestionID` links, rejects orphaned non-NULL
+flags and conflicting evidence, then drops `PotentialRepairMaintenanceOpex`
+and `PotentialAro` from both suggestion tables. Supporting tag JSON is copied
+to assessments; legacy JSON and potential-bundling metadata remain on
+suggestions for compatibility. NULL means not screened, 0 means screened
+without that signal, and 1 means potential review. The existing accounting
+`RepairMaintenanceIndicator` remains a separate nature decision.
+Success: `ASSESSMENT_REVIEW_SCHEMA_READY`.
+
+The updated ADF writer persists/readbacks flags and evidence on assessments
+transactionally for both US and EU lines. Do not run an old flag-writing
+worker after migration 018. Migration 016 recognizes the completed move
+when replayed and does not recreate the retired columns.
+
+Next, run the following separately in preview mode and review before committing:
+
+- [009_seed_assessment_outcome_categories.sql](data/009_seed_assessment_outcome_categories.sql):
+  set `@ApplyChanges=1` after preview. It imports the slide's seven labels,
+  considerations and suggested actions, plus explicitly proposed decision
+  criteria. Six are enabled for the demo; potential bundling is disabled.
+  Success: `ASSESSMENT_CATEGORIES_LOADED`, seven categories, six enabled.
+  Existing conflicting definitions are rejected, not overwritten.
+- [010_replace_contextual_never_capitalize_exceptions.sql](data/010_replace_contextual_never_capitalize_exceptions.sql):
+  preview existing rows, set `@ExpectedCurrentRows` from `CurrentTableRows`,
+  then set `@ApplyChanges=1` to replace them with three scoped PP&E rules.
+  The old rows are archived to a unique `ops.NeverCapitalizeBackup_*` table
+  in the same transaction. Success: `CONTEXTUAL_EXCLUSIONS_LOADED`, three rules.
+  Migration 018 adds `ApplicabilityRule`: evaluate that context, never the
+  keyword alone. The rules address routine maintenance, only the maintenance
+  portion of renovations, and transferred-asset installation where original
+  installation costs are not disposed. Mixed/unsubstantiated cases require
+  REVIEW, not automatic whole-line OPEX.
+
+Catalog import does not assign historical `CategorySuggestion` values.
+Selecting primary categories/precedence and reading the new SQL policy rules
+into the GPT stage remain separate integration work. Existing rows stay NULL
+where no classification/screening was performed. Do not relabel old generic
+recommendations as if they were the slide's approved categories.
+
+### ARO slide reference import
+
+1. Run [017_create_aro_indicator_store.sql](migrations/017_create_aro_indicator_store.sql)
+   to create `ref.AROIndicator` and grant the existing demo runtime user
+   `SELECT` on that table only. Success: `ARO_INDICATOR_STORE_READY`.
+2. Run [008_seed_aro_indicators.sql](data/008_seed_aro_indicators.sql)
+   with `@ApplyChanges=0` to preview. Set `@ApplyChanges=1` and rerun to
+   commit. Success: `ARO_INDICATORS_LOADED`, five groups and 22 total rows.
+
+The source is **slide 3 only** of `CAPEX_Microsoft_AI_POC_V3 nov 11.pptx`.
+`Category` contains the exact **Signal group**, `Keyword` contains an
+individual **Keywords / phrases to test** entry, and `PolicyReference`
+contains only the group's exact **Proposed review rule**. The first demolition
+phrase, `Remove / demolish / dispose of tanks, canopy or lines`, is one entry:
+the comma separates affected assets, not unrelated keywords.
+
+`IndicatorID` starts at 1 for the newly created table. `Active=1` enables
+the seeded reference entries; `RequiresRemovalContext=1` conservatively
+requires a supported retirement/removal/closure connection for every signal.
+Explicit retirement wording may provide that context itself. These are
+screening settings, not liability measurements or final accounting decisions.
+The import inserts missing entries, validates existing matching entries,
+rejects conflicting/extra rows, and does not delete or overwrite existing
+data. An unchanged rerun inserts zero rows.
+
+This creates/imports reference data only. It does **not** screen invoices,
+populate assessment `AroFlag`, calculate an ARO liability, enable bundling, or wire
+the worker to SQL rules. SQL-backed screening still requires the worker
+integration and deployment; migration 018 moves the review flags to assessments.
+
+### Repair/maintenance slide reference update
+
+[007_seed_potential_repair_maintenance_indicators.sql](data/007_seed_potential_repair_maintenance_indicators.sql)
+loads 31 English keyword/phrase rows from **slide 4** of
+`CAPEX_Microsoft_AI_POC_V3 nov 11.pptx`. `Category` contains the exact
+**Signal group** label (for example, `Preventive maintenance`), and
+`PolicyReference` contains only that group's exact **Guideline review rule**.
+The source slide cites FY28 CAPEX Definition Guideline (WIP), Appendix B;
+this provenance is documented here rather than appended to each rule.
+Preview by setting `@ApplyChanges=0`; review the existing rows marked `DELETE` and the
+31 proposed rows marked `INSERT`. To commit, set `@ExpectedCurrentRows` to
+the preview's `CurrentTableRows`, set `@ApplyChanges=1`, and rerun.
+This intentionally deletes **all existing rows in this table** and replaces
+them with the slide-4 catalog; it does not preserve previous indicator IDs.
+`TRUNCATE TABLE` resets the existing `IDENTITY(1,1)`, so the new IDs are
+1 through 31, including when the table was previously empty. This requires
+`ALTER` permission on the table; referencing foreign keys or other SQL Server
+restrictions cause an error rather than disabling constraints.
+The table definition and other tables are unchanged. Truncation, insertion
+and readback validation share one transaction: an error rolls everything
+back. No persistent backup is created. Success reports
+`SLIDE_4_REPAIR_INDICATORS_LOADED`, 31 keywords, six groups, 31 total rows,
+`FirstIndicatorID=1` and `LastIndicatorID=31`.
+
+The demo scope agreed on November 11 defers bundling. Its columns/proposal machinery are not
+enabled or disabled by this reference-data query. For ARO review, migration
+018 places nullable `AroFlag` on each line's `capex.Assessment` row, with source
+evidence in `PotentialTagsJson`. A schema migration does not screen historical invoices:
+NULL remains "not screened", 0 means screened without supported ARO evidence,
+and 1 means potential ARO for human review, not a measured liability or a GL
+instruction. The updated worker must be published and verified before claiming
+these flags are populated by ADF.
+
+`SignalStrength=1` is uniform keyword-presence metadata, not a probability,
+an approved accounting weight or an automatic OpEx instruction. The slide's
+rules are draft/WIP review guidance, not final accounting decisions. Removal is not an
+automatic OpEx or ARO determination; replacements/directly attributable costs
+still require review. No invented translations or differentiated scores are
+added. The current worker's accounting policy remains pinned JSON; populating
+this SQL table alone does not wire it into accounting or override those policies.
+
+The four supplied classification/bundling/repair/ARO slides contain **no numeric
+capitalization thresholds, country/currency assignments or effective dates**.
+`ref.CapitalizationThreshold` is therefore unchanged pending those actual values.
+Do not treat review-category labels or draft keywords as monetary thresholds.
+
+## Opt-in Thursday MVP stores (separate from Friday)
+
+For the newly approved service-boundary increment, hand the DBA
+[014_create_thursday_mvp_stores.sql](migrations/014_create_thursday_mvp_stores.sql).
+It creates six isolated tables under `mvp_batch` and `mvp_review`, plus separate
+runtime roles. It does not change Friday's tables, TaskMaster or stored results.
+It does not create Entra users or assign role members automatically.
+After approved identities are known, the DBA uses the commented identity
+examples at the end of the script, granting each identity only its matching
+runtime role. Agent and reference services receive no SQL role.
+
+Then run the read-only
+[014_validate_thursday_mvp_stores.sql](tests/014_validate_thursday_mvp_stores.sql).
+These scripts have not been executed against Azure SQL by the assistant.
+Live ODBC/schema/concurrency checks remain required before cloud demonstration.
+See the [Thursday operator handoff](../docs/capex/thursday-architecture-demo.md#repository-service-increment-and-private-vm-handoff)
+for API roles, VM commands and remaining deployment gates.
+
+### Existing-assets ADF handoff verification
+
+The ADF worker reuses the existing native task/assessment/model-bundle tables
+and migration 014's review tables. The JC/EU extension additionally needs
+migrations 015/016/018 above. The explicitly chosen
+shared demo identity also needs effective `mvp_review` read/insert permissions
+(normally `capex_mvp_review_runtime` membership). This is a demo compromise,
+not the distinct-identity production design above.
+
+If the runtime probe reports missing `mvp_review` permissions, first run
+[validate_capex_adf_review_access.sql](validation/validate_capex_adf_review_access.sql)
+as a DBA in `cict-ai-cus-sqldb`. It checks table/role presence and the existing
+shared identity's database principal, role membership and grants without
+changing anything. Missing permission can also mean an object is not visible;
+do not recreate tables or grant broad database access from that error alone.
+
+When the DBA has confirmed the existing tables/role/user and the missing
+membership, [grant_capex_adf_review_membership.sql](admin/grant_capex_adf_review_membership.sql)
+adds only the approved shared demo UAMI to the existing review runtime role.
+It validates the database and pins the UAMI object/client IDs, is rerunnable, and does not
+create objects or grant `db_owner`. This intentionally allows the shared demo
+identity to import review evidence and record review actions; production
+separation is still required. Repeat the workload's effective-access
+preflight afterward; role membership alone is not proof of effective access.
+The existing demo user was observed with a 16-byte client-ID SID; the guard
+accepts that verified mapping as well as the object-ID SID, never a name-only
+match. It does not remap or recreate the database user.
+
+If the operator can grant table permissions but cannot alter role membership,
+[grant_capex_adf_review_table_access.sql](admin/grant_capex_adf_review_table_access.sql)
+is a narrower, object-scoped alternative for the same shared demo identity.
+It validates the database, existing tables and pinned identity, then grants
+only `SELECT`/`INSERT` on `mvp_review.imports`, `documents` and `decisions`
+transactionally. It does not require role membership or grant schema-wide
+access. The worker checks effective permissions, not membership; membership
+may therefore remain zero after successful direct grants. Existing DENY
+permissions can still prevent effective access, so repeat the worker preflight.
+If the three direct grants already succeeded, do not rerun them merely to
+obtain role membership; continue with runtime verification.
+
+After an approved live ADF run succeeds and publishes its run-scoped `batch.json`,
+run [validate_capex_adf_demo_run.sql](validation/validate_capex_adf_demo_run.sql)
+from the existing authorized private SQL connection. Set its `@WorkflowRunId`
+to the ADF RunId. It is read-only and uses actual extracted line counts from the
+committed handoff, not Friday's fixed thirty-line fixture. It checks task links,
+model versus non-model provenance, model bundle coverage and source hashes.
+This script has not been executed against live Azure SQL by the assistant.
+
 - `migrations/` contains ordered, rerunnable schema migrations.
 - `tests/` contains executable, rollback-based verification scripts.
 - `prep` is the durable operational schema.

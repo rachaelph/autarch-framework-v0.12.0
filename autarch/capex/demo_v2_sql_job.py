@@ -1,4 +1,4 @@
-"""Opt-in SQL reference rehearsal; never publishes legacy InvoiceReady events."""
+"""Opt-in SQL reference or audited LLM rehearsal; no legacy InvoiceReady events."""
 from __future__ import annotations
 
 import argparse
@@ -12,6 +12,7 @@ from typing import Literal, Mapping, Optional, Sequence
 
 from pydantic import Field
 
+from ..errors import ModelError
 from .demo_v2_capitalization import CapitalizationNatureRule, CapitalizationRuleSet
 from .demo_v2_contracts import (
     DemoWorkflowRequest, InvoicePackageReference, TaskDetermination,
@@ -222,7 +223,10 @@ class SqlDemoInputs:
     matches: dict[tuple[str, str], tuple[Optional[str], list[str]]]
     sql_snapshot: dict[str, list[dict[str, object]]]
 
-    def request(self, workflow_run_id: str, *, persist: bool, now: datetime) -> DemoWorkflowRequest:
+    def request(
+        self, workflow_run_id: str, *, persist: bool, now: datetime,
+        model_deployment: Optional[str] = None,
+    ) -> DemoWorkflowRequest:
         return DemoWorkflowRequest(
             workflow_run_id=workflow_run_id, requested_at_utc=now,
             packages=[InvoicePackageReference(
@@ -230,7 +234,8 @@ class SqlDemoInputs:
                 package_uri=f"sql://{self.fixture_id}/{p.package_id}",
                 expected_invoice_id=p.invoice_id, expected_source_sha256=p.source.sha256,
             ) for p in self.sources],
-            model_deployment="REFERENCE_ONLY", task_prompt_version="sql-demo-reference-v1",
+            model_deployment=model_deployment or "REFERENCE_ONLY",
+            task_prompt_version="demo-v2-task-v1" if model_deployment else "sql-demo-reference-v1",
             capitalization_policy_version=self.fixture_id, bundling_policy_version=self.fixture_id,
             allow_synthetic_inputs=True, persist_results=persist,
         )
@@ -248,7 +253,7 @@ class SqlDemoInputs:
                 invoice_id=package.invoice_id, line_id=line.line_id,
                 resolution_status=TaskResolutionStatus.RESOLVED if resolved else TaskResolutionStatus.REVIEW,
                 suggested_task_code=code if resolved else None,
-                suggested_asset_class=task.asset_category_major if task else None,
+                suggested_asset_class=task.description if task else None,
                 item_identified=line.description,
                 match_method=TaskMatchMethod.EXACT_PART if resolved else TaskMatchMethod.REVIEW,
                 confidence=1.0 if resolved else 0.0,
@@ -541,11 +546,33 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--persist-results", action="store_true")
     parser.add_argument("--expected-input-sha256")
+    parser.add_argument("--llm-showcase", action="store_true",
+                        help="Real model task suggestions and advisory accounting/bundle explanations")
+    parser.add_argument("--llm-workflow", action="store_true",
+                        help="GPT-5.1 recommendations for every task/accounting line and cross-invoice bundles")
+    parser.add_argument("--llm-evidence-uri",
+                        help="Fresh immutable JSON artifact retaining actual prompts/responses")
+    parser.add_argument("--model-deployment", default=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-5.1"))
     args = parser.parse_args(argv)
     if args.execute and (not args.workflow_run_id or not args.output_uri or not args.expected_input_sha256):
         parser.error("--execute requires --workflow-run-id, --output-uri and --expected-input-sha256")
     if args.persist_results and not args.execute:
         parser.error("--persist-results requires --execute")
+    model_enabled = args.llm_showcase or args.llm_workflow
+    if args.llm_showcase and args.llm_workflow:
+        parser.error("Choose --llm-workflow or the earlier advisory --llm-showcase mode, not both")
+    if model_enabled and (not args.execute or not args.llm_evidence_uri):
+        parser.error("Model modes require --execute and --llm-evidence-uri")
+    if args.llm_evidence_uri and not model_enabled:
+        parser.error("--llm-evidence-uri requires a model mode")
+    if args.llm_workflow and args.model_deployment != "gpt-5.1":
+        parser.error("--llm-workflow requires the gpt-5.1 deployment")
+    if model_enabled and (
+        not os.getenv("AZURE_OPENAI_ENDPOINT") or not args.model_deployment.strip()
+    ):
+        parser.error("--llm-showcase requires AZURE_OPENAI_ENDPOINT and a model deployment")
+    if args.llm_evidence_uri and args.llm_evidence_uri in {args.snapshot_uri, args.output_uri}:
+        parser.error("LLM evidence, snapshot and result artifacts must have distinct URIs")
     if args.output_uri == args.snapshot_uri:
         parser.error("Snapshot and result artifacts must have distinct URIs")
     if args.expected_invoices < 1 or args.expected_lines < 1:
@@ -575,12 +602,49 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if not args.execute:
         return 0
     now = datetime.now(timezone.utc)
-    request = inputs.request(args.workflow_run_id, persist=args.persist_results, now=now)
+    request = inputs.request(
+        args.workflow_run_id, persist=args.persist_results, now=now,
+        model_deployment=args.model_deployment if model_enabled else None,
+    )
     connection = connect() if args.persist_results else None
     try:
         if connection is not None:
             cursor = connection.cursor()
             try:
+                if model_enabled:
+                    cursor.execute("""
+                        SELECT OBJECT_ID(N'capex.LlmShowcaseRun', N'U'),
+                            HAS_PERMS_BY_NAME(N'capex.LlmShowcaseRun', N'OBJECT', N'SELECT'),
+                            HAS_PERMS_BY_NAME(N'capex.LlmShowcaseRun', N'OBJECT', N'INSERT');
+                    """)
+                    readiness = cursor.fetchone()
+                    if readiness is None or readiness[0] is None or tuple(readiness[1:]) != (1, 1):
+                        raise ValueError(
+                            "Apply sql migration 012_store_capex_llm_showcase_outputs.sql "
+                            "and its object-scoped runtime grants before model execution."
+                        )
+                    cursor.execute("SELECT 1 FROM capex.LlmShowcaseRun WHERE WorkflowRunId=?",
+                                   (request.workflow_run_id,))
+                    if cursor.fetchone() is not None:
+                        raise ValueError("Workflow ID already has LLM evidence; choose a fresh workflow-run-id")
+                if args.llm_workflow:
+                    cursor.execute("""
+                        SELECT OBJECT_ID(N'capex.BundleDecision', N'U'),
+                            HAS_PERMS_BY_NAME(N'capex.BundleDecision', N'OBJECT', N'SELECT'),
+                            HAS_PERMS_BY_NAME(N'capex.BundleDecision', N'OBJECT', N'INSERT'),
+                            HAS_PERMS_BY_NAME(N'task.TaskSuggestion', N'OBJECT', N'UPDATE', N'MatchMethod', N'COLUMN'),
+                            HAS_PERMS_BY_NAME(N'task.TaskSuggestion', N'OBJECT', N'UPDATE', N'ItemIdentified', N'COLUMN'),
+                            HAS_PERMS_BY_NAME(N'task.TaskSuggestion', N'OBJECT', N'UPDATE', N'UnresolvedReason', N'COLUMN'),
+                            HAS_PERMS_BY_NAME(N'task.TaskSuggestion', N'OBJECT', N'UPDATE', N'ContractVersion', N'COLUMN'),
+                            HAS_PERMS_BY_NAME(N'capex.Assessment', N'OBJECT', N'UPDATE', N'TaskSuggestionID', N'COLUMN');
+                    """)
+                    readiness = cursor.fetchone()
+                    if readiness is None or readiness[0] is None or tuple(readiness[1:]) != (1,) * 7:
+                        raise ValueError("Apply 013_store_gpt_bundle_decisions.sql before GPT workflow execution.")
+                    cursor.execute("SELECT 1 FROM capex.BundleDecision WHERE WorkflowRunId=?",
+                                   (request.workflow_run_id,))
+                    if cursor.fetchone() is not None:
+                        raise ValueError("Workflow ID already has bundle decisions; choose a fresh run ID.")
                 cursor.execute("""SELECT 1 FROM capex.AssessmentRun WHERE WorkflowRunId=?
                     UNION ALL SELECT 1 FROM task.TaskSuggestion WHERE correlationId=?""",
                     (request.workflow_run_id, request.workflow_run_id))
@@ -589,14 +653,71 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             finally:
                 cursor.close()
                 connection.rollback()
+        showcase = None
+        decision_workflow = None
+        if model_enabled:
+            from ..intelligence.azure_openai import AzureOpenAIProvider
+            from .demo_v2_llm_showcase import SqlLlmShowcase
+
+            provider = AzureOpenAIProvider(
+                deployment=args.model_deployment, endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+                managed_identity_client_id=os.getenv("AZURE_CLIENT_ID"), json_mode=True,
+            )
+            if args.llm_workflow:
+                from .demo_v2_llm_decisions import SqlLlmDecisionWorkflow
+
+                decision_workflow = SqlLlmDecisionWorkflow(
+                    sources=inputs.sources, provider=provider, deployment=args.model_deployment,
+                    task_master=inputs.task_master, fixture_id=inputs.fixture_id,
+                    input_sha256=inputs.input_sha256,
+                )
+                showcase = decision_workflow
+            else:
+                showcase = SqlLlmShowcase(
+                    provider=provider, deployment=args.model_deployment, task_master=inputs.task_master,
+                    fixture_id=inputs.fixture_id, input_sha256=inputs.input_sha256,
+                )
         result = run_demo_v2_workflow(
             request=request, packages=inputs.sources, assessment_packages=inputs.enriched,
             task_master=inputs.task_master, policy=next(iter(inputs.policies.values())),
-            currency_policies=inputs.policies, task_resolver=inputs.resolve,
+            currency_policies=inputs.policies,
+            task_resolver=showcase.resolve if showcase else inputs.resolve,
             rule_set=inputs.rule_set, synthetic_setting_ids=_SETTINGS, connection=connection,
+            assessment_resolver=decision_workflow.assess if decision_workflow is not None else None,
+            bundle_resolver=decision_workflow.bundle if decision_workflow is not None else None,
         )
         _write_result(args.output_uri, result)
         print(result.model_dump_json(by_alias=True))
+        if showcase:
+            try:
+                if decision_workflow is not None:
+                    decision_workflow.finish(result)
+                else:
+                    showcase.explain(result, sources=inputs.sources, processing=inputs.enriched,
+                                     policies=inputs.policies)
+            except (ModelError, ValueError, OSError) as exc:
+                showcase.error = f"{type(exc).__name__}: {exc}"
+                raise
+            finally:
+                sql_evidence_sha256 = None
+                try:
+                    if connection is not None:
+                        sql_evidence_sha256 = showcase.persist(connection, result)
+                finally:
+                    if connection is not None and sql_evidence_sha256 is None:
+                        showcase.complete = False
+                        showcase.error = "LLM outputs were not committed to SQL; see the persistence exception."
+                    _write_json(args.llm_evidence_uri, showcase.evidence(result), exclusive=True)
+                    print(json.dumps({
+                        "stage": "LLM_SHOWCASE_COMPLETE" if showcase.complete else "LLM_SHOWCASE_INCOMPLETE",
+                        "workflowRunId": request.workflow_run_id,
+                        "llmCallsAttempted": len(showcase.calls),
+                        "llmResponsesReceived": sum(call.response is not None for call in showcase.calls),
+                        "sqlLlmEvidenceRows": int(sql_evidence_sha256 is not None),
+                        "sqlLlmEvidenceSha256": sql_evidence_sha256,
+                        "evidenceUri": args.llm_evidence_uri, "synthetic": True,
+                        "accountingUsedLlm": args.llm_workflow, "legacyReadyEventsPublished": 0,
+                    }))
         return {"SUCCEEDED": 0, "PARTIAL": 2, "FAILED": 1}[result.status]
     finally:
         if connection is not None:

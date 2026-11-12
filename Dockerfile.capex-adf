@@ -1,0 +1,32 @@
+FROM python:3.12-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && curl -fsSL https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb \
+        -o /tmp/packages-microsoft-prod.deb \
+    && dpkg -i /tmp/packages-microsoft-prod.deb \
+    && rm /tmp/packages-microsoft-prod.deb \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 capex
+
+WORKDIR /app
+COPY pyproject.toml README.md ./
+COPY autarch ./autarch
+COPY examples/data/capex/reference-v2/task-master-us-v2.json ./references/task-master-us-v2.json
+COPY examples/data/capex/reference-v2/policy-config-v2.json ./references/policy-config-v2.json
+COPY examples/data/capex/reference-v2/asset-class-master-eu-v1.json ./references/asset-class-master-eu-v1.json
+
+RUN pip install --no-cache-dir ".[capex,capex-demo]" \
+    && python -c "import pyodbc, pypdfium2, PIL; assert 'ODBC Driver 18 for SQL Server' in pyodbc.drivers()" \
+    && capex-demo-v2-adf --help \
+    && capex-demo-v2-review --help \
+    && python -c "from datetime import datetime, timezone; from autarch.capex.demo_v2_normalization import JCWorkbookNormalizationResult; JCWorkbookNormalizationResult(run_id='build-preflight', project_id='build-preflight', source={'fileName':'build-preflight', 'sha256':'0'*64, 'sourceSystem':'BUILD_SMOKE_TEST'}, created_at_utc=datetime.now(timezone.utc))" \
+    && chown -R capex:capex /app
+
+USER capex
+ENTRYPOINT ["python", "-m", "autarch.capex.demo_v2_adf_job"]

@@ -14,6 +14,7 @@ from autarch.capex.demo_v2_normalization import (
     NormalizedInvoicePackage,
     normalize_abbyy_for_demo_v2,
     normalize_jc_workbook,
+    read_xlsx_rows,
 )
 
 
@@ -136,6 +137,18 @@ def test_jc_companion_excludes_reversals_from_packages() -> None:
     )
 
 
+def test_jc_companion_keeps_account_and_invoice_columns_distinct() -> None:
+    rows = read_xlsx_rows(_source("JC2000A07465*.xlsx"))
+    invoices = [row for row in rows if row.get("Do Ty") == "AI"]
+
+    assert len(invoices) == 7
+    assert all(row["Account Number"].startswith("JC2000A07465.") for row in invoices)
+    assert {row["Invoice Number"] for row in invoices} == {
+        "2001653935", "2001653932", "304430", "5063",
+        "2001665940", "2001069567", "2001704723",
+    }
+
+
 def test_context_overlay_cannot_masquerade_as_source_data() -> None:
     with pytest.raises(ValidationError, match="DEMO-"):
         DemoContextOverlay(
@@ -172,3 +185,26 @@ def test_committed_normalization_artifacts_validate(
     )
 
     model_type.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "file_name,model_type",
+    [
+        ("bruegmann.normalized.json", NormalizedInvoicePackage),
+        ("jc2000a07814.normalized.json", JCWorkbookNormalizationResult),
+    ],
+)
+@pytest.mark.parametrize(
+    "timestamp",
+    ["2026-10-30T00:00:00", "2026-10-30T00:00:00+01:00"],
+)
+def test_normalization_models_reject_non_utc_timestamps(
+    file_name: str,
+    model_type: type,
+    timestamp: str,
+) -> None:
+    payload = json.loads((OUTPUT_DIR / file_name).read_text(encoding="utf-8"))
+    payload["createdAtUtc"] = timestamp
+
+    with pytest.raises(ValidationError, match="createdAtUtc must include a UTC offset"):
+        model_type.model_validate(payload)

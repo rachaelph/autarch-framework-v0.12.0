@@ -50,6 +50,8 @@ class _Candidate:
     site_id: str
     project_id: str
     currency: str
+    quantity: float
+    unit_cost: float
 
 
 def _package_map(
@@ -98,7 +100,7 @@ def _candidate_for_assessment(
         )
     effective_task_code = final_task_codes.get(
         (assessment.package_id, assessment.line_id),
-        assessment.suggested_task_code or "",
+        assessment.classification_key or "",
     ).strip()
     if not effective_task_code:
         raise BundlingInputError(
@@ -140,6 +142,8 @@ def _candidate_for_assessment(
         site_id=overlay.site_id,
         project_id=overlay.project_id,
         currency=line.currency,
+        quantity=line.quantity,
+        unit_cost=line.unit_cost,
     )
 
 
@@ -262,7 +266,9 @@ def evaluate_bundle_candidates(
             BundleCandidateGroup(
                 workflow_run_id=workflow_run_id,
                 bundle_group_id=group_id,
-                suggested_task_code=task_code,
+                suggested_task_code=None if task_code.startswith("EU_ASSET_CLASS:") else task_code,
+                suggested_asset_class_code=task_code.removeprefix("EU_ASSET_CLASS:")
+                    if task_code.startswith("EU_ASSET_CLASS:") else None,
                 site_id=site_id,
                 project_id=project_id,
                 currency=currency,
@@ -274,8 +280,8 @@ def evaluate_bundle_candidates(
                         package_id=item.package.package_id,
                         invoice_id=item.package.invoice_id,
                         line_id=item.line.line_id,
-                        quantity=item.line.quantity,
-                        unit_cost=item.line.unit_cost,
+                        quantity=item.quantity,
+                        unit_cost=item.unit_cost,
                         line_amount=item.line.line_amount,
                     )
                     for item in candidates

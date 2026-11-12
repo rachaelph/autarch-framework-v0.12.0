@@ -1,0 +1,624 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.48.1.52935",
+      "templateHash": "2310491688944066735"
+    }
+  },
+  "parameters": {
+    "imageSha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "metadata": {
+        "description": "Digest from the approved worker build in the existing registry; no sha256: prefix."
+      }
+    },
+    "armCredentialName": {
+      "type": "string",
+      "defaultValue": "",
+      "allowedValues": [
+        "",
+        "cred_capex_uami"
+      ],
+      "metadata": {
+        "description": "Leave empty for the historical system-identity path. Set cred_capex_uami only after attaching the approved UAMI."
+      }
+    },
+    "pdfRecommendationMode": {
+      "type": "string",
+      "defaultValue": "strict",
+      "allowedValues": [
+        "strict",
+        "provisional-demo"
+      ],
+      "metadata": {
+        "description": "Strict by default. Demo-only provisional recommendations retain extraction warnings and require analyst review."
+      }
+    },
+    "recommendationMode": {
+      "type": "string",
+      "defaultValue": "strict",
+      "allowedValues": [
+        "strict",
+        "conditional-demo"
+      ],
+      "metadata": {
+        "description": "Conditional demo advice uses disclosed native-currency policies and line-amount proxies; never finance approval."
+      }
+    },
+    "taskMasterSha256": {
+      "type": "string",
+      "defaultValue": "29130f66b5d793b4be93a9d08a1fe725dd2e0b8f1f66adcd8dc6d48a30087cf2",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "policySha256": {
+      "type": "string",
+      "defaultValue": "e43a747b3f773a04897732a8845da1048b1f64e1a48daab0f414c7a6556f3042",
+      "minLength": 64,
+      "maxLength": 64
+    }
+  },
+  "variables": {
+    "jobId": "[resourceId('Microsoft.App/jobs', 'capex-task-determination-proof')]",
+    "jobUrl": "[uri(environment().resourceManager, variables('jobId'))]",
+    "readPolicy": {
+      "timeout": "0.00:05:00",
+      "retry": 2,
+      "retryIntervalInSeconds": 30,
+      "secureInput": false,
+      "secureOutput": false
+    },
+    "authentication": "[if(empty(parameters('armCredentialName')), createObject('type', 'MSI', 'resource', environment().resourceManager), createObject('type', 'UserAssignedManagedIdentity', 'resource', environment().resourceManager, 'credential', createObject('referenceName', parameters('armCredentialName'), 'type', 'CredentialReference')))]",
+    "fileFilter": "@and(equals(item().type, 'File'), contains(createArray('Bruegmann  - INV1262027.pdf-135d03ac-3598-498a-83fe-d273d046bfea.zip', 'Kimley Hor - 36764068GRP005.pdf-58aceec5-f35a-48a7-8faa-2f1a195af203.zip', 'JC2000A07465-Ariba.xlsx', 'JC2000A07814 - Ariba+Proj.tool.xlsx'), item().name))\n",
+    "executionTemplate": {
+      "containers": [
+        {
+          "name": "capex-task-determination-proof",
+          "image": "[format('cictaicusacr.azurecr.io/capex/demo-v2-adf@sha256:{0}', parameters('imageSha256'))]",
+          "command": [
+            "python",
+            "-m",
+            "autarch.capex.demo_v2_adf_job"
+          ],
+          "args": [
+            "--input-base-uri",
+            "[format('https://cictaicusst.blob.{0}/landing/capex/input', environment().suffixes.storage)]",
+            "--output-base-uri",
+            "[format('https://cictaicusst.blob.{0}/landing/capex/output/adf-runs', environment().suffixes.storage)]",
+            "--task-master-uri",
+            "/app/references/task-master-us-v2.json",
+            "--task-master-sha256",
+            "[parameters('taskMasterSha256')]",
+            "--policy-uri",
+            "/app/references/policy-config-v2.json",
+            "--policy-sha256",
+            "[parameters('policySha256')]",
+            "--execute",
+            "--sql-persist",
+            "--fresh-pdf-extraction",
+            "--pdf-recommendation-mode",
+            "[parameters('pdfRecommendationMode')]",
+            "--recommendation-mode",
+            "[parameters('recommendationMode')]",
+            "--workflow-run-id",
+            "__ADF_WORKFLOW_RUN_ID__"
+          ],
+          "env": [
+            {
+              "name": "AZURE_CLIENT_ID",
+              "value": "562512ef-d515-428a-8df5-6c4c589812ef"
+            },
+            {
+              "name": "AZURE_OPENAI_ENDPOINT",
+              "value": "https://cict-ai-cus-foundry.cognitiveservices.azure.com/"
+            },
+            {
+              "name": "CAPEX_SQL_SERVER",
+              "value": "cict-ai-cus-sql.database.windows.net"
+            },
+            {
+              "name": "CAPEX_SQL_DATABASE",
+              "value": "cict-ai-cus-sqldb"
+            }
+          ],
+          "resources": {
+            "cpu": "[json('1.0')]",
+            "memory": "2Gi"
+          }
+        }
+      ]
+    },
+    "startExpression": "[format('@replace(''{0}'', ''__ADF_WORKFLOW_RUN_ID__'', pipeline().RunId)', replace(string(variables('executionTemplate')), '''', ''''''))]"
+  },
+  "resources": [
+    {
+      "condition": "[not(empty(parameters('armCredentialName')))]",
+      "type": "Microsoft.DataFactory/factories/credentials",
+      "apiVersion": "2018-06-01",
+      "name": "[format('{0}/{1}', 'cict-ai-cus-capex-adf', parameters('armCredentialName'))]",
+      "properties": {
+        "type": "ManagedIdentity",
+        "typeProperties": {
+          "resourceId": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'cict-ai-cus-capex-id')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[format('{0}/{1}', 'cict-ai-cus-capex-adf', 'ds_capex_landing_files')]",
+      "properties": {
+        "type": "Binary",
+        "linkedServiceName": {
+          "referenceName": "ls_capex_landing_blob",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String",
+            "defaultValue": "capex/input"
+          },
+          "fileName": {
+            "type": "String",
+            "defaultValue": ""
+          }
+        },
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "container": "landing",
+            "folderPath": {
+              "type": "Expression",
+              "value": "@dataset().folderPath"
+            },
+            "fileName": {
+              "type": "Expression",
+              "value": "@dataset().fileName"
+            }
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[format('{0}/{1}', 'cict-ai-cus-capex-adf', 'pl_capex_intake_check')]",
+      "properties": {
+        "concurrency": 1,
+        "parameters": {
+          "processInvoices": {
+            "type": "Bool",
+            "defaultValue": false
+          }
+        },
+        "variables": {
+          "executionStatus": {
+            "type": "String",
+            "defaultValue": "NotStarted"
+          }
+        },
+        "annotations": [
+          "Existing intake pipeline upgraded in place. Explicitly set processInvoices=true; otherwise stop after discovery with CAPEX_PROCESSING_NOT_ENABLED.",
+          "Uses an execution override of capex-task-determination-proof; saved job definition and Friday job are unchanged.",
+          "[if(empty(parameters('armCredentialName')), 'ARM activities use the temporary system-identity exception.', 'ARM activities use the approved existing cict-ai-cus-capex-id UAMI through cred_capex_uami. Blob linked service is unchanged.')]"
+        ],
+        "activities": [
+          {
+            "name": "DiscoverSources",
+            "type": "GetMetadata",
+            "policy": "[variables('readPolicy')]",
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "ds_capex_landing_files",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "capex/input",
+                  "fileName": ""
+                }
+              },
+              "fieldList": [
+                "childItems"
+              ],
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings",
+                "recursive": false
+              },
+              "formatSettings": {
+                "type": "BinaryReadSettings"
+              }
+            }
+          },
+          {
+            "name": "RequireProcessingOptIn",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "DiscoverSources",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "expression": {
+                "type": "Expression",
+                "value": "@pipeline().parameters.processInvoices"
+              },
+              "ifTrueActivities": [],
+              "ifFalseActivities": [
+                {
+                  "name": "ProcessingNotEnabled",
+                  "type": "Fail",
+                  "typeProperties": {
+                    "errorCode": "CAPEX_PROCESSING_NOT_ENABLED",
+                    "message": "File discovery completed. Processing was not requested; set processInvoices=true only for an approved billable demo execution."
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "SelectDemoFiles",
+            "type": "Filter",
+            "dependsOn": [
+              {
+                "activity": "RequireProcessingOptIn",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "items": {
+                "type": "Expression",
+                "value": "@activity('DiscoverSources').output.childItems"
+              },
+              "condition": {
+                "type": "Expression",
+                "value": "[variables('fileFilter')]"
+              }
+            }
+          },
+          {
+            "name": "RequireAllSources",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "SelectDemoFiles",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "expression": {
+                "type": "Expression",
+                "value": "@equals(length(activity('SelectDemoFiles').output.value), 4)"
+              },
+              "ifTrueActivities": [],
+              "ifFalseActivities": [
+                {
+                  "name": "MissingDemoSources",
+                  "type": "Fail",
+                  "typeProperties": {
+                    "errorCode": "CAPEX_INPUTS_MISSING",
+                    "message": "One or more of the four selected invoice files is missing from landing/capex/input."
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "ReadExistingJob",
+            "type": "WebActivity",
+            "policy": "[variables('readPolicy')]",
+            "dependsOn": [
+              {
+                "activity": "RequireAllSources",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "method": "GET",
+              "url": "[format('{0}?api-version=2025-01-01', variables('jobUrl'))]",
+              "authentication": "[variables('authentication')]"
+            }
+          },
+          {
+            "name": "RequireSafeJobConfiguration",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "ReadExistingJob",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "expression": {
+                "type": "Expression",
+                "value": "@and(equals(activity('ReadExistingJob').output.properties.configuration.triggerType, 'Manual'), and(equals(activity('ReadExistingJob').output.properties.configuration.replicaRetryLimit, 0), and(equals(activity('ReadExistingJob').output.properties.configuration.manualTriggerConfig.parallelism, 1), equals(activity('ReadExistingJob').output.properties.configuration.manualTriggerConfig.replicaCompletionCount, 1))))"
+              },
+              "ifTrueActivities": [],
+              "ifFalseActivities": [
+                {
+                  "name": "UnsafeExistingJob",
+                  "type": "Fail",
+                  "typeProperties": {
+                    "errorCode": "CAPEX_JOB_CONFIGURATION_CHANGED",
+                    "message": "Existing proof job is no longer manual, single-replica and retry-free. No job configuration was changed and no execution was started."
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "StartJob",
+            "type": "WebActivity",
+            "policy": {
+              "timeout": "0.00:10:00",
+              "retry": 0,
+              "secureInput": false,
+              "secureOutput": false
+            },
+            "dependsOn": [
+              {
+                "activity": "RequireSafeJobConfiguration",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "method": "POST",
+              "url": "[format('{0}/start?api-version=2025-01-01', variables('jobUrl'))]",
+              "authentication": "[variables('authentication')]",
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": {
+                "type": "Expression",
+                "value": "[variables('startExpression')]"
+              },
+              "turnOffAsync": false
+            }
+          },
+          {
+            "name": "RequireExecutionIdentity",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "StartJob",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "expression": {
+                "type": "Expression",
+                "value": "[format('@and(not(empty(activity(''StartJob'').output.name)), equals(toLower(activity(''StartJob'').output.id), toLower(concat(''{0}/executions/'', activity(''StartJob'').output.name))))', variables('jobId'))]"
+              },
+              "ifTrueActivities": [],
+              "ifFalseActivities": [
+                {
+                  "name": "MissingExecutionIdentity",
+                  "type": "Fail",
+                  "typeProperties": {
+                    "errorCode": "CAPEX_EXECUTION_ID_MISSING",
+                    "message": "ARM did not return this job execution identity. Inspect the start response; never retry an uncertain start or select the latest execution."
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "WaitForExecution",
+            "type": "Until",
+            "dependsOn": [
+              {
+                "activity": "RequireExecutionIdentity",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "timeout": "0.00:25:00",
+              "expression": {
+                "type": "Expression",
+                "value": "@contains(createArray('Succeeded', 'Failed', 'Stopped', 'Canceled', 'Degraded', 'POLL_FAILED'), variables('executionStatus'))"
+              },
+              "activities": [
+                {
+                  "name": "ReadExecution",
+                  "type": "WebActivity",
+                  "policy": "[variables('readPolicy')]",
+                  "typeProperties": {
+                    "method": "GET",
+                    "url": {
+                      "type": "Expression",
+                      "value": "[format('@concat(''{0}/executions/'', activity(''StartJob'').output.name, ''?api-version=2025-01-01'')', variables('jobUrl'))]"
+                    },
+                    "authentication": "[variables('authentication')]"
+                  }
+                },
+                {
+                  "name": "RecordExecutionStatus",
+                  "type": "SetVariable",
+                  "dependsOn": [
+                    {
+                      "activity": "ReadExecution",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "typeProperties": {
+                    "variableName": "executionStatus",
+                    "value": {
+                      "type": "Expression",
+                      "value": "@activity('ReadExecution').output.properties.status"
+                    }
+                  }
+                },
+                {
+                  "name": "RecordPollFailure",
+                  "type": "SetVariable",
+                  "dependsOn": [
+                    {
+                      "activity": "ReadExecution",
+                      "dependencyConditions": [
+                        "Failed"
+                      ]
+                    }
+                  ],
+                  "typeProperties": {
+                    "variableName": "executionStatus",
+                    "value": "POLL_FAILED"
+                  }
+                },
+                {
+                  "name": "PollDelay",
+                  "type": "Wait",
+                  "dependsOn": [
+                    {
+                      "activity": "RecordExecutionStatus",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "typeProperties": {
+                    "waitTimeInSeconds": 20
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "RequireExecutionSucceeded",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "WaitForExecution",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "expression": {
+                "type": "Expression",
+                "value": "@equals(variables('executionStatus'), 'Succeeded')"
+              },
+              "ifTrueActivities": [],
+              "ifFalseActivities": [
+                {
+                  "name": "JobExecutionFailed",
+                  "type": "Fail",
+                  "typeProperties": {
+                    "errorCode": "CAPEX_JOB_FAILED",
+                    "message": "The correlated job execution did not succeed. Inspect logs and partial artifacts before starting a fresh run."
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "CheckCompletionMarker",
+            "type": "GetMetadata",
+            "policy": "[variables('readPolicy')]",
+            "dependsOn": [
+              {
+                "activity": "RequireExecutionSucceeded",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "ds_capex_landing_files",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "type": "Expression",
+                    "value": "@concat('capex/output/adf-runs/', pipeline().RunId)"
+                  },
+                  "fileName": "batch.json"
+                }
+              },
+              "fieldList": [
+                "exists"
+              ],
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings",
+                "recursive": false
+              },
+              "formatSettings": {
+                "type": "BinaryReadSettings"
+              }
+            }
+          },
+          {
+            "name": "RequireCompletionMarker",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "CheckCompletionMarker",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "typeProperties": {
+              "expression": {
+                "type": "Expression",
+                "value": "@equals(activity('CheckCompletionMarker').output.exists, true)"
+              },
+              "ifTrueActivities": [],
+              "ifFalseActivities": [
+                {
+                  "name": "MissingCompletionMarker",
+                  "type": "Fail",
+                  "typeProperties": {
+                    "errorCode": "CAPEX_COMPLETION_MISSING",
+                    "message": "The correlated job returned success but its run-scoped batch.json is missing. Do not present this as completed processing."
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/credentials', 'cict-ai-cus-capex-adf', parameters('armCredentialName'))]",
+        "[resourceId('Microsoft.DataFactory/factories/datasets', 'cict-ai-cus-capex-adf', 'ds_capex_landing_files')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "pipelineResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DataFactory/factories/pipelines', 'cict-ai-cus-capex-adf', 'pl_capex_intake_check')]"
+    },
+    "datasetResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DataFactory/factories/datasets', 'cict-ai-cus-capex-adf', 'ds_capex_landing_files')]"
+    },
+    "reusedJobResourceId": {
+      "type": "string",
+      "value": "[variables('jobId')]"
+    }
+  }
+}

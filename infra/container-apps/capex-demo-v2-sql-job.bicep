@@ -25,6 +25,9 @@ param jobArguments array
 param sqlServerName string = 'cict-ai-cus-sql'
 param sqlDatabaseName string = 'cict-ai-cus-sqldb'
 
+@description('Existing Azure OpenAI endpoint; required only for opt-in --llm-showcase.')
+param azureOpenAIEndpoint string = ''
+
 resource sqlDemoJob 'Microsoft.App/jobs@2025-01-01' = {
   name: jobName
   location: location
@@ -73,6 +76,10 @@ resource sqlDemoJob 'Microsoft.App/jobs@2025-01-01' = {
             {
               name: 'CAPEX_SQL_DATABASE'
               value: sqlDatabaseName
+            }
+            {
+              name: 'AZURE_OPENAI_ENDPOINT'
+              value: azureOpenAIEndpoint
             }
           ]
           resources: {

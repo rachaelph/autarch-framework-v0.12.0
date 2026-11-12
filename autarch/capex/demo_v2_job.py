@@ -15,7 +15,7 @@ from urllib.parse import unquote, urlparse
 from pydantic import ValidationError
 
 from .agent_invocation_models import TaskSuggestion, TaskSuggestionLine
-from .demo_v2_bundling import evaluate_bundle_candidates
+from .demo_v2_bundling import BundlingEvaluation, evaluate_bundle_candidates
 from .demo_v2_capitalization import (
     CapitalizationRuleSet,
     assess_capitalization_for_invoice,
@@ -23,6 +23,7 @@ from .demo_v2_capitalization import (
 from .demo_v2_contracts import (
     DemoWorkflowRequest,
     DemoWorkflowResult,
+    CapitalizationAssessment,
     PersistenceCounts,
     TaskDetermination,
     WorkflowError,
@@ -266,6 +267,8 @@ def _persist_task_determinations(
     request: DemoWorkflowRequest,
     determinations: Sequence[TaskDetermination],
 ) -> int:
+    if any(item.classification_type != "TASK" for item in determinations):
+        raise ValueError("EU asset classes must be persisted in task.assetClassSuggestion, not TaskSuggestion.")
     event_seed = f"{request.workflow_run_id}:{package.package_id}".encode("utf-8")
     event_id = f"capex-v2-{hashlib.sha256(event_seed).hexdigest()}"
     suggestion = TaskSuggestion(
@@ -320,6 +323,15 @@ def run_demo_v2_workflow(
     requested_at_utc: Optional[datetime] = None,
     completed_at_utc: Optional[datetime] = None,
     currency_policies: Optional[Mapping[str, DemoPolicySnapshot]] = None,
+    enable_bundling: bool = True,
+    assessment_resolver: Optional[Callable[
+        [NormalizedInvoicePackage, Sequence[TaskDetermination], DemoPolicySnapshot, DemoWorkflowRequest],
+        Sequence[CapitalizationAssessment],
+    ]] = None,
+    bundle_resolver: Optional[Callable[
+        [Sequence[NormalizedInvoicePackage], Sequence[CapitalizationAssessment],
+         DemoPolicySnapshot, DemoWorkflowRequest], BundlingEvaluation,
+    ]] = None,
 ) -> DemoWorkflowResult:
     """Run one complete, finite Demo V2 workflow request."""
     requested_at = requested_at_utc or request.requested_at_utc
@@ -401,16 +413,26 @@ def run_demo_v2_workflow(
                 request=request,
                 determinations=task_resolver(package, request),
             )
-            assessments = assess_capitalization_for_invoice(
+            selected_policy = (currency_policies or {}).get(package.currency or "", policy)
+            assessments = list(assessment_resolver(
+                assessment_package, determinations, selected_policy, request,
+            )) if assessment_resolver else assess_capitalization_for_invoice(
                 assessment_package,
                 determinations,
-                (currency_policies or {}).get(package.currency or "", policy),
+                selected_policy,
                 workflow_run_id=request.workflow_run_id,
                 rule_set=rule_set,
                 allow_synthetic=request.allow_synthetic_inputs,
                 synthetic_setting_ids=synthetic_setting_ids,
                 created_at_utc=requested_at,
             )
+            if {item.line_id for item in assessments} != {line.line_id for line in package.lines} \
+                    or len(assessments) != len(package.lines):
+                raise ValueError("Assessments must exactly cover the invoice lines.")
+            if any(item.workflow_run_id != request.workflow_run_id
+                   or item.package_id != package.package_id or item.invoice_id != package.invoice_id
+                   for item in assessments):
+                raise ValueError("Assessment workflow/package/invoice identities must match their source.")
             successful_packages.append(assessment_package)
             package_tasks[assessment_package.package_id] = determinations
             all_tasks.extend(determinations)
@@ -426,9 +448,11 @@ def run_demo_v2_workflow(
             )
 
     bundle_groups = []
-    if all_assessments:
+    if all_assessments and enable_bundling:
         try:
-            bundling = evaluate_bundle_candidates(
+            bundling = bundle_resolver(
+                successful_packages, all_assessments, policy, request,
+            ) if bundle_resolver else evaluate_bundle_candidates(
                 successful_packages,
                 all_assessments,
                 policy,
@@ -447,6 +471,7 @@ def run_demo_v2_workflow(
                 )
             )
 
+    completed_at = completed_at_utc or _utc_now()
     persisted_tasks = 0
     persistence = PersistenceCounts()
     if request.persist_results:
@@ -502,7 +527,8 @@ def run_demo_v2_workflow(
     for package in successful_packages:
         tasks = package_tasks[package.package_id]
         assessments = assessments_by_package.get(package.package_id, [])
-        task_counts = Counter(item.resolution_status for item in tasks)
+        task_counts = Counter(item.resolution_status for item in tasks if item.classification_type == "TASK")
+        asset_counts = Counter(item.resolution_status for item in tasks if item.classification_type == "ASSET_CLASS")
         assessment_counts = Counter(item.recommendation for item in assessments)
         package_summaries.append(
             WorkflowPackageSummary(
@@ -511,6 +537,8 @@ def run_demo_v2_workflow(
                 lineCount=len(package.lines),
                 resolvedTaskCount=task_counts["RESOLVED"],
                 reviewTaskCount=task_counts["REVIEW"],
+                resolvedAssetClassCount=asset_counts["RESOLVED"],
+                reviewAssetClassCount=asset_counts["REVIEW"],
                 capexCount=assessment_counts["CAPEX"],
                 opexCount=assessment_counts["OPEX"],
                 reviewAssessmentCount=assessment_counts["REVIEW"],

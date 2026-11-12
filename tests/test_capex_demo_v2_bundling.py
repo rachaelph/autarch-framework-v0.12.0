@@ -29,6 +29,22 @@ from autarch.capex.demo_v2_reference import build_demo_policy_snapshot
 NOW = datetime(2026, 11, 2, 19, 0, tzinfo=timezone.utc)
 
 
+def test_eu_bundling_uses_asset_class_without_combining_with_same_number_us_task():
+    packages = [_package(f"p-{i}", f"invoice-{i}", "line-1", 400) for i in range(3)]
+    assessments = [_assessment(package, task_code="295") for package in packages]
+    for i in (0, 1):
+        assessments[i] = assessments[i].model_copy(update={
+            "suggested_task_code": None, "suggested_asset_class_code": "295",
+        })
+    result = evaluate_bundle_candidates(
+        packages, assessments, build_demo_policy_snapshot(), workflow_run_id="capitalization-1",
+    )
+    assert len(result.groups) == 1
+    group = result.groups[0]
+    assert group.suggested_task_code is None and group.suggested_asset_class_code == "295"
+    assert {item.package_id for item in group.members} == {"p-0", "p-1"}
+
+
 def _package(
     package_id: str,
     invoice_id: str,

@@ -18,6 +18,8 @@ crypto = ["cryptography>=42"]
 otel = ["opentelemetry-api>=1.20"]
 dev = ["pytest>=7", "cryptography>=42", "httpx>=0.27,<1", "jsonschema[format]>=4.23,<5"]
 capex = ["agent-framework-core>=1.16,<2", "agent-framework-openai>=1.14.1,<2", "azure-identity>=1.20,<2", "azure-servicebus>=7.14,<8", "azure-storage-blob>=12.25,<13", "pyodbc>=5.2,<6", "pydantic>=2.11,<3", "langchain-core>=0.3.86,<2", "cryptography>=42", "jsonschema[format]>=4.23,<5"]
+capex-demo = ["pypdfium2>=4.30,<6", "Pillow>=11,<13"]
+capex-cloud = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "PyJWT[crypto]>=2.10,<3"]
 
 [project.scripts]
 autarch = "autarch.cli:main"
@@ -26,6 +28,12 @@ capex-prepare-blob = "autarch.capex.blob_job:main"
 capex-dispatch = "autarch.capex.dispatch_job:main"
 capex-demo-v2 = "autarch.capex.demo_v2_job:main"
 capex-demo-v2-sql = "autarch.capex.demo_v2_sql_job:main"
+capex-demo-v2-mvp = "autarch.capex.demo_v2_mvp:main"
+capex-demo-v2-review = "autarch.capex.demo_v2_review:main"
+capex-demo-v2-api = "autarch.capex.demo_v2_api:main"
+capex-demo-v2-api-client = "autarch.capex.demo_v2_remote:main"
+capex-demo-v2-intake = "autarch.capex.demo_v2_intake:main"
+capex-demo-v2-adf = "autarch.capex.demo_v2_adf_job:main"
 
 [tool.setuptools.packages.find]
 include = ["autarch*"]

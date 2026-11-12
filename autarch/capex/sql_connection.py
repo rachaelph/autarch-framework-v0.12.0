@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import re
-from typing import Any, Callable, Optional
+import struct
+from typing import Any, Callable, Literal, Optional
 from uuid import UUID
 
 from .persistence import DatabaseConnection
@@ -54,13 +56,11 @@ def _validated_client_id(
         ) from exc
 
 
-def build_managed_identity_connection_string(
+def _encrypted_connection_string(
     *,
     server_fqdn: str,
     database_name: str,
-    managed_identity_client_id: Optional[str] = None,
 ) -> str:
-    """Build an encrypted managed-identity ODBC connection string."""
     server = _validated_name(
         server_fqdn,
         field="server_fqdn",
@@ -71,23 +71,31 @@ def build_managed_identity_connection_string(
         field="database_name",
         pattern=_DATABASE_PATTERN,
     )
-    client_id = _validated_client_id(
-        managed_identity_client_id
-    )
-
-    identity = "Authentication=ActiveDirectoryMsi;"
-    if client_id is not None:
-        identity += f"UID={client_id};"
-
     return (
         "Driver={ODBC Driver 18 for SQL Server};"
         f"Server=tcp:{server},1433;"
         f"Database={database};"
         "Encrypt=yes;"
         "TrustServerCertificate=no;"
-        f"{identity}"
         "Connection Timeout=30;"
     )
+
+
+def build_managed_identity_connection_string(
+    *,
+    server_fqdn: str,
+    database_name: str,
+    managed_identity_client_id: Optional[str] = None,
+) -> str:
+    """Build an encrypted managed-identity ODBC connection string."""
+    encrypted = _encrypted_connection_string(
+        server_fqdn=server_fqdn, database_name=database_name,
+    )
+    client_id = _validated_client_id(managed_identity_client_id)
+    identity = "Authentication=ActiveDirectoryMsi;"
+    if client_id is not None:
+        identity += f"UID={client_id};"
+    return encrypted + identity
 
 
 def connect_azure_sql(
@@ -95,18 +103,28 @@ def connect_azure_sql(
     server_fqdn: str,
     database_name: str,
     managed_identity_client_id: Optional[str] = None,
+    authentication: Literal["managed-identity", "azure-cli"] = "managed-identity",
     connector: Optional[Callable[..., Any]] = None,
 ) -> DatabaseConnection:
-    """Open Azure SQL using a system- or user-assigned identity."""
-    connection_string = (
-        build_managed_identity_connection_string(
+    """Open Azure SQL with explicit authentication; never fall back between identities."""
+    if authentication not in ("managed-identity", "azure-cli"):
+        raise AzureSqlConfigurationError("Unsupported Azure SQL authentication mode.")
+    if authentication == "azure-cli" and managed_identity_client_id is not None:
+        raise AzureSqlConfigurationError(
+            "managed_identity_client_id cannot be used with Azure CLI authentication."
+        )
+    if authentication == "azure-cli":
+        connection_string = _encrypted_connection_string(
+            server_fqdn=server_fqdn, database_name=database_name,
+        )
+    else:
+        connection_string = build_managed_identity_connection_string(
             server_fqdn=server_fqdn,
             database_name=database_name,
             managed_identity_client_id=(
                 managed_identity_client_id
             ),
         )
-    )
 
     if connector is None:
         try:
@@ -118,14 +136,39 @@ def connect_azure_sql(
         connector = pyodbc.connect
 
     try:
+        if authentication == "azure-cli" or os.environ.get("IDENTITY_ENDPOINT"):
+            from azure.identity import AzureCliCredential, ManagedIdentityCredential
+
+            identity_credential = (
+                AzureCliCredential(process_timeout=30)
+                if authentication == "azure-cli"
+                else ManagedIdentityCredential(
+                    client_id=_validated_client_id(managed_identity_client_id),
+                )
+            )
+            with identity_credential as credential:
+                token = credential.get_token(
+                    "https://database.windows.net/.default",
+                ).token.encode("utf-16-le")
+            # SDK token auth must not include ODBC Authentication or UID fields.
+            return connector(
+                _encrypted_connection_string(
+                    server_fqdn=server_fqdn, database_name=database_name,
+                ),
+                autocommit=False,
+                attrs_before={1256: struct.pack("<I", len(token)) + token},
+            )
         return connector(
             connection_string,
             autocommit=False,
         )
     except Exception as exc:
+        identity_description = (
+            "signed-in Azure CLI account"
+            if authentication == "azure-cli" else "workload managed identity"
+        )
         raise AzureSqlConnectionError(
-            "Could not connect to Azure SQL using the "
-            "workload managed identity."
+            f"Could not connect to Azure SQL using the {identity_description}."
         ) from exc
 
 

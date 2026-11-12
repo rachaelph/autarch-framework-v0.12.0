@@ -1,5 +1,11 @@
 # CapEx Demo V2 Presenter Walkthrough
 
+> **Historical reference:** the current Thursday presenter sequence and
+> implementation boundaries are in the
+> [architecture-aligned demo guide](thursday-architecture-demo.md).
+> The early readiness statements below predate the successful Friday
+> GPT/SQL run and must not be used as current execution status.
+
 ## Status of CICT-242
 
 CICT-242 is **in progress**, not closed. It should be closed only after the

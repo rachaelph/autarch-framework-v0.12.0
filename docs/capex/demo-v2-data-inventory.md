@@ -60,6 +60,14 @@ the historical normalized-reference hashes. Workbook metadata changed during
 validation, while all business cell values remained unchanged; neither
 workbook was edited or reverted by the extraction tool.
 
+A subsequent column move in JC2000A07465 overwrote its account-number column
+with invoice numbers. The local workbook was repaired from the verified
+historical source: account cells were restored in column A and the invoice
+cells moved back to column AH. All other logical cells and workbook package
+members were preserved. The repair changes the raw file hash; existing
+source-load payloads remain historical and were not regenerated or reloaded
+into SQL. Do not rerun the source loader over validated/enriched demo rows.
+
 ## Purpose
 
 This register identifies what is actually present in the supplied files, whether each target can be normalized for Demo V2, and which missing values must come from Circle K or be visibly marked synthetic for the demo.

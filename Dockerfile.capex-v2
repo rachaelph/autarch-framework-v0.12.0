@@ -29,4 +29,6 @@ RUN pip install --no-cache-dir ".[capex]" \
 
 USER capex
 
+RUN capex-demo-v2-sql --help
+
 ENTRYPOINT ["capex-demo-v2"]

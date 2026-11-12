@@ -7,6 +7,8 @@ from typing import List, Optional
 import pytest
 
 from autarch.capex.demo_v2_contracts import (
+    DemoWorkflowRequest,
+    InvoicePackageReference,
     TaskMatchMethod,
     TaskResolutionStatus,
 )
@@ -148,6 +150,29 @@ class RecordingProvider(ModelProvider):
 def _model_response(lines: List[dict]) -> str:
     return json.dumps({"lines": lines})
 
+def test_model_cannot_choose_a_representative_from_indistinguishable_codes():
+    snapshot = _snapshot()
+    duplicate = snapshot.tasks[0].model_copy(update={"task_code": "0007A"})
+    snapshot = snapshot.model_copy(update={
+        "tasks": [*snapshot.tasks, duplicate],
+        "active_task_count": 3, "total_source_rows": 3,
+    })
+    provider = RecordingProvider(response=_model_response([
+        _resolved("line-1", "0007", "Environmental assessment"),
+    ]))
+    with pytest.raises(TaskSuggestionResponseError, match="indistinguishable"):
+        suggest_tasks_for_invoice(
+            _package([_line("line-1", "Environmental impact assessment report")]),
+            snapshot, workflow_run_id="run-1", model=LangChainTaskSuggestionModel(provider),
+        )
+    request = json.loads(provider.calls[0][0].split("\n", 1)[1].split("\n\nReturn JSON")[0])
+    line = request["lines"][0]
+    assert line["ambiguousCandidates"]
+    assert line["requiresTaskDisambiguation"]
+    assert line["candidates"] == []
+    assert all(task["taskCode"] not in {"0007", "0007A"} for task in line["candidates"])
+    assert not {"task:0007", "task:0007A"} & set(line["allowedEvidenceRefs"])
+
 
 def _resolved(
     line_id: str,
@@ -190,6 +215,44 @@ def test_exact_governed_source_task_skips_gpt() -> None:
     assert results[0].match_method == TaskMatchMethod.EXACT_TASK
     assert results[0].suggested_task_code == "0007"
     assert results[0].model_deployment is None
+
+
+@pytest.mark.parametrize("resolver", ["exact", "model", "adf"])
+def test_selected_task_uses_description_not_asset_categories(resolver) -> None:
+    snapshot = _snapshot().model_copy(update={
+        "tasks": [_task("5220A", "SHELVING", "STORE EQUIPMENT", "SHELF FIXTURES")],
+        "active_task_count": 1, "total_source_rows": 1,
+    })
+    package = _package([_line(
+        "line-1", "Shelving hardware",
+        source_task_code="5220A" if resolver == "exact" else None,
+    )])
+    provider = RecordingProvider(_model_response([
+        _resolved("line-1", "5220A", "Shelving hardware"),
+    ]))
+    if resolver == "adf":
+        from autarch.capex.demo_v2_llm_decisions import SqlLlmDecisionWorkflow
+
+        workflow = SqlLlmDecisionWorkflow(
+            sources=[package], provider=provider, deployment="gpt-5.1",
+            task_master=snapshot, fixture_id="mapping-test", input_sha256="b" * 64,
+        )
+        request = DemoWorkflowRequest(
+            workflow_run_id="workflow-1", requested_at_utc=NOW,
+            packages=[InvoicePackageReference(
+                package_id=package.package_id, run_id=package.run_id,
+                package_uri="memory://mapping-test",
+            )],
+            model_deployment="gpt-5.1", task_prompt_version="mapping-test",
+        )
+        results = workflow.resolve(package, request)
+    else:
+        results = suggest_tasks_for_invoice(
+            package, snapshot, workflow_run_id="workflow-1",
+            model=LangChainTaskSuggestionModel(provider), created_at_utc=NOW,
+        )
+    assert results[0].suggested_task_code == "5220A"
+    assert results[0].suggested_asset_class == "SHELVING"
 
 
 def test_langchain_batches_all_unresolved_lines_in_one_call() -> None:

@@ -1,6 +1,753 @@
 # CapEx Demo V2 Client Runbook
 
+> **Thursday, November 12:** use the
+> [architecture-aligned presenter guide](thursday-architecture-demo.md).
+> It covers the new opt-in extraction/review prototype and the preserved
+> Friday SQL fallback. The invoices-first script below is the historical
+> Friday walkthrough; do not describe its job as the new two-pass MVP.
+
+## Thirty-minute Azure presenter script: invoices first
+
+This is a spoken walkthrough, not a new workflow query. Use the existing
+successful execution and already-opened, read-only table/result views.
+Do not rebuild, seed/reset tables, change networking or click Run now.
+
+### Prepare the screens before the audience joins
+
+Use the approved VM/session that already reaches private SQL and Storage.
+Open these screens in separate tabs/windows:
+
+1. Azure Portal, resource group `cict-aisandbox-cus-rg`.
+2. Storage account `cictaicusst`, container `landing`, original invoice
+   artifacts. Open the two original US invoice PDFs from their source bundles
+   and both JC workbooks in approved local viewers before the meeting.
+3. Database `cict-ai-cus-sqldb`, plus the existing working SQL data views for
+   `prep.Invoice`, `prep.InvoiceLine`, `prep.InvoicePackage`,
+   `task.TaskSuggestion`, `capex.Assessment`, `capex.BundleDecision` and
+   `capex.LlmShowcaseRun`. Preselect the successful v4 run's result rows.
+4. Container Apps Job `capex-demo-v2-sql`, execution history,
+   execution `capex-demo-v2-sql-qfr1i2b`, status Succeeded.
+5. Foundry resource `cict-ai-cus-foundry`, existing model deployment `gpt-5.1`.
+6. Container registry `cictaicusacr`, repository `capex/demo-v2`, tag
+   `sql-20261105T145410Z-f32b4631`.
+7. Storage folder `landing/capex/demo-v2/sql` and the existing retained log
+   view for the successful execution, if available.
+
+The Azure SQL resource Overview page does not itself display invoice rows.
+Use the working SQL editor/table-data view or existing result grids for the
+data portion. If the Portal Query editor is not already working from the
+private session, switch to the proven SQL tool; do not troubleshoot access
+or change firewall rules on stage. No additional workflow SQL is supplied.
+Do not edit data in a table viewer.
+
+### 00:00-02:00: opening and dummy-data disclaimer
+
+**Show:** original invoice/source-file tab, before any recommendation tables.
+
+**Say:**
+
+> Today I will follow the invoices from their original source, through the
+> SQL invoice model, into task suggestion, CapEx/OpEx recommendation and
+> cross-invoice bundling evaluation. I am showing the persisted results of
+> a completed Azure execution, so we can inspect the same evidence at each
+> step without rerunning paid model calls.
+>
+> The source invoice descriptions, currencies and amounts are real. Where
+> the extracts lacked required processing information, we added explicitly
+> labeled synthetic demo context. Those assumptions are not approved
+> business facts or approved accounting policy. Original missing source
+> values remain missing in the source records. These are recommendations
+> for human review, not finance approvals or ERP postings.
+
+**Know exactly what was synthetic and where it resides:**
+
+| Demo input | Where to point if asked |
+|---|---|
+| Project/site identities, project budget/status, bundling scope and site assumptions | `prep.Project`, `prep.Site`, and `prep.InvoicePackage.SourceMetadataJson.demoFixture` |
+| Missing processing vendor IDs, invoice dates and header PO context | Effective values in package `SourceMetadataJson.demoFixture`; original header columns remain the source facts |
+| Synthetic PO headers/lines and unconfirmed part-to-task proxy mappings | `prep.PurchaseOrder`, `prep.PurchaseOrderLine`, `ref.PartMaster`; not a model answer key |
+| Effective quantities, unit costs and part numbers where required | `prep.InvoiceLine.SourceLineJson.demoFixture` and the derived in-memory processing package, separate from original source columns |
+| Native-currency unit-cost thresholds and policy/nature assumptions | `ref.CapitalizationThreshold`, fixture metadata and the saved input snapshot; USD 1,000, EUR 1,000 and DKK 7,500 are unapproved rehearsal thresholds, not FX conversions |
+| US-catalog proxy context for European source accounts | Explicitly labeled synthetic/unconfirmed; not a governed European TaskMaster mapping |
+
+Do not call every quantity/price synthetic: existing source values were
+preserved. The source inventory records 19 missing quantities and 19 missing
+unit costs. The US TaskMaster came from the supplied reference export;
+it was not invented for the demo. Proxy PO/PartMaster mappings used by the
+reference fixture are not fed to the GPT task stage as the correct answer.
+
+### 02:00-07:00: original invoices and all source lines
+
+**Show:** `cictaicusst` -> `landing`, then the pre-opened original documents.
+Do not start in the generated snapshot/result/evidence JSON folder.
+
+1. Bruegmann invoice `INV12-62027`: show header, currency and all 12 lines.
+   Highlight one physical-item description and the shipping line.
+2. Kimley-Horn invoice `36764068-GRP005`: show all 10 professional-services
+   lines. Choose one line to follow through the rest of the demonstration.
+3. JC2000A07465 workbook: show the seven invoice-type (`AI`) records:
+   `2001653935`, `2001653932`, `304430`, `5063`, `2001665940`,
+   `2001069567` and `2001704723`.
+4. JC2000A07814 workbook: show invoice-type record `20294`.
+   Explain that non-invoice JP/OV accounting records were not counted as
+   additional invoices.
+
+**Say:**
+
+> There are three source families, represented by two US invoice bundles
+> and two JC workbooks. Together they provide ten invoice records and thirty
+> invoice lines. The JC workbooks contain invoice-type ledger records; they
+> are not eight separate PDFs. We preserve source gaps rather than treating
+> blank fields as known zero values.
+
+Do not add invoice amounts across USD, DKK and EUR as one currency total.
+For Bruegmann, the source header-versus-line difference is retained tax
+provenance, not an invented extra invoice line.
+
+### 07:00-11:00: Invoice, InvoiceLine and InvoicePackage
+
+**Show:** the database resource to establish the Azure SQL location, then
+the three pre-opened SQL table-data views. No SQL writing during the talk.
+
+1. **`prep.Invoice`:** vendor, invoice number, source date, currency and
+   header total. Point to a missing source field rather than hiding it.
+2. **`prep.InvoiceLine`:** show all 30 lines across the ten invoices.
+   Point to description, original quantity/unit cost, amount and line ID.
+3. **`prep.InvoicePackage`:** show the package ID, invoice ID, source file,
+   source hash and fixture provenance. Expand one known fixture metadata
+   value to illustrate the source-versus-processing separation.
+
+**Say:**
+
+> Invoice is the business header. InvoiceLine holds the individual source
+> charges. InvoicePackage is the processing envelope that links them to
+> source provenance and context. Stable package and line identities let us
+> connect the later recommendations back to the original input.
+
+**Important explanations:**
+
+- `PackageStatus=PREPARING` is intentional in this SQL rehearsal. It avoids
+  publishing legacy READY/outbox events; it is not the container job's status.
+- The source-load RunId and the later GPT WorkflowRunId are different
+  identifiers for different processing boundaries.
+- Source normalization/manual SQL staging happened before this execution.
+  Do not claim that opening/uploading a Blob now triggers fresh OCR or this job.
+
+### 11:00-14:00: Azure architecture and the actual job
+
+**Show:** the resource group, then Container Apps Job -> execution history ->
+`capex-demo-v2-sql-qfr1i2b`.
+
+**Say:**
+
+> This implementation has one manually triggered Container Apps Job with
+> three logical model stages inside it, not three separately deployed jobs
+> or three Foundry-hosted agents. For each invoice, it determines tasks and
+> performs accounting assessment. Once the accounting batch is complete,
+> it evaluates bundling across the invoices.
+
+Show Succeeded, the job's pinned image and its existing `--llm-workflow`,
+`--model-deployment gpt-5.1` and persistence arguments. Do not change them.
+Execution timestamps are 14:59:53-15:03:09 UTC; this is a completed run,
+not a live model invocation during the presentation.
+
+Briefly show the matching ACR repository/tag and Foundry `gpt-5.1` deployment.
+
+| Azure component | What it actually does here |
+|---|---|
+| Blob Storage `cictaicusst` | Source artifacts plus immutable snapshot/result/model-evidence JSON |
+| Azure SQL `cict-ai-cus-sqldb` | Staged invoices, reference/context data, native recommendations and SQL audit |
+| ACR `cictaicusacr` | Builds/stores the versioned container image; build `cj10` supplied this release |
+| Container Apps Job `capex-demo-v2-sql` | Runs the Python SQL-backed batch workflow in the existing environment |
+| Foundry resource `cict-ai-cus-foundry` / deployment `gpt-5.1` | Serves actual model requests from that workflow |
+| Managed identity `cict-ai-cus-capex-id` | Authenticates the running workload without embedding service keys |
+| Log Analytics `cict-ai-cus-law` | Retains execution console evidence |
+
+Do not introduce unrelated Functions, Logic Apps, Data Factory or automatic
+Blob triggers as if they ran this recorded SQL-backed workflow.
+
+### 14:00-19:00: task suggestion, then its persisted results
+
+**Show:** Foundry deployment, return to the same job execution/log evidence,
+then the existing `task.TaskSuggestion` result view.
+
+**Explain the work:**
+
+1. The source line description and supplied task-catalog candidates form
+   the request; every source line receives model consideration.
+2. GPT-5.1 returns the interpreted item, task selection or Review, and rationale.
+3. Code checks permitted task codes, ambiguity, evidence and exact line coverage.
+4. The accepted result is persisted against the original package/invoice/line.
+
+**Show in the result:** ItemIdentified, SuggestedTaskCode, SuggestedAssetClass,
+MatchMethod, model deployment/version and rationale. Follow the selected
+Kimley-Horn line; then contrast it with an unresolved task if useful.
+
+**Say:**
+
+> This task came from the source description and the supplied catalog.
+> Here is the model's rationale. Where catalog entries cannot be distinguished,
+> the system retains Review rather than making an arbitrary assignment.
+
+Task-table legacy recommendation fields are not the authority for the next
+accounting stage. Use `capex.Assessment` to demonstrate CapEx/OpEx.
+
+### 19:00-23:00: CapEx/OpEx determination, then its persisted results
+
+**Show:** the same job and `ACCOUNTING_DECISION` evidence if already open;
+then `capex.Assessment`. Do not search for a separate accounting job.
+
+**Explain the work:**
+
+1. GPT receives source and labeled processing context, task results and policy.
+2. It supplies actual spend nature, recommendation and rationale.
+3. Code checks nature/repair/exclusion consistency, required Review states,
+   native-currency unit-cost thresholds and permitted evidence.
+4. The accepted assessment is stored with its InvoiceLineID and TaskSuggestionID.
+
+**Show:** the same Kimley-Horn line's task link, NatureResult,
+CapExOpExSuggestion, threshold currency/amount, rationale, UsedLlm=1 and model.
+Choose actual saved examples of one CapEx, one OpEx and one Review result.
+Summarize the specific recorded rationale for each; do not invent why a line
+was expensed or reviewed.
+
+**Say:**
+
+> GPT is making the accounting recommendation, not merely explaining a
+> precomputed label. Code independently validates the response, and unresolved
+> evidence stays visible as Review. This is not a finance approval.
+
+The frozen run has seven CapEx, two OpEx and twenty-one Review assessments.
+Do not equate Review with processing failure or claim all Review decisions
+are business-validated correct.
+
+### 23:00-27:00: cross-invoice bundling, then its persisted results
+
+**Show:** the same job's `BUNDLE_DECISION` evidence if available; then
+`capex.BundleDecision` across all invoices.
+
+**Explain the work:**
+
+1. Code gates eligible members from actual model accounting and input facts.
+2. GPT considers the invoice batch together and proposes single-asset groups
+   only where the evidence supports them.
+3. Code checks identity coverage, compatible task/site/project/currency,
+   minimum membership, exact sums and duplicate/group membership.
+4. Every line receives a persisted model bundle decision. Valid proposed
+   groups would also populate `capex.BundleCandidateGroup` and
+   `capex.BundleCandidateMember`; human `review.BundleDecision` is separate.
+
+**Say:**
+
+> Different invoice numbers, vendors or POs do not automatically prevent a
+> shared-asset proposal. But eligibility and a defensible asset relationship
+> are required. This run produced thirty decisions and no proposed groups.
+> Here is the actual rationale for this line.
+
+Show ModelDecision, invoice/line identity, rationale and BundleGroupId.
+For this run, show the zero group count instead of pretending an empty
+group/member table contains an approved bundle. This is a working negative
+case, not a demonstration of a formed cross-invoice asset group.
+
+### 27:00-30:00: quality, audit and close
+
+**Show:** the already-verified `capex.LlmShowcaseRun` audit/result counts,
+the successful execution, and the Blob SQL-artifact folder if time permits.
+For this run the artifact names begin `gpt-contract-v4-` and end
+`20261105T150000Z.json` for snapshot, result and evidence.
+
+**Say:**
+
+> The completed run has thirty task suggestions, thirty assessments and
+> thirty bundle decisions. We have model-response evidence and stable source
+> links, rather than only a console answer. All twenty-two model requests
+> received responses, and the final run succeeded.
+
+Explain 22 calls carefully: the normal structure is ten task calls, ten
+accounting calls and one cross-invoice bundling call. Bounded validation
+regeneration can add a call. Job replica retries are zero; model validation
+regeneration is a different mechanism. Do not guess which stage regenerated
+from the total count alone.
+
+**What "good results" can honestly mean:**
+
+- Complete 30/30 output coverage at each decision stage.
+- Traceability from source line to task, assessment and bundle decision.
+- Recorded rationales, model identity, audit hashes and successful persistence.
+- Visible Review outcomes and rejection of invalid model proposals.
+
+These are coverage, traceability and control results, not a measured model
+accuracy percentage. Finance-reviewed expected labels are still needed to
+claim accuracy. Confidence values are not proof of correctness.
+
+**Close:**
+
+> We have demonstrated how real-source invoice records move through a
+> traceable Azure workflow into persisted task, accounting and bundling
+> recommendations. Production readiness still requires approved context,
+> regional mappings and policy, human validation, and a separately validated
+> positive bundling case if stakeholders require one.
+
+## Technical evidence and earlier rehearsal reference
+
 ## What this workflow does
+
+### Requested demo: GPT-5.1 recommendations written to native SQL tables
+
+#### Latest cloud result: succeeded; SQL verification reported successful
+
+Execution `capex-demo-v2-sql-qfr1i2b` succeeded on November 5, 2026,
+ending at 15:03:09 UTC. Its workflow is
+`friday-sql-gpt-contract-v4-20261105T150000Z`, using ACR run `cj10`,
+image digest
+`sha256:19a722900c25882af2ef4d80f154fe6f682d7d58f238557a502f2829fecbe236`.
+Before execution, read-only ARM inspection verified the exact image and all
+22 arguments, identity, registry pull identity, SQL target, model endpoint,
+environment and manual/retry/concurrency settings.
+
+Console evidence confirms ten invoices/thirty lines, zero workflow errors,
+thirty persisted task suggestions, thirty persisted assessments and zero
+bundle groups/members. Actual assessments are seven CapEx, two OpEx and
+twenty-one Review. `LLM_SHOWCASE_COMPLETE` records 22 real model responses,
+actual model accounting and one complete SQL audit, SHA256
+`dfbcfcf6033808dec772d5ff6554d705052b827fd9e22d88799e39268c2d22da`.
+The immutable Blob evidence is
+`landing/capex/demo-v2/sql/gpt-contract-v4-evidence-20261105T150000Z.json`.
+No positive bundle group was proposed; do not describe one as model-approved.
+
+The operator subsequently reported that the final SQL verification query
+succeeded. This is operator-reported verification, not a separate database
+readback performed by the assistant. For repeat verification, run
+`sql/validation/validate_capex_sql_llm_workflow.sql` with the workflow declaration
+set to the v4 ID above through the working private connection. Require
+`GPT_INVOICE_WORKFLOW_VERIFIED`. This checks all thirty native model bundle
+decisions, source/line/task links, accepted raw model responses and audit hashes,
+in addition to the task/assessment writes visible in logs. The assistant's
+local SQL connection is blocked by private networking; a successful container
+exit alone is not a substitute for this SQL result.
+
+For a cleaner presentation, run
+[rehearse_capex_sql_llm_workflow.sql](../../sql/validation/rehearse_capex_sql_llm_workflow.sql).
+It is a separate read-only query with the successful workflow ID already set.
+Its five grids show invoice coverage, Kimley-Horn task suggestions, linked
+accounting assessments, all-invoice bundle decisions and final audit/counts.
+No rebuild, deployment, SQL migration or additional model call is needed.
+
+**Rehearse without rerunning the job:**
+
+1. Run the read-only verification and retain its marker and result grids.
+2. Introduce ten invoices from three source families and thirty lines; disclose
+   the unapproved synthetic processing context and native-currency assumptions.
+3. Show a Kimley-Horn line's model task suggestion, then its linked assessment
+   and actual rationale. Contrast one CapEx result with an OpEx or Review result.
+4. Show the per-line model bundle decisions. This run proposes no groups;
+   explain the recorded rationale rather than forcing unrelated or unresolved
+   lines into a positive bundle. Candidate recommendations are not human approvals.
+5. Repeat the walkthrough using the same read-only result grids. Do not click
+   Run now, reuse the immutable workflow ID or incur more model calls to practice.
+
+#### Current correction: coherent accounting and complete-line bundling
+
+The v3 image built in ACR run `cjy` was deployed with its exact digest and
+all 22 arguments verified read-only. Execution `capex-demo-v2-sql-fapkef6`,
+workflow `friday-sql-gpt-accounting-v3-20261105T142200Z`, failed after twenty
+model responses on a repair/exclusion consistency check for the one-line
+invoice `JC2000A07465:5063` ("Water and sewage"). Logs confirm zero committed
+native task/assessment/group/member rows and one retained INCOMPLETE SQL audit.
+The exact rejected accounting response remains in that private SQL audit;
+the console error alone does not establish its nature/recommendation/flag tuple.
+Preserve this workflow and its immutable artifacts; do not replay its IDs.
+
+Contract `sql-llm-accounting-v4` validates model accounting combinations
+explicitly. Repair/exclusion indicators prohibit capitalizable nature and
+CapEx, but expense nature may remain REVIEW with a stated unresolved input,
+consistent with the existing reference assessment contract. GPT supplies the
+actual nature, recommendation and rationale; code never rewrites them.
+If an accounting response violates the contract, the model receives the exact
+validation error and rejected response for ONE regeneration of the complete
+invoice batch. A second invalid response fails closed. Transport/authentication
+errors are not retried by this validation mechanism.
+
+A full ten-source/thirty-line local rehearsal also exposed a separate final
+model response that covered only the two eligible bundle members, omitting
+28 required per-line decisions. Bundling contract `sql-llm-bundling-v2` now
+includes an explicit all-line identity catalog and exact response length.
+It likewise permits one audited regeneration after validation failure.
+Partial or invalid proposals do not leak group IDs into an accepted result.
+
+Both original and correction calls retain their actual prompt, response and
+validationError in SQL/Blob evidence. Successful runs require 21 ACCEPTED
+responses (ten task, ten accounting, one bundling); actual paid calls may be
+21 through 32, with at most two accounting responses per invoice and two
+bundling responses. The read-only native SQL validator reconciles these
+bounded counts and verifies assessments against accepted raw model responses.
+No reference fallback or invented human approval is introduced.
+
+119 focused regressions pass. The full ten-invoice/thirty-line actual GPT-5.1
+rehearsal succeeded with thirty task results, thirty accounting assessments and
+thirty bundle decisions. It made 22 real calls: ten task, ten accounting and
+two bundling calls. The first proposed a zero-value group and was rejected;
+GPT corrected the response to no groups on its single audited regeneration.
+Accepted recommendations/rationales/flags reconcile to the raw model responses.
+This local test uses explicitly labeled synthetic processing quantity/cost/
+context, not a replay of the private SQL snapshot; it performs no SQL writes.
+No additional SQL migration is required.
+
+Use the new `capex-sql-gpt-contract-v4-source.tar.gz` for an authorized build
+from a fresh extraction directory. The prepared
+`sql-gpt-contract-v4-execution.parameters.json` must receive that new build's
+verified image digest before deployment. It uses the new workflow
+`friday-sql-gpt-contract-v4-20261105T150000Z` and fresh Blob artifact names.
+Do not redeploy or rerun the previous v3 image/workflow as the corrected build.
+Final end-to-end completion still requires cloud execution and the native
+SQL validator's `GPT_INVOICE_WORKFLOW_VERIFIED` marker through the working
+private SQL connection.
+
+#### Historical v3 correction: remove redundant model eligibility
+
+The second cloud execution, `capex-demo-v2-sql-qocrqf9`, workflow
+`friday-sql-gpt-accounting-v2-20261105T140000Z`, also failed closed after
+twenty actual model responses, before any native task/assessment/group commits.
+Its incomplete SQL audit remains intact. The precise error was Kimley-Horn
+line `58aceec5-f35a-48a7-8faa-2f1a195af203:3`: the model returned OPEX,
+OPEX_BY_NATURE and a resolved task, but also bundlingEligible=true.
+Prompt-only constraints did not prevent that redundant-field contradiction.
+
+Contract `sql-llm-accounting-v3` removes bundlingEligible from the accounting
+model's output entirely. Code gates eligibility from the actual model nature
+and recommendation, resolved task, native threshold and project/site facts.
+It preserves the model's classification and rationale unchanged; this is not
+a fallback to reference accounting or a silent correction of a model flag.
+The final cross-invoice GPT call still makes the actual asset grouping and
+BUNDLE/NO_BUNDLE/REVIEW recommendations, receiving only eligible members as
+possible group members. Unexpected extra model fields are rejected, not ignored.
+
+112 targeted tests pass, including OpEx-by-nature exclusion with the original
+model rationale retained. A real-source, three-call Kimley-Horn smoke with
+explicitly labeled local synthetic quantity/cost inputs succeeded for all ten
+lines. Its actual line 3 resolved to task 0007, OPEX/OPEX_BY_NATURE, zero unit
+cost and NOT_ELIGIBLE; no groups or SQL writes. This reproduces the observed
+failure condition, not the complete cloud SQL input snapshot.
+
+Use `capex-sql-gpt-accounting-v3-source.tar.gz` and fresh
+`sql-gpt-accounting-v3-execution.parameters.json` after a new authorized build.
+The image placeholder must be replaced with that build's verified digest.
+No new migration is needed. The current native SQL validation requires the
+v3 contract and recorded code-gate authority. Preserve both failed runs,
+their SQL audit rows and immutable Blob outputs; never replay their IDs.
+
+#### Historical first attempt and prompt-only v2 correction
+
+The operator applied migrations 012/013 and successfully built/deployed ACR
+run `cjw`, image digest
+`sha256:b8d2fb5416818da0fff42ea196806b25e129bab1d74f802494e2f9e413655af0`.
+Execution `capex-demo-v2-sql-bgenol3`, workflow
+`friday-sql-gpt-workflow-20261105T024500Z`, then failed closed on a model
+accounting bundling-eligibility violation. Log Analytics confirms twenty real
+model responses, zero committed task/assessment/group/member rows, and one
+`INCOMPLETE` SQL audit record. The final cross-invoice model call did not run
+because the accounting batch was incomplete. Preserve this failed run and its
+immutable Blob/SQL evidence; do not replay its IDs.
+
+Accounting prompt `sql-llm-accounting-v2` now supplies explicit per-line task,
+cost and context constraints, and a response schema that prohibits
+`bundlingEligible=true` for Review, CapEx, OpEx-by-nature, repair/exclusion or
+statically ineligible lines. It still validates model output independently
+and never silently changes an invalid model recommendation. Errors identify
+the exact line and failed eligibility facts.
+
+112 targeted regressions pass, including contradictory Review/eligibility
+rejection and schema checks. A separate local genuine GPT-5.1 smoke on the
+real ten-line Kimley-Horn normalized source completed task, accounting and
+bundling stages with ten decisions each, no groups, and zero SQL writes.
+This validates the new contract, not the failed cloud run's exact SQL input
+snapshot; the rejected cloud response remains in its SQL audit record.
+
+Use the refreshed `capex-sql-gpt-accounting-v2-source.tar.gz` for a new build.
+The new planned parameters, `sql-gpt-accounting-v2-execution.parameters.json`,
+have fresh workflow/Blob IDs, explicit existing tags/location and an image
+placeholder to replace only with the verified new build digest. Migrations
+need not be reapplied for this prompt-only correction. Deployment and full
+ten-invoice SQL verification remain pending. The sections below document
+workflow behavior and earlier verification checkpoints.
+
+Use **`--llm-workflow --model-deployment gpt-5.1 --execute --persist-results`**,
+not the earlier advisory `--llm-showcase` mode. Packages are reconstructed from
+the ten real-source invoices/thirty lines already staged in SQL; this is not
+a fresh Blob-ingestion run. Original source gaps remain unchanged. Explicitly
+labeled synthetic processing context and unapproved policy inputs are still
+required for the rehearsal.
+
+1. GPT-5.1 receives **every invoice line**, including source-coded and ancillary
+   lines, in ten invoice-level task calls. Each line produces a
+   `task.TaskSuggestion` row with its model rationale, identified item, task
+   code or Review, match method and model version. Seeded PO/PartMaster answers
+   are not used as model task answers. Indistinguishable catalog variants
+   remain Review rather than invented assignments.
+2. Ten further GPT-5.1 calls recommend actual CapEx/OpEx/Review outcomes.
+   Thirty `capex.Assessment` rows contain these model recommendations,
+   `UsedLlm=1`, `ModelVersion=gpt-5.1`, the corresponding `InvoiceLineID`,
+   model rationale and a link to that line's `TaskSuggestionID`. Code rejects
+   fabricated identities, unsupported citations and policy/threshold violations;
+   it does not replace model recommendations with reference answers.
+3. One GPT-5.1 call considers **all invoices together** and recommends groups
+   only where the asset relationship and matching task/site/project/currency
+   support them. Different invoice numbers, vendors and POs are allowed.
+   Thirty `capex.BundleDecision` rows record BUNDLE/NO_BUNDLE/REVIEW, including
+   lines with no applicable bundle. Valid proposals also populate
+   `capex.BundleCandidateGroup` and `capex.BundleCandidateMember`; exact amounts
+   are verified with Decimal arithmetic. Candidate groups remain unapproved,
+   and no human reviewer or ERP posting is fabricated.
+
+**SQL operator handoff, in order:**
+
+- Apply [012_store_capex_llm_showcase_outputs.sql](../../sql/migrations/012_store_capex_llm_showcase_outputs.sql);
+  require `CAPEX_LLM_SQL_OUTPUT_STORE_READY`.
+- Apply [013_store_gpt_bundle_decisions.sql](../../sql/migrations/013_store_gpt_bundle_decisions.sql);
+  require `GPT_BUNDLE_DECISION_STORE_READY`.
+  This creates the model recommendation table `capex.BundleDecision`.
+  It deliberately does not populate `review.BundleDecision`, which is a
+  human approval table requiring a real review case and reviewer.
+  Runtime grants are object-scoped SELECT/INSERT and column-scoped updates
+  for task metadata and assessment links, not broad database access.
+- Build and publish **the updated source**, then replace the planned image
+  placeholder with its verified digest URI. The previous reference image and
+  both previous LLM source archives lack the complete native workflow.
+- Configure the existing Foundry endpoint and managed identity, and start
+  the job using fresh workflow/snapshot/result/evidence names.
+- Run [validate_capex_sql_llm_workflow.sql](../../sql/validation/validate_capex_sql_llm_workflow.sql)
+  with that new run ID. Require `GPT_INVOICE_WORKFLOW_VERIFIED` plus job success,
+  a complete SQL audit row, 21 accepted model responses (21-32 actual calls
+  with bounded audited accounting/bundling regeneration), thirty rows in
+  each native line-level table, matching identities/links and reconciled groups.
+  Outcomes and bundle counts are not pinned to the reference rehearsal.
+
+The full responses are retained automatically for audit in
+`capex.LlmShowcaseRun` and an immutable Blob mirror; the demo need not display
+them. Its legacy `AccountingExplanationCount` column counts native accounting
+recommendations in `LLM_DECISIONS` mode, and `BundleExplanationCount` counts
+proposed groups. The JSON mode/stages and native SQL rows distinguish this
+workflow from the older advisory mode.
+
+Task/assessment/group writes commit before supplementary native metadata,
+bundle decisions and audit JSON are committed together. If any later step fails,
+the job fails explicitly; earlier rows may remain, but are **not a verified
+complete run**. Inspect incomplete evidence and use fresh IDs for correction.
+Never replay a partially committed run or overwrite the completed baseline.
+
+**Local verification:** 109 targeted regressions pass, including all-line model
+coverage, native SQL writes/links, cross-invoice grouping, invalid-output
+rejection, pre-call schema checks, rollback and empty eligibility handling.
+The CLI help and changed Python syntax validate. Pylance reports only the known
+editor-interpreter missing-pydantic diagnostic; all thirteen orchestrator callers
+are signature-compatible. A real-source Bruegmann smoke obtained twelve task and
+twelve accounting responses. Its first bundling proposal violated eligibility
+and was rejected. With an explicit exhaustive eligibility catalog and constrained
+empty-group schema, the separate corrected GPT bundling call returned twelve
+valid decisions and no groups. These local calls wrote zero SQL rows and are
+not a completed ten-invoice cloud rehearsal. Positive cross-invoice groups are
+verified with fictional model-provider tests, not asserted for the real sources.
+
+**Cloud status:** these changes are locally validated, not live-deployed.
+The previous ACR source-upload authorization denial still blocks publication;
+an authorized operator must apply the migrations, build/publish, and update/start
+through the approved session. No new native GPT decision rows have been inserted
+into the live database.
+
+**Current operator source package:** `capex-sql-gpt-workflow-source.tar.gz`.
+It contains source-only runtime files, both migrations, both native/advisory
+validators, tests, this runbook, the build helper and the SQL job Bicep.
+No invoice files, workbook, credentials, virtual environment or cached responses
+are included. The separate planned execution parameters deliberately contain
+`REPLACE_WITH_VERIFIED_NEW_GPT_WORKFLOW_IMAGE_DIGEST_URI`; do not deploy them
+unchanged. Recheck the staged input digest before execution; if it changed,
+review a new preflight rather than bypassing the digest check.
+
+An authorized operator can extract to a fresh directory, then run:
+
+```powershell
+.\tools\Build-Push-CapexSqlAcr.ps1 -AgentPool shared
+```
+
+This uses only the already operator-approved ACR shared-worker access path and
+does not change networking or identities. Use the resulting verified image
+reference in the planned parameters. If access is denied, stop and request the
+appropriate operator rather than retrying through another API.
+
+### Historical advisory mode (not the requested three-stage demo)
+
+The completed SQL reference rehearsal below is **not the AI showcase**: it made
+zero model calls. The SQL CLI now supports `--llm-showcase` with a fresh
+`--llm-evidence-uri` in addition to all existing execution/digest/persistence
+flags. Set `AZURE_OPENAI_ENDPOINT` to the existing Foundry account endpoint and
+`--model-deployment gpt-5.1`. The job's existing managed identity requires
+Cognitive Services OpenAI User on that account; do not add an API key.
+The SQL Bicep accepts optional `azureOpenAIEndpoint` for this environment value.
+
+**SQL operator prerequisite:** run
+[012_store_capex_llm_showcase_outputs.sql](../../sql/migrations/012_store_capex_llm_showcase_outputs.sql)
+in the working private SQL connection and require
+`CAPEX_LLM_SQL_OUTPUT_STORE_READY`. This additive migration creates one empty
+`capex.LlmShowcaseRun` table and grants the existing runtime user only
+object-scoped SELECT/INSERT on it. It does not seed responses, alter the baseline,
+or require broad database privileges for the runtime. Model execution with
+`--persist-results` checks this table and its grants **before any paid model call**.
+Default zero-call reference mode does not require migration 012.
+
+- Task suggestions use real **source** descriptions/part numbers and retrieved
+  TaskMaster candidates, not the seeded PO/PartMaster answers. Existing exact
+  source tasks and ancillary shipping/reimbursable review gates remain
+  deterministic. Not every line needs or receives a model call.
+  If the highest-ranked candidates are indistinguishable, their codes are
+  withheld and the line requires Review. The model cannot substitute an
+  unrelated lower-ranked task just to produce a resolved answer.
+- Accounting and grouping still use deterministic policy/math and visibly
+  unapproved synthetic processing context. Real model task suggestions may
+  change outcomes or leave more lines in Review; do not require the baseline's
+  14/14/2 split or its USD 911.08 bundle.
+- There is one advisory accounting explanation call per invoice and one
+  advisory bundle explanation call for the completed run, including when no
+  groups qualify. Strict output checks reject changed outcomes, missing or
+  duplicate decisions, and invented evidence references. Prose remains
+  **unreviewed AI explanation**, not approved accounting policy or a posting.
+- Raw prompts, responses, deployment, call IDs/times, structured explanations,
+  source-input digest and complete workflow-result digest are retained in the
+  immutable `capex.LlmShowcaseRun.EvidenceJson` for each workflow when
+  `--persist-results` is set, plus a matching Blob mirror. Scalar SQL columns
+  record status, hashes, call counts and explanation counts. Task rows include
+  `llm-call:` references for actually model-assisted lines.
+  `UsedLlm` in accounting rows correctly remains false: it describes accounting
+  authority, not whether an advisory explanation was generated elsewhere.
+
+| SQL location | Stored outputs |
+|---|---|
+| `task.TaskSuggestion` | Thirty line-level tasks, rationales and evidence references |
+| `capex.Assessment` | Thirty deterministic CapEx/OpEx/Review decisions |
+| `capex.BundleCandidateGroup` / `capex.BundleCandidateMember` | Deterministic candidate groups and member amounts |
+| `capex.LlmShowcaseRun` | Full actual task/model prompts and responses, accounting explanations, bundle explanation/summary, provenance and hashes |
+
+Use fresh workflow/snapshot/result/evidence names and the newly built image,
+not the completed baseline arguments. Require **all** of:
+job success, `LLM_SHOWCASE_COMPLETE`, evidence `status=SUCCEEDED`, actual
+`sqlLlmEvidenceRows=1`, matching SQL/Blob evidence hashes,
+`llmCallsAttempted=llmResponsesReceived>0`, thirty accounting explanation items
+across ten invoices, exact bundle explanation coverage, and
+[validate_capex_sql_llm_demo_run.sql](../../sql/validation/validate_capex_sql_llm_demo_run.sql)
+with the new run ID. That read-only query verifies the SQL evidence hash,
+raw response counts and exact explanation/decision coverage, then selects the
+full actual prompts/responses and explanations using `nvarchar(max)` JSON
+projections, not the 4,000-character `JSON_VALUE` limit. It intentionally does
+not assert fixed model outcomes.
+
+Results are persisted before advisory explanation generation. If an explanation
+fails, the job fails and stores `INCOMPLETE` SQL evidence including any actual
+responses received before the error. A SQL evidence write failure rolls back
+that write, fails the job and retains an `INCOMPLETE` Blob record without
+claiming a SQL commit. SQL evidence commits before the Blob mirror, so a mirror
+failure does not lose the actual outputs already stored in SQL. The job still
+fails if a required mirror fails. Existing task/assessment commits may already
+exist. Never mistake SQL reconciliation alone for AI-demo completion, and never
+replay the same workflow after partial commits. Review the evidence and use a
+fresh workflow/artifact set for a corrected rehearsal.
+
+#### Current verification and build blocker
+
+85 targeted regressions pass. The SQL-output extension tests exact stored JSON, large Unicode
+responses, migration/grant preflight, immutable retry handling, rollback and
+SQL/Blob failure behavior. A genuine GPT-5.1 source-only Bruegmann task call
+passed the strengthened ambiguity boundary and returned twelve Review outcomes:
+the shelving task variants need distinguishing evidence, and shipping retains
+its ancillary review gate. This is not a reason to fabricate a resolved code.
+Separate genuine read-only advisory calls produced twelve accounting explanation
+items and one explanation of the **existing baseline** bundle. These local
+smokes wrote no SQL rows and do not prove a new ten-invoice cloud execution.
+
+The updated Bicep template compiles, and the existing job identity has Cognitive
+Services OpenAI User on the existing Foundry account. However, the November 4
+new-image build attempt was denied at
+`Microsoft.ContainerRegistry/registries/listBuildSourceUploadUrl/action`.
+No build was queued and no updated image was published. An authorized operator
+must run [Build-Push-CapexSqlAcr.ps1](../../tools/Build-Push-CapexSqlAcr.ps1)
+with `-AgentPool shared`, or upload the prepared allowlisted source archive to
+an approved Cloud Shell session and perform the equivalent ACR build. Do not
+change network rules, reuse the old image for these new flags, or retry denied
+actions through a different API. After the image is built, configure the model
+endpoint and start a fresh Portal execution, then verify all completion checks
+above.
+
+Use the refreshed `capex-sql-llm-sql-output-source.tar.gz` archive; its 98 files
+are hash-checked against the final local source. The earlier
+`capex-sql-llm-source.tar.gz` predates SQL LLM-output persistence and must not be
+used for this requirement.
+The archive includes migration 012 and the read-only SQL verification query.
+The planned Portal parameter file
+is `sql-llm-execution.parameters.json`, targeting workflow
+`friday-sql-llm-20261105T014600Z`. Its image tag is **planned, not published**.
+An authorized operator can build that exact tag from the archive without Docker:
+
+```powershell
+New-Item -ItemType Directory -Path .\capex-sql-llm-build-20261105T014600Z -ErrorAction Stop
+tar -xzf .\capex-sql-llm-sql-output-source.tar.gz -C .\capex-sql-llm-build-20261105T014600Z
+az acr build --subscription 0451df15-250e-42f5-b15c-f19a9bb9c21a --registry cictaicusacr --image capex/demo-v2:sql-llm-sql-output-20261105T014600Z --file Dockerfile.capex-v2 .\capex-sql-llm-build-20261105T014600Z
+```
+
+This requires normal ACR build authorization in that operator's approved session.
+Require build success and verify the published digest/source before using the
+parameters; preferably replace their image value with the verified digest URI.
+Do not deploy the planned tag before it exists.
+
+### Verified November 4 live SQL rehearsal
+
+The Portal-deployed SQL job completed read-only preflight
+`capex-demo-v2-sql-uxudg9w`, then execution
+`capex-demo-v2-sql-796qxrx` with workflow ID
+`friday-sql-20261105T010058Z`. Both executions report Succeeded.
+Durable Log Analytics recorded `SQL_INPUTS_VALIDATED` with ten invoices,
+thirty lines and input digest
+`9dfff2660420c24831190657cf9d8c540135e896f9cea42a3bf7188948539567`.
+The complete result JSON was reconstructed from split console records,
+parsed and retained as session evidence.
+
+| Evidence | Actual result |
+|---|---|
+| Task determinations / reported committed task rows | 30 / 30 |
+| Accounting assessments / reported committed rows | 30 / 30 |
+| Recommendations | 14 CapEx, 14 OpEx, 2 Review |
+| Bundle groups / reported committed members | 1 / 11 |
+| Bundle | Bruegmann task 5225, USD 911.08; CANDIDATE below USD 1000 threshold |
+| Workflow errors | 0 |
+| LLM calls / legacy events | 0 / 0 |
+
+Run [validate_capex_sql_demo_run.sql](../../sql/validation/validate_capex_sql_demo_run.sql)
+in the working SQL operator connection to independently reconcile the actual
+persisted rows, source line coverage, outcomes and bundle membership.
+Require `SQL_DEMO_RUN_VERIFIED`. This is read-only and pins this completed
+run; do not use the historical three-package/23-line readiness script.
+At 20:18 Eastern on November 4, the operator reported
+`SQL_DEMO_RUN_VERIFIED` for `friday-sql-20261105T010058Z` with demo mode
+`UNAPPROVED SYNTHETIC REFERENCE REHEARSAL; ZERO LLM CALLS`.
+The query's source-line, persisted-row, recommendation and bundle
+reconciliation checks therefore passed in the working SQL connection.
+This operator-reported readback is retained separately from runtime logs.
+
+Bruegmann has 11 OpEx lines and one Review; Kimley-Horn has seven CapEx,
+two OpEx and one Review. JC07465 has six CapEx invoices and one OpEx
+invoice (5063); JC07814 invoice 20294 is CapEx. Both Review assessments use
+task 0000 and lack a matched approved nature rule. They are valid explicit
+Review outcomes, not runtime errors. The USD 911.08 bundle is a future
+candidate, not an approved asset or a threshold-crossing capitalization.
+
+For rehearsal: show the ten source invoices, the matching line-level task
+determinations, the recommendation/rationale/citations, the eleven-member
+bundle, and the two unresolved-nature Review rows. State that reference
+enrichment and accounting thresholds are synthetic, task resolution is
+deterministic PO/PartMaster matching, and this branch makes no model calls.
+It does not populate human approvals, ERP handoffs or event outboxes.
+
+The saved job now has `--execute --persist-results` and this already-used
+workflow/artifact identity. **Do not press Run now again unchanged.**
+Any later run needs reviewed fresh artifacts and workflow ID, a new
+preflight when inputs change, and reconciliation of prior committed rows.
 
 ### SQL-backed expanded rehearsal
 
@@ -58,6 +805,112 @@ containing only the Dockerfile, package manifest, README and required
 `autarch` source/assets; do not upload local environments, secrets or source
 invoices. A network-rule denial is not fixed by signing in again. Do not
 enable public access or resize unrelated build pools to bypass this blocker.
+
+#### Build in ACR without local Docker
+
+The existing CapEx ACR Tasks pools can build this image without Docker on
+the operator's computer. After approval to temporarily allocate one worker
+in the named pool, run from the repository root with PowerShell 7, `tar`
+(included with current Windows), and Azure CLI signed into the Circle K tenant:
+
+```powershell
+.\tools\Build-Push-CapexSqlAcr.ps1 -AgentPool fuelbuildpool
+```
+
+If the registry owner has explicitly enabled an access path for Azure's
+shared workers, use `-AgentPool shared` instead. This mode currently requires
+public network access Enabled with default action Allow, makes no private
+pool calls, and does not change or restore the owner's network settings.
+Do not enable broader access simply to run the script without owner approval.
+
+The script requires an idle pool at count zero with no active/queued builds.
+That idle-pool requirement applies only to named private pools.
+It stages only Python source, the two packaged schemas, manifest, README and
+Dockerfile; it does not upload invoices, local environments or credentials.
+It uploads and queues a uniquely tagged build before starting a billable
+worker. Submission uses ACR's ARM API through `az rest` to retain a structured
+run ID even with CLI versions that suppress `acr build --no-wait` output.
+The signed upload URL is kept in memory, not printed or saved.
+The Dockerfile runs `capex-demo-v2-sql --help` as the non-root runtime
+user; build success therefore includes that CLI import/entrypoint check.
+The image's default entrypoint remains `capex-demo-v2`; the SQL job must
+still explicitly select `capex-demo-v2-sql`.
+
+Build evidence is saved under `%LOCALAPPDATA%\CapexSqlBuilds\<unique-tag>`
+(override with `-OutputDirectory`). Retain `image-reference.json`, containing
+the immutable digest obtained from the successful ACR run, the source
+manifest, run result and build log. Registry data-plane access from the
+operator's computer is not needed to obtain that digest from ARM.
+
+On completion or failure, the script cancels only its own unfinished run
+and returns its worker allocation to zero if no other work or capacity
+changes are detected. If shared activity prevents safe cleanup, it fails
+explicitly and requires operator review; do not scale away someone else's
+build. A source-upload/network denial stops before worker allocation.
+This script does not deploy/start a Container Apps job or change SQL data,
+firewalls, public access, identities or role assignments.
+
+**November 4 live attempt:** source upload and ARM submission succeeded
+(`cju`), but `fuelbuildpool` failed worker provisioning with provider code
+`Runtime failure` / `Service request failed. Status: 200` before the build
+started. That run was canceled. The platform owner must restore pool health
+before retrying that private pool. Do not use
+`fuelbuildpool2` as an automatic fallback: it still has another run, `cjg`,
+marked Running since October 27, despite zero allocated workers. Resolve
+ownership before canceling that run or changing its pool capacity.
+
+**Subsequent successful build:** after the user enabled registry network
+access for shared workers, run `cjv` built and pushed
+`capex/demo-v2:sql-20261104T211338Z-f44052d0`. Its verified immutable digest is
+`sha256:e20cd46e6b97abe1793b2d8a0a9851bd89e1c7a74af16c642494c56a5f0d6456`.
+The raw log contains the SQL CLI help output and successful build/push.
+Raw log download avoids a Windows CLI character-encoding failure encountered
+after the successful build. Both private pools remain at count zero;
+`fuelbuildpool`'s zero-worker recovery is still Creating and needs platform
+owner follow-up. No other run was canceled, and the assistant did not alter
+the user's network settings. The SQL job is not deployed or executed yet.
+
+#### Authorized-operator deployment handoff
+
+The November 4 deployment recheck passed compilation and ARM validation
+but Azure denied `Microsoft.Resources/deployments/whatIf/action`, confirmed
+independently through ARM. Refresh the deployment account/PIM session or
+use an authorized Circle K operator; do not bypass the failed check.
+No new SQL tables are needed for this deployment step.
+
+A subsequent fresh device-code sign-in authenticated the user but was
+rejected by organization access criteria. That pending login was stopped.
+The exact policy is unconfirmed until an Entra administrator reviews the
+sign-in's Conditional Access details. Do not retry alternate flows to evade
+the restriction or weaken policies. Use an administrator-approved access
+path or an authorized Circle K operator in an approved environment.
+The image already exists in ACR; this operator does not need local Docker.
+
+Use the supplied `capex-demo-v2-sql-job.arm.json` and
+`sql-preflight.parameters.json` together. The parameters pin the verified
+image digest and contain only the read-only 10-invoice/30-line flags.
+From the folder containing those two files, an authorized operator runs:
+
+```powershell
+az account set --subscription 0451df15-250e-42f5-b15c-f19a9bb9c21a
+az deployment group validate -g cict-aisandbox-cus-rg --template-file .\capex-demo-v2-sql-job.arm.json --parameters .\sql-preflight.parameters.json
+az deployment group what-if -g cict-aisandbox-cus-rg --template-file .\capex-demo-v2-sql-job.arm.json --parameters .\sql-preflight.parameters.json
+```
+
+Stop on any error or any change other than the single new SQL job.
+After all required validation checks pass and the deployment is approved:
+
+```powershell
+az deployment group create -g cict-aisandbox-cus-rg -n capex-sql-preflight --template-file .\capex-demo-v2-sql-job.arm.json --parameters .\sql-preflight.parameters.json
+az containerapp job start -g cict-aisandbox-cus-rg -n capex-demo-v2-sql
+az containerapp job execution list -g cict-aisandbox-cus-rg -n capex-demo-v2-sql
+```
+
+Require a successful execution and return its logs with
+`SQL_INPUTS_VALIDATED`, ten invoices, thirty lines and `inputSha256`.
+Do not add `--execute` or `--persist-results` to this first checkpoint.
+Return explicit failure logs instead of resetting/reloading the fixture.
+The snapshot is create-only; use a fresh URI for any subsequent attempt.
 
 Run the following on that host (PowerShell argument-continuation form shown):
 
