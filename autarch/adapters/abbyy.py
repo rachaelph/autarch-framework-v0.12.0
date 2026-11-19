@@ -418,6 +418,14 @@ def parse_abbyy_archive(
         "currency": currency,
         "total": invoice_total,
         "po_number": "",
+        "source_references": {
+            key: str(header[key]).strip()
+            for key in (
+                "Customer PO", "Customer PO Number", "Customer Purchase Order",
+                "Customer Purchase Order Number", "Purchase Order Number", "PO Number", "Work Order Number",
+            )
+            if header.get(key) and str(header[key]).strip()
+        },
         "afe_number": str(
             header.get("AFE Number") or ""
         ).strip(),

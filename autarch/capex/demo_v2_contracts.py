@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from enum import Enum
 from typing import List, Literal, Optional
 
@@ -12,6 +13,7 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    field_serializer,
     field_validator,
     model_validator,
 )
@@ -213,6 +215,51 @@ class TaskDetermination(DemoV2Model):
         return self
 
 
+class BudgetCurrencyConversion(DemoV2Model):
+    """Source amounts and reproducible budget-rate conversion, not an asset valuation."""
+
+    original_currency: CurrencyCode
+    original_unit_cost: Optional[Decimal] = Field(default=None, allow_inf_nan=False)
+    original_line_amount: Decimal = Field(allow_inf_nan=False)
+    budget_exchange_rate_id: Optional[int] = Field(default=None, gt=0)
+    rate_to_usd: Optional[Decimal] = Field(default=None, gt=0, allow_inf_nan=False)
+    unit_cost_usd: Optional[Decimal] = Field(default=None, allow_inf_nan=False)
+    line_amount_usd: Optional[Decimal] = Field(default=None, allow_inf_nan=False)
+    conversion_status: Literal["CONVERTED", "REVIEW"]
+    policy_as_of_date: date
+    budget_period: Optional[NonEmptyString] = None
+    rate_version: Optional[NonEmptyString] = None
+    rate_source: Optional[NonEmptyString] = None
+    review_reason: Optional[NonEmptyString] = None
+
+    @field_serializer(
+        "original_unit_cost", "original_line_amount", "rate_to_usd", "unit_cost_usd", "line_amount_usd",
+        when_used="json",
+    )
+    def serialize_decimal(self, value: Optional[Decimal]) -> Optional[str]:
+        return format(value, "f") if value is not None else None
+
+    @model_validator(mode="after")
+    def validate_conversion(self) -> "BudgetCurrencyConversion":
+        if self.conversion_status == "REVIEW":
+            if self.review_reason is None or any(value is not None for value in (
+                self.rate_to_usd, self.budget_exchange_rate_id, self.unit_cost_usd, self.line_amount_usd,
+            )):
+                raise ValueError("Unconverted amounts require an explicit reason and no fabricated USD amounts/rate.")
+        elif self.rate_to_usd is None or self.line_amount_usd is None or self.review_reason is not None:
+            raise ValueError("Converted amounts require a rate and USD line amount, without a review reason.")
+        elif (self.original_unit_cost is None) != (self.unit_cost_usd is None):
+            raise ValueError("Missing source unit cost must remain missing after conversion.")
+        elif self.original_currency == "USD":
+            if self.rate_to_usd != 1 or self.budget_exchange_rate_id is not None:
+                raise ValueError("USD source amounts use identity conversion, not a budget FX rate.")
+        elif self.budget_exchange_rate_id is None or not all((
+            self.budget_period, self.rate_version, self.rate_source,
+        )):
+            raise ValueError("Non-USD conversion requires governed budget-rate provenance.")
+        return self
+
+
 class CapitalizationAssessment(DemoV2Model):
     """Deterministic capitalization result for one invoice line."""
 
@@ -225,10 +272,14 @@ class CapitalizationAssessment(DemoV2Model):
     suggested_asset_class_code: Optional[NonEmptyString] = None
     nature_result: NatureResult
     repair_maintenance_indicator: bool
+    nuvolo_risk_flag: bool = False
+    nuvolo_review_reasons: List[NonEmptyString] = Field(default_factory=list)
     never_capitalize_hit: bool
     unit_cost_meets_threshold: Optional[bool] = None
+    line_amount_usd_meets_threshold: Optional[bool] = None
     threshold_amount: Optional[float] = Field(default=None, ge=0.0)
     threshold_currency: Optional[CurrencyCode] = None
+    currency_conversion: Optional[BudgetCurrencyConversion] = None
     recommendation: CapitalizationRecommendation
     outcome_category: NonEmptyString
     category_suggestion: Optional[NonEmptyString] = None

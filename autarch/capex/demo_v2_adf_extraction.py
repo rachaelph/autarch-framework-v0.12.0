@@ -164,6 +164,10 @@ def extract_adf_pdfs(
         )
         output.packages.append(extracted.model_copy(update={
             "package_id": package.package_id, "source": package.source,
+            "source_references": {
+                **package.source_references,
+                **({"original:PO Number": package.po_number} if package.po_number else {}),
+            },
             "normalization_status": (
                 NormalizationStatus.REVIEW_REQUIRED if reasons else NormalizationStatus.NORMALIZED
             ),

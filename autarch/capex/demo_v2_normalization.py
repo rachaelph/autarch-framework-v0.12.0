@@ -15,6 +15,7 @@ from xml.etree import ElementTree as ET
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..adapters.abbyy import parse_abbyy_archive
+from .demo_v2_nuvolo import NuvoloContext, resolve_nuvolo_work_order
 from .invoice_package import derive_package_id
 
 
@@ -74,6 +75,18 @@ class NormalizedSource(NormalizationModel):
     source_system: str = Field(min_length=1)
 
 
+class LineDescriptionTranslation(NormalizationModel):
+    """English interpretation, never a replacement for source evidence."""
+
+    source_language: str = Field(min_length=2)
+    language_detection_score: float = Field(ge=0, le=1)
+    target_language: Literal["en"] = "en"
+    english_text: str = Field(min_length=1)
+    engine: Literal["AZURE_TRANSLATOR_NMT"] = "AZURE_TRANSLATOR_NMT"
+    api_version: Literal["2026-06-06"] = "2026-06-06"
+    request_id: Optional[str] = None
+
+
 class NormalizedInvoiceLine(NormalizationModel):
     """Lossless line representation that distinguishes missing from zero."""
 
@@ -88,8 +101,14 @@ class NormalizedInvoiceLine(NormalizationModel):
     source_transaction_type: Optional[str] = None
     source_document_number: Optional[str] = None
     source_invoice_number: Optional[str] = None
+    source_purchase_order: Optional[str] = None
     source_account: Optional[str] = None
     source_task_code: Optional[str] = None
+    translation: Optional[LineDescriptionTranslation] = None
+
+    @property
+    def description_for_matching(self) -> str:
+        return self.translation.english_text if self.translation else self.description
 
 
 class ExcludedLedgerRecord(NormalizationModel):
@@ -130,12 +149,25 @@ class NormalizedInvoicePackage(NormalizationModel):
     )
     country_region: str = Field(min_length=1)
     po_number: Optional[str] = None
+    source_references: Dict[str, str] = Field(default_factory=dict)
     normalization_status: NormalizationStatus
     lines: List[NormalizedInvoiceLine] = Field(min_length=1)
     context_overlay: Optional[DemoContextOverlay] = None
     data_quality: NormalizationDataQuality
     source: NormalizedSource
     created_at_utc: datetime
+
+    @property
+    def nuvolo_context(self) -> NuvoloContext:
+        references = {
+            **{f"header:{key}": value for key, value in self.source_references.items()},
+            "poNumber": self.po_number or "",
+        }
+        for line in self.lines:
+            references.update({
+                f"line:{line.line_id}:purchaseOrder": line.source_purchase_order or "",
+            })
+        return resolve_nuvolo_work_order(references)
 
     @field_validator("created_at_utc")
     @staticmethod
@@ -283,6 +315,7 @@ def normalize_abbyy_for_demo_v2(
         currency=currency,
         country_region=invoice["region"],
         po_number=_text(invoice.get("po_number")),
+        source_references=invoice.get("source_references", {}),
         normalization_status=(
             NormalizationStatus.REVIEW_REQUIRED
             if review_reasons
@@ -553,6 +586,7 @@ def normalize_jc_workbook(
                     source_transaction_type="AI",
                     source_document_number=document_number,
                     source_invoice_number=invoice_number,
+                    source_purchase_order=_text(row.get("Purchase Order")),
                     source_account=account,
                     source_task_code=source_task_code,
                 )

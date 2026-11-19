@@ -4,7 +4,8 @@ import json
 import re
 import sqlite3
 import threading
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from http.server import ThreadingHTTPServer
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -14,6 +15,7 @@ from fastapi.testclient import TestClient
 
 from autarch.capex import demo_v2_adf_extraction as extraction
 from autarch.capex import demo_v2_adf_sql as sql
+from autarch.capex import demo_v2_intake as intake
 from autarch.capex.demo_v2_contracts import PersistenceCounts
 from autarch.capex.demo_v2_reference import TaskMasterSnapshot
 from autarch.capex import demo_v2_review as review
@@ -28,6 +30,17 @@ def handoff(monkeypatch, request):
     observed = {}
     original_extraction = extraction.extract_adf_pdfs
     with monkeypatch.context() as patch:
+        settings = getattr(request, "param", None)
+        if isinstance(settings, dict) and "customer_po" in settings:
+            original_normalize = intake.normalize_abbyy_for_demo_v2
+
+            def normalize(*args, **kwargs):
+                package = original_normalize(*args, **kwargs)
+                return package.model_copy(update={"source_references": {
+                    **package.source_references, "Customer PO": settings["customer_po"],
+                }})
+
+            patch.setattr(intake, "normalize_abbyy_for_demo_v2", normalize)
         patch.setattr(sql, "load_adf_task_master", lambda connection, expected: expected)
         patch.setattr(sql, "load_adf_asset_class_master", lambda connection, expected: expected)
         patch.setattr(extraction, "extract_adf_pdfs",
@@ -46,6 +59,103 @@ def handoff(monkeypatch, request):
     return observed
 
 
+@pytest.mark.parametrize("handoff", [{"customer_po": "FWKD7819574"}], indirect=True)
+@pytest.mark.parametrize("fault", [None, "legacy-prefix", "missing", "conflict", "source-readback",
+                                    "flag-readback", "late-failure"])
+def test_nuvolo_work_orders_flags_and_review_handoff_commit_or_roll_back_together(
+    handoff, native_helpers, tmp_path, fault,
+):
+    path = tmp_path / "nuvolo-review.db"
+    ReviewStore(path).close()
+    connection = AtomicSqlHarness(path, fail_on="INSERT INTO mvp_review.documents" if fault == "late-failure" else None)
+    linked = [package for package in handoff["packages"] if package.nuvolo_context.risk_flag]
+    assert len(linked) == 2
+    try:
+        for index, package in enumerate(linked):
+            if fault == "missing" and index == len(linked) - 1:
+                continue
+            number = (
+                "9123456" if fault == "conflict" and index == len(linked) - 1
+                else "FWKD7819574" if fault == "legacy-prefix" else None
+            )
+            connection.db.execute("INSERT INTO prep.Invoice VALUES (?,?)", (package.invoice_id, number))
+        connection.db.commit()
+        original = connection.db.execute("SELECT * FROM prep.Invoice ORDER BY InvoiceID").fetchall()
+        if fault == "source-readback":
+            connection.db.executescript("""
+                CREATE TRIGGER prep.corrupt_nuvolo AFTER UPDATE ON Invoice
+                BEGIN UPDATE Invoice SET NuvoloWorkOrderNo='CORRUPTED' WHERE rowid=NEW.rowid; END;
+            """)
+        if fault == "flag-readback":
+            connection.db.executescript("""
+                CREATE TRIGGER capex.corrupt_nuvolo AFTER UPDATE OF NuvoloRiskFlag ON Assessment
+                BEGIN UPDATE Assessment SET NuvoloRiskFlag=0 WHERE rowid=NEW.rowid; END;
+            """)
+        if fault in (None, "legacy-prefix"):
+            sql.persist_adf_results(connection, **handoff)
+            assert connection.db.execute("SELECT DISTINCT NuvoloWorkOrderNo FROM prep.Invoice").fetchall() == [
+                ("7819574",),
+            ]
+            assert set(connection.db.execute(
+                "SELECT PackageId, LineId, NuvoloRiskFlag FROM capex.Assessment",
+            ).fetchall()) == {
+                (item.package_id, item.line_id, int(item.nuvolo_risk_flag)) for item in handoff["result"].assessments
+            }
+            assert connection.commits == 1 and not connection.rollbacks
+            linked_ids = {package.package_id for package in linked}
+            assert all(item.nuvolo_risk_flag == (item.package_id in linked_ids)
+                       for item in handoff["model_result"].assessments)
+            documents = handoff["review"]["documents"]
+            for package in linked:
+                document = next(item for item in documents if item["document"]["documentId"] == package.invoice_id)
+                assert document["extraction"]["nuvoloContext"]["workOrderNo"] == "7819574"
+                assert any("Nuvolo" in reason for reason in document["reviewReasons"])
+        else:
+            message = {
+                "missing": "Preload exactly one", "conflict": "conflicts with source",
+                "source-readback": "exact Nuvolo work order", "flag-readback": "exact Nuvolo risk flag",
+                "late-failure": "MOCK SQL failure",
+            }[fault]
+            with pytest.raises(ValueError, match=message):
+                sql.persist_adf_results(connection, **handoff)
+            assert connection.db.execute("SELECT * FROM prep.Invoice ORDER BY InvoiceID").fetchall() == original
+            assert connection.db.execute("SELECT COUNT(*) FROM capex.Assessment").fetchone()[0] == 0
+            assert connection.db.execute("SELECT COUNT(*) FROM mvp_review.documents").fetchone()[0] == 0
+            assert not connection.commits and connection.rollbacks >= 1
+        assert connection.cursors_open == 0
+    finally:
+        connection.close()
+
+
+@pytest.mark.parametrize("handoff", [
+    {"customer_po": "FWKD123ABC"},
+    {"customer_po": "FWKD7819574 / FWKD8121179"},
+], indirect=True)
+def test_unresolved_nuvolo_purchase_orders_preserve_existing_work_orders(handoff, native_helpers, tmp_path):
+    path = tmp_path / "unresolved-nuvolo.db"
+    ReviewStore(path).close()
+    connection = AtomicSqlHarness(path)
+    try:
+        linked = [package for package in handoff["packages"] if package.nuvolo_context.risk_flag]
+        assert len(linked) == 2
+        for package in linked:
+            assert package.nuvolo_context.review_reasons and package.nuvolo_context.work_order_no is None
+            connection.db.execute("INSERT INTO prep.Invoice VALUES (?,?)", (package.invoice_id, "0009999"))
+        connection.db.commit()
+        sql.persist_adf_results(connection, **handoff)
+        assert connection.db.execute("SELECT DISTINCT NuvoloWorkOrderNo FROM prep.Invoice").fetchall() == [("0009999",)]
+        for package in linked:
+            saved = connection.db.execute(
+                "SELECT DISTINCT NuvoloRiskFlag FROM capex.Assessment WHERE PackageId=?", (package.package_id,),
+            ).fetchall()
+            assert saved == [(1,)]
+            assert all(item.nuvolo_review_reasons for item in handoff["result"].assessments
+                       if item.package_id == package.package_id)
+        assert connection.commits == 1
+    finally:
+        connection.close()
+
+
 class AtomicSqlHarness:
     """Translate only this transaction contract to SQLite; not a SQL Server test."""
 
@@ -53,6 +163,7 @@ class AtomicSqlHarness:
         self.db = sqlite3.connect(":memory:")
         self.db.execute("ATTACH DATABASE ':memory:' AS task")
         self.db.execute("ATTACH DATABASE ':memory:' AS capex")
+        self.db.execute("ATTACH DATABASE ':memory:' AS prep")
         self.db.execute("ATTACH DATABASE ? AS mvp_review", (str(review_path),))
         self.db.executescript("""
             CREATE TABLE task.TaskSuggestion (
@@ -62,7 +173,8 @@ class AtomicSqlHarness:
             CREATE TABLE capex.Assessment (
                 WorkflowRunId, PackageId, InvoiceId, LineId, TaskSuggestionID,
                 AssetClassSuggestionID, SuggestedAssetClassCode, UsedLlm, ModelVersion,
-                RepairMaintenanceFlag, AroFlag, PotentialTagsJson, CategorySuggestion);
+                RepairMaintenanceFlag, AroFlag, PotentialTagsJson, CategorySuggestion, NuvoloRiskFlag);
+            CREATE TABLE prep.Invoice (InvoiceID PRIMARY KEY, NuvoloWorkOrderNo);
             CREATE TABLE task.assetClassSuggestion (
                 assetClassSuggestionId INTEGER PRIMARY KEY, correlationId, packageId, invoiceId,
                 runId, lineId, assetClassCode, resultStatus, ItemIdentified, confidence, rationale,
@@ -77,6 +189,10 @@ class AtomicSqlHarness:
                 WorkflowResultSha256, EvidenceSha256, LlmCallsAttempted, LlmResponsesReceived,
                 AccountingInvoiceCount, AccountingExplanationCount, BundleExplanationCount,
                 EvidenceJson, CreatedAtUtc);
+            CREATE TABLE capex.InvoiceLineAmount (
+                WorkflowRunId, PackageId, LineId, OriginalCurrency, OriginalUnitCost TEXT,
+                OriginalLineAmount TEXT, BudgetExchangeRateID, RateToUsd TEXT, UnitCostUsd TEXT,
+                LineAmountUsd TEXT, ConversionStatus, PolicyAsOfDate, EvidenceJson);
         """)
         self.commits = self.rollbacks = 0
         self.fail_on = fail_on
@@ -118,7 +234,8 @@ class AtomicSqlHarness:
                         WHERE WorkflowRunId=?;
                     """
                 query = query.replace("WITH (UPDLOCK, HOLDLOCK)", "").replace("COUNT_BIG", "COUNT")
-                parameters = tuple(value.isoformat() if isinstance(value, datetime) else value
+                parameters = tuple(value.isoformat() if isinstance(value, (date, datetime))
+                                   else str(value) if isinstance(value, Decimal) else value
                                    for value in parameters)
                 cursor.execute(query, parameters)
                 return self

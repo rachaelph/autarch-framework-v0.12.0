@@ -165,9 +165,96 @@ BEGIN
         THROW 51236, 'Assessment categories differ from run evidence or use disabled catalog entries.', 1;
     IF LEN(JSON_VALUE(@Payload, '$.partitions[0].evidence.sqlPolicyReferencesSha256'))<>64
         OR JSON_VALUE(@Payload, '$.partitions[0].evidence.sqlPolicyReferencesSha256') IS NULL
-        OR JSON_VALUE(@Payload, '$.partitions[0].evidence.demoAssumptions.missingUnitCostBasis')
-             <>'REVIEW_NO_LINE_AMOUNT_PROXY'
+        OR ISNULL(JSON_VALUE(@Payload, '$.partitions[0].evidence.demoAssumptions.missingUnitCostBasis'),N'')
+             <> CASE WHEN JSON_VALUE(@Payload, '$.partitions[0].evidence.demoAssumptions.assessmentBasis')
+                            ='INVOICE_LINE_USD'
+                     THEN N'NOT_REQUIRED_FOR_INVOICE_LINE_BASIS' ELSE N'REVIEW_NO_LINE_AMOUNT_PROXY' END
         THROW 51237, 'SQL rule provenance or explicit missing-unit-cost handling is absent.', 1;
+END;
+
+IF JSON_VALUE(@Payload, '$.partitions[0].evidence.demoAssumptions.fxConversion')='true'
+BEGIN
+    DECLARE @UsdInvoiceLineBasis bit = CASE
+        WHEN JSON_VALUE(@Payload, '$.partitions[0].evidence.demoAssumptions.assessmentBasis')
+            ='INVOICE_LINE_USD' THEN 1 ELSE 0 END;
+    IF EXISTS (
+        SELECT 1 FROM capex.Assessment WHERE WorkflowRunId=@WorkflowRunId
+            AND (UnitCostMeetsThreshold IS NOT NULL
+                 OR (@UsdInvoiceLineBasis=0 AND NatureResult='CAPITALIZABLE' AND Recommendation<>'REVIEW')
+                 OR (NeverCapitalizeHit=1 AND
+                     (NatureResult<>'OPEX_BY_NATURE' OR Recommendation NOT IN ('OPEX','REVIEW'))))
+    )
+        THROW 51242, 'USD policy must preserve the declared basis and never-capitalize safeguards.', 1;
+    IF @UsdInvoiceLineBasis=1 AND (
+        ISNULL(JSON_VALUE(@Payload, '$.partitions[0].evidence.demoAssumptions.assessmentBasisAuthority'),N'')
+            <>'USER_CONFIRMED_INDEPENDENT_INVOICE_LINE'
+        OR ISNULL(JSON_VALUE(@Payload, '$.partitions[0].evidence.demoAssumptions.projectExceptionStatus'),N'')
+            <>'NOT_EVALUATED_NO_AUTHORITATIVE_SITE_PROJECT_CONTEXT')
+        THROW 51243, 'USD invoice-line decisions require explicit basis authority and deferred project exceptions.', 1;
+    IF OBJECT_ID(N'capex.InvoiceLineAmount',N'U') IS NULL
+        THROW 51239, 'USD conversion evidence requires migration 019.', 1;
+    EXEC sys.sp_executesql N'
+        DECLARE @Expected TABLE (
+            PackageId nvarchar(128), LineId nvarchar(256), OriginalCurrency char(3),
+            OriginalUnitCost decimal(38,10), OriginalLineAmount decimal(38,10),
+            BudgetExchangeRateID int, RateToUsd decimal(28,12),
+            UnitCostUsd decimal(38,10), LineAmountUsd decimal(38,10),
+            ConversionStatus varchar(16), PolicyAsOfDate date
+        );
+        INSERT INTO @Expected
+        SELECT * FROM OPENJSON(@Envelope, ''$.partitions[0].result.assessments'')
+        WITH (PackageId nvarchar(128) ''$.packageId'', LineId nvarchar(256) ''$.lineId'',
+            OriginalCurrency char(3) ''$.currencyConversion.originalCurrency'',
+            OriginalUnitCost decimal(38,10) ''$.currencyConversion.originalUnitCost'',
+            OriginalLineAmount decimal(38,10) ''$.currencyConversion.originalLineAmount'',
+            BudgetExchangeRateID int ''$.currencyConversion.budgetExchangeRateId'',
+            RateToUsd decimal(28,12) ''$.currencyConversion.rateToUsd'',
+            UnitCostUsd decimal(38,10) ''$.currencyConversion.unitCostUsd'',
+            LineAmountUsd decimal(38,10) ''$.currencyConversion.lineAmountUsd'',
+            ConversionStatus varchar(16) ''$.currencyConversion.conversionStatus'',
+            PolicyAsOfDate date ''$.currencyConversion.policyAsOfDate'');
+        IF EXISTS (SELECT 1 FROM @Expected WHERE OriginalCurrency IS NULL
+                   OR OriginalLineAmount IS NULL OR ConversionStatus IS NULL OR PolicyAsOfDate IS NULL)
+            THROW 51240, ''Every USD-policy assessment requires preserved line-amount evidence.'', 1;
+        IF (SELECT COUNT_BIG(*) FROM @Expected)<>
+            (SELECT COUNT_BIG(*) FROM capex.InvoiceLineAmount WHERE WorkflowRunId=@RunId)
+            OR EXISTS (
+                SELECT * FROM @Expected EXCEPT
+                SELECT PackageId,LineId,OriginalCurrency,OriginalUnitCost,OriginalLineAmount,
+                    BudgetExchangeRateID,RateToUsd,UnitCostUsd,LineAmountUsd,ConversionStatus,PolicyAsOfDate
+                FROM capex.InvoiceLineAmount WHERE WorkflowRunId=@RunId)
+            OR EXISTS (
+                SELECT PackageId,LineId,OriginalCurrency,OriginalUnitCost,OriginalLineAmount,
+                    BudgetExchangeRateID,RateToUsd,UnitCostUsd,LineAmountUsd,ConversionStatus,PolicyAsOfDate
+                FROM capex.InvoiceLineAmount WHERE WorkflowRunId=@RunId
+                EXCEPT SELECT * FROM @Expected)
+            THROW 51241, ''Stored source/USD line amounts differ from immutable review evidence.'', 1;
+        IF @LineBasis=1 AND EXISTS (
+            SELECT 1 FROM capex.Assessment AS assessment
+            JOIN @Expected AS amount ON amount.PackageId=assessment.PackageId AND amount.LineId=assessment.LineId
+            JOIN OPENJSON(@Envelope, ''$.partitions[0].result.assessments'')
+            WITH (PackageId nvarchar(128) ''$.packageId'', LineId nvarchar(256) ''$.lineId'',
+                MeetsThreshold bit ''$.lineAmountUsdMeetsThreshold'') AS evidence
+                ON evidence.PackageId=assessment.PackageId AND evidence.LineId=assessment.LineId
+            CROSS APPLY (VALUES (CASE WHEN amount.ConversionStatus=''CONVERTED''
+                    AND amount.LineAmountUsd IS NOT NULL AND assessment.ThresholdAmount IS NOT NULL
+                    AND assessment.ThresholdCurrency=''USD''
+                THEN CASE WHEN amount.LineAmountUsd>=assessment.ThresholdAmount THEN 1 ELSE 0 END
+                ELSE NULL END)) AS expected(MeetsThreshold)
+            WHERE assessment.WorkflowRunId=@RunId AND (
+                ISNULL(CONVERT(int,evidence.MeetsThreshold),-1)<>ISNULL(expected.MeetsThreshold,-1)
+                OR (assessment.ThresholdAmount IS NOT NULL AND
+                    ISNULL(assessment.ThresholdCurrency,'''')<>''USD'')
+                OR (assessment.NatureResult=''CAPITALIZABLE'' AND assessment.Recommendation<>
+                    CASE WHEN expected.MeetsThreshold=1 THEN ''CAPEX''
+                         WHEN expected.MeetsThreshold=0 THEN ''OPEX'' ELSE ''REVIEW'' END)
+                OR (assessment.NatureResult=''OPEX_BY_NATURE'' AND assessment.Recommendation=''CAPEX'')
+                OR (assessment.NatureResult=''REVIEW'' AND assessment.Recommendation<>''REVIEW'')
+            )
+        )
+            THROW 51244, ''USD invoice-line decision contradicts stored amounts, threshold or nature safeguards.'', 1;',
+        N'@Envelope nvarchar(max), @RunId nvarchar(128), @LineBasis bit',
+        @Envelope=@Payload, @RunId=@WorkflowRunId, @LineBasis=@UsdInvoiceLineBasis;
 END;
 
 IF JSON_VALUE(@Payload, '$.partitions[0].evidence.potentialReviewTags.promptVersion') IS NOT NULL

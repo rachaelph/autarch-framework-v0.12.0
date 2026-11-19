@@ -122,6 +122,25 @@ def test_runs_one_complete_package_without_model_calls() -> None:
     assert result.errors == []
 
 
+def test_purchase_order_nuvolo_risk_reaches_all_lines_without_changing_accounting() -> None:
+    package = _package()
+    options = dict(
+        task_master=load_task_master_snapshot(DATA / "reference-v2" / "task-master-us-v2.json"),
+        policy=load_demo_policy_snapshot(DATA / "reference-v2" / "policy-config-v2.json"),
+        task_resolver=_resolver, requested_at_utc=NOW, completed_at_utc=NOW,
+    )
+    baseline = run_demo_v2_workflow(request=_request(package), packages=[package], **options)
+    package = package.model_copy(update={"source_references": {"Customer PO": "FWKD7819574"}})
+    result = run_demo_v2_workflow(request=_request(package), packages=[package], **options)
+    assert result.status == baseline.status == "SUCCEEDED"
+    assert all(item.nuvolo_risk_flag for item in result.assessments)
+    assert [
+        item.model_dump(exclude={"nuvolo_risk_flag", "nuvolo_review_reasons"}) for item in result.assessments
+    ] == [
+        item.model_dump(exclude={"nuvolo_risk_flag", "nuvolo_review_reasons"}) for item in baseline.assessments
+    ]
+
+
 def test_rejects_package_identity_mismatch_before_processing() -> None:
     package = _package()
     request = _request(package).model_copy(

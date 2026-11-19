@@ -13,10 +13,48 @@ from tools.build_capex_source_invoice_load import (
     ROOT,
     SOURCE_DIR,
     _money,
+    _append_package,
     _source_integrity,
     extract_sources,
     render_sql,
 )
+
+
+@pytest.mark.parametrize("reference", [
+    "FWKD7819574", "FWKD0001234", "UNRELATED-PROJECT-42",
+    "FWKD12X", "FWKD7819574 / FWKD8121179",
+])
+def test_generic_work_order_field_never_establishes_nuvolo(reference):
+    from tests.test_capex_demo_v2_task_suggestion import _line, _package
+
+    package = _package([_line("line-1", "Routine service")]).model_copy(
+        update={"invoice_number": "14055"},
+    )
+    payload = {"invoices": [], "packages": [], "lines": []}
+    _append_package(payload, package, {}, [{}], None, reference)
+    assert payload["invoices"][0]["NuvoloWorkOrderNo"] is None
+
+
+@pytest.mark.parametrize(("reference", "expected"), [
+    ("FWKD7819574", "7819574"),
+    ("FWKD0001234", "0001234"),
+    ("841305", None),
+    ("FWKD12X", None),
+    ("FWKD7819574 / FWKD8121179", None),
+])
+def test_customer_po_sets_only_an_unambiguous_digits_only_nuvolo_number(reference, expected):
+    from tests.test_capex_demo_v2_task_suggestion import _line, _package
+
+    package = _package([_line("line-1", "Routine service")]).model_copy(update={
+        "invoice_number": "14055", "po_number": "841305",
+        "source_references": {"Customer PO": reference},
+    })
+    payload = {"invoices": [], "packages": [], "lines": []}
+    _append_package(payload, package, {}, [{}], None)
+    assert payload["invoices"][0]["NuvoloWorkOrderNo"] == expected
+    assert payload["invoices"][0]["PONumber"] == "841305"
+    if "FWKD" in reference:
+        assert payload["packages"][0]["SourceMetadataJson"]["nuvolo"]["riskFlag"]
 
 
 @pytest.fixture(scope="module")

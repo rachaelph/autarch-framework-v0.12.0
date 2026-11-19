@@ -136,6 +136,46 @@ def test_all_sources_are_accounted_for_with_explicit_reference_exceptions():
     assert not any(package_id in json.dumps(model.requests) for package_id in exception_ids)
 
 
+def test_nuvolo_po_evidence_reaches_reference_only_assessments_and_review(monkeypatch):
+    from autarch.capex import demo_v2_adf_sql as sql
+    from autarch.capex import demo_v2_intake as intake
+
+    original_normalize = intake.normalize_jc_workbook
+
+    def normalize(*args, **kwargs):
+        classified = original_normalize(*args, **kwargs)
+        return classified.model_copy(update={"packages": [
+            package.model_copy(update={"source_references": {"Customer PO": "FWKD0001234"}})
+            for package in classified.packages
+        ]})
+
+    monkeypatch.setattr(intake, "normalize_jc_workbook", normalize)
+    monkeypatch.setattr(sql, "load_adf_task_master", lambda connection, expected: expected)
+    monkeypatch.setattr(sql, "load_adf_asset_class_master", lambda connection, expected: expected)
+    captured = {}
+
+    def capture(connection, **kwargs):
+        captured.update(kwargs)
+        return {}
+
+    monkeypatch.setattr(sql, "persist_adf_results", capture)
+    run(ReviewModel(), {}, connection=object())
+    linked_ids = {
+        package.package_id for package in captured["packages"] if package.nuvolo_context.risk_flag
+    }
+    assert len(linked_ids) == 8
+    for assessment in captured["result"].assessments:
+        assert assessment.nuvolo_risk_flag == (assessment.package_id in linked_ids)
+        if assessment.package_id in linked_ids:
+            assert not assessment.used_llm and assessment.recommendation == "REVIEW"
+    assert not any(item.nuvolo_risk_flag for item in captured["model_result"].assessments)
+    contexts = [
+        item["extraction"]["nuvoloContext"] for item in captured["review"]["documents"]
+        if "nuvoloContext" in item["extraction"]
+    ]
+    assert len(contexts) == 8 and all(item["workOrderNo"] == "0001234" for item in contexts)
+
+
 @pytest.mark.parametrize("field", ["task_master_sha256", "policy_sha256"])
 def test_reference_drift_prevents_all_output_and_model_calls(field):
     written = {}
@@ -196,6 +236,73 @@ def test_repeat_run_stops_before_new_model_calls():
     with pytest.raises(FileExistsError):
         run(second_model, written)
     assert second_model.calls == 0
+
+
+def test_opt_in_translation_reaches_classification_without_overwriting_source():
+    from autarch.capex.demo_v2_normalization import LineDescriptionTranslation
+
+    submissions = []
+
+    class Translator:
+        def translate(self, descriptions):
+            submissions.append(list(descriptions))
+            return [LineDescriptionTranslation(
+                source_language="fr", language_detection_score=0.99,
+                english_text=f"MOCK ENGLISH: {text}",
+            ) for text in descriptions]
+
+    written = {}
+    provider = ReviewModel()
+    summary = run(provider, written, translator=Translator())
+    manifest = written[summary["translationUri"]]
+    assert manifest["status"] == "SUCCEEDED"
+    assert manifest["lineCount"] == summary["lineCount"]
+    originals = {
+        package["packageId"]: package for uri, package in written.items()
+        if "/packages/" in uri and "lines" in package
+    }
+    original_texts = [line["description"] for package in originals.values() for line in package["lines"]]
+    unique_texts = list(dict.fromkeys(original_texts))
+    assert submissions == [unique_texts]
+    assert manifest["uniqueDescriptionCount"] == len(unique_texts)
+    assert manifest["reusedTranslationLineCount"] == len(original_texts) - len(unique_texts) > 0
+    assert manifest["sourceTextUtf16Units"] == sum(len(text.encode("utf-16-le")) // 2 for text in original_texts)
+    assert manifest["submittedTextUtf16Units"] == sum(len(text.encode("utf-16-le")) // 2 for text in unique_texts)
+    translated = [package for uri, package in written.items() if "/translated-packages/" in uri]
+    assert len(translated) == summary["packageCount"]
+    for package in translated:
+        original = originals[package["packageId"]]
+        assert package["source"] == original["source"]
+        for line, source_line in zip(package["lines"], original["lines"]):
+            assert {key: value for key, value in line.items() if key != "translation"} == {
+                key: value for key, value in source_line.items() if key != "translation"
+            }
+    tasks = [request for request in provider.requests if "taskMasterVersion" in request]
+    assert tasks
+    assert all(line["translation"]["englishText"].startswith("MOCK ENGLISH:")
+               for request in tasks for line in request["lines"])
+    assert not summary["freshPdfExtraction"]
+    assert list(written)[-1].endswith("/batch.json")
+
+
+def test_translation_failure_records_stage_and_prevents_classification_and_completion():
+    from autarch.capex.demo_v2_translation import TranslationError
+
+    class Translator:
+        def translate(self, descriptions):
+            raise TranslationError("Controlled mock-only translation failure")
+
+    written = {}
+    provider = ReviewModel()
+    with pytest.raises(TranslationError, match="mock-only"):
+        run(provider, written, translator=Translator())
+    failure = next(value for uri, value in written.items() if uri.endswith("/translation.json"))
+    assert failure["status"] == "FAILED"
+    assert failure["stage"] == "TRANSLATION"
+    assert failure["scope"] == "BATCH" and len(failure["packageIds"]) == 10
+    assert provider.calls == 0
+    assert not any("/translated-packages/" in uri for uri in written)
+    assert not any(uri.endswith("/batch.json") for uri in written)
 
 
 def test_result_upload_failure_never_publishes_completion_marker():

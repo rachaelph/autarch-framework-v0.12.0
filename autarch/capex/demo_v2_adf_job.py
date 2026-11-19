@@ -23,6 +23,7 @@ from .demo_v2_intake import _join, _write_artifact, prepare_intake, read_source
 from .demo_v2_job import _package_from_payload, run_demo_v2_workflow
 from .demo_v2_llm_decisions import SqlLlmDecisionWorkflow
 from .demo_v2_normalization import NormalizedInvoicePackage
+from .demo_v2_translation import AzureNmtTranslator, DescriptionTranslator, translate_invoice_packages
 from .demo_v2_reference import DemoPolicySnapshot, TaskMasterSnapshot, canonical_sha256
 from .demo_v2_sql_policy import (
     SqlPolicyReferences, assess_governed_invoice, load_sql_policy_references,
@@ -112,6 +113,7 @@ def _with_reference_reviews(
             continue
         reasons = reasons_by_package[package.package_id]
         reason = " ".join(reasons)
+        nuvolo = package.nuvolo_context
         for line in package.lines:
             tasks.append(TaskDetermination(
                 workflow_run_id=request.workflow_run_id, package_id=package.package_id,
@@ -130,6 +132,7 @@ def _with_reference_reviews(
                 workflow_run_id=request.workflow_run_id, package_id=package.package_id,
                 invoice_id=package.invoice_id, line_id=line.line_id,
                 nature_result=NatureResult.REVIEW, repair_maintenance_indicator=False,
+                nuvolo_risk_flag=nuvolo.risk_flag, nuvolo_review_reasons=nuvolo.review_reasons,
                 never_capitalize_hit=False, recommendation=CapitalizationRecommendation.REVIEW,
                 outcome_category="REFERENCE_OR_EXTRACTION_REVIEW",
                 bundling_disposition=BundlingDisposition.REVIEW, missing_inputs=reasons, review_reasons=reasons,
@@ -164,6 +167,7 @@ def run_adf_batch(
     allow_provisional_pdf_recommendations: bool = False,
     demo_recommendations: bool = False,
     governed_sql_references: bool = False,
+    translator: Optional[DescriptionTranslator] = None,
     read: Callable[[str], bytes] = read_source,
     write: Callable[[str, object], None] = _write_artifact,
 ) -> dict[str, object]:
@@ -232,7 +236,7 @@ def run_adf_batch(
             threshold, _ = references.threshold_for(
                 package, request.requested_at_utc.date(), allow_demo=demo_recommendations,
             )
-            if threshold is None:
+            if threshold is None or threshold.threshold_type == "USD_BUDGET_EXPENDITURE":
                 continue
             native = policy.model_dump(mode="json", by_alias=True)
             native["region"] = "EUROPE" if is_eu_invoice(package) else "NORTH_AMERICA"
@@ -276,6 +280,42 @@ def run_adf_batch(
                 "package_uri": _join(run_uri, "processing-packages", f"{reference.package_id}.json"),
             }) for reference in request.packages
         ]})
+    translation_uri = None
+    if translator is not None:
+        translation_uri = _join(run_uri, "translation.json")
+        try:
+            translated_packages = translate_invoice_packages(packages, translator)
+        except (ValueError, OSError) as exc:
+            write(translation_uri, {
+                "workflowRunId": workflow_run_id, "status": "FAILED",
+                "stage": "TRANSLATION", "scope": "BATCH",
+                "packageIds": [package.package_id for package in packages], "error": str(exc),
+            })
+            raise
+        for translated in translated_packages:
+            write(_join(run_uri, "translated-packages", f"{translated.package_id}.json"),
+                  translated.model_dump(mode="json", by_alias=True))
+        packages = translated_packages
+        request = request.model_copy(update={"packages": [
+            reference.model_copy(update={
+                "package_uri": _join(run_uri, "translated-packages", f"{reference.package_id}.json"),
+            }) for reference in request.packages
+        ]})
+        descriptions = [line.description for package in packages for line in package.lines]
+        unique_descriptions = set(descriptions)
+        write(translation_uri, {
+            "workflowRunId": workflow_run_id, "status": "SUCCEEDED",
+            "stage": "TRANSLATION", "engine": "AZURE_TRANSLATOR_NMT",
+            "apiVersion": "2026-06-06", "targetLanguage": "en",
+            "lineCount": len(descriptions), "uniqueDescriptionCount": len(unique_descriptions),
+            "reusedTranslationLineCount": len(descriptions) - len(unique_descriptions),
+            "sourceTextUtf16Units": sum(len(text.encode("utf-16-le")) // 2 for text in descriptions),
+            "submittedTextUtf16Units": sum(len(text.encode("utf-16-le")) // 2 for text in unique_descriptions),
+            "sourceDescriptionsPreserved": True,
+            "completedAtUtc": datetime.now(timezone.utc).isoformat(),
+            "packages": [{"packageId": package.package_id, "packageUri": reference.package_uri}
+                         for package, reference in zip(packages, request.packages)],
+        })
     reference_exceptions: list[dict[str, object]] = []
     model_packages = []
     package_uris = {reference.package_id: reference.package_uri for reference in request.packages}
@@ -346,6 +386,7 @@ def run_adf_batch(
         "sourceManifestUri": _join(run_uri, "intake.json"),
         "modelRequestUri": model_request_uri, "referenceExceptionsUri": exceptions_uri,
         "freshPdfExtraction": fresh_pdf_extraction, "extractionCalls": extraction_calls,
+        "translationUri": translation_uri,
         "allowProvisionalPdfRecommendations": allow_provisional_pdf_recommendations,
         "demoRecommendations": demo_recommendations,
         "demoAssumptions": {
@@ -372,12 +413,25 @@ def run_adf_batch(
         "bundlingDeferred": references is not None,
     }
     if references is not None:
+        usd_budget_policy = any(
+            row.threshold_type == "USD_BUDGET_EXPENDITURE" for row in references.thresholds
+        )
         workflow.adf_context["demoAssumptions"] = {
             "nativeThresholds": {key: value.capitalization.base_threshold for key, value in policies.items()},
             "thresholdAuthority": "SQL_REFERENCE_ROWS_WITH_ORIGINAL_APPROVAL_LABELS",
             "policyDateBasis": "DEMO_RUN_DATE_NOT_HISTORICAL_BOOKING_APPROVAL",
-            "fxConversion": False, "businessApproved": False, "crossRegionUsCatalog": False,
-            "missingUnitCostBasis": "REVIEW_NO_LINE_AMOUNT_PROXY", "sourceValuesOverwritten": False,
+            "fxConversion": usd_budget_policy, "businessApproved": False, "crossRegionUsCatalog": False,
+            "fxConversionMeaning": "BUDGET_CONVERSION_ENABLED_NOT_GUARANTEED_FOR_EVERY_LINE"
+                if usd_budget_policy else "NO_CONVERSION",
+            "fxRateBasis": "APPROVED_EFFECTIVE_BUDGET_RATE_OR_REVIEW" if usd_budget_policy else None,
+            "assessmentBasis": "INVOICE_LINE_USD"
+                if usd_budget_policy else "LEGACY_NATIVE_UNIT_COST",
+            "assessmentBasisAuthority": "USER_CONFIRMED_INDEPENDENT_INVOICE_LINE"
+                if usd_budget_policy else None,
+            "projectExceptionStatus": "NOT_EVALUATED_NO_AUTHORITATIVE_SITE_PROJECT_CONTEXT",
+            "missingUnitCostBasis": "NOT_REQUIRED_FOR_INVOICE_LINE_BASIS"
+                if usd_budget_policy else "REVIEW_NO_LINE_AMOUNT_PROXY",
+            "sourceValuesOverwritten": False,
         }
 
     def persist_evidence(document: dict[str, object]) -> None:
@@ -561,6 +615,7 @@ def run_adf_batch(
         "reviewStatus": "AWAITING_ANALYST" if connection else "NOT_IMPORTED",
         "resultUri": result_uri, "evidenceUri": evidence_uri, "referenceExceptionsUri": exceptions_uri,
         "intakeUri": _join(run_uri, "intake.json"),
+        "translationUri": translation_uri,
         "requestUri": intake.request_uri, "modelRequestUri": model_request_uri,
         "completedAtUtc": datetime.now(timezone.utc).isoformat(),
         "persistence": "AZURE_SQL_AND_IMMUTABLE_JSON" if connection else "IMMUTABLE_JSON_ARTIFACTS",
@@ -587,6 +642,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="Use SQL policy/indicator/category tables; honor their basis and defer bundling.")
     parser.add_argument("--fresh-pdf-extraction", action="store_true",
                         help="Extract original PDF members with vision, rather than using ABBYY CSV facts.")
+    parser.add_argument("--translate-line-items", action="store_true",
+                        help="Opt in to billable Azure NMT translation of existing descriptions before classification.")
     parser.add_argument("--pdf-recommendation-mode", choices=("strict", "provisional-demo"), default="strict",
                         help="Demo-only opt-in for reliable line evidence with incomplete details; analyst review remains required.")
     parser.add_argument("--recommendation-mode", choices=("strict", "conditional-demo"), default="strict",
@@ -603,7 +660,26 @@ def main(argv: Optional[list[str]] = None) -> int:
         managed_identity_client_id=os.environ["AZURE_CLIENT_ID"], json_mode=True,
     )
     connection = None
+    translator = None
+    credential = None
     try:
+        if args.translate_line_items:
+            token_provider = None
+            api_key = os.environ.get("CAPEX_TRANSLATOR_KEY")
+            if not api_key:
+                from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+
+                credential = DefaultAzureCredential(
+                    managed_identity_client_id=os.environ.get("AZURE_CLIENT_ID"),
+                )
+                token_provider = get_bearer_token_provider(
+                    credential, "https://cognitiveservices.azure.com/.default",
+                )
+            translator = AzureNmtTranslator(
+                endpoint=os.environ["CAPEX_TRANSLATOR_ENDPOINT"],
+                region=os.environ["CAPEX_TRANSLATOR_REGION"],
+                api_key=api_key, token_provider=token_provider,
+            )
         if args.sql_persist:
             from .sql_connection import connect_azure_sql
 
@@ -620,10 +696,13 @@ def main(argv: Optional[list[str]] = None) -> int:
             allow_provisional_pdf_recommendations=args.pdf_recommendation_mode == "provisional-demo",
             demo_recommendations=args.recommendation_mode == "conditional-demo",
             governed_sql_references=args.governed_sql_references,
+            translator=translator,
         )
     finally:
         if connection is not None:
             connection.close()
+        if credential is not None:
+            credential.close()
     print(json.dumps(summary))
     return 0
 

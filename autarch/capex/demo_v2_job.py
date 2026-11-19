@@ -471,6 +471,14 @@ def run_demo_v2_workflow(
                 )
             )
 
+    nuvolo_by_package = {package.package_id: package.nuvolo_context for package in successful_packages}
+    all_assessments = [
+        item.model_copy(update={
+            "nuvolo_risk_flag": nuvolo_by_package[item.package_id].risk_flag,
+            "nuvolo_review_reasons": nuvolo_by_package[item.package_id].review_reasons,
+        })
+        for item in all_assessments
+    ]
     completed_at = completed_at_utc or _utc_now()
     persisted_tasks = 0
     persistence = PersistenceCounts()

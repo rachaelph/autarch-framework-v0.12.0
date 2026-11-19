@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from typing import Callable, Sequence
 
 from .demo_v2_contracts import DemoWorkflowRequest, DemoWorkflowResult
@@ -37,9 +38,14 @@ SELECT object_name, permission_name, column_name FROM (VALUES
     ('capex.Assessment', 'UPDATE', 'AssetClassSuggestionID'),
     ('capex.Assessment', 'UPDATE', 'SuggestedAssetClassCode'),
     ('capex.Assessment', 'UPDATE', 'RepairMaintenanceFlag'),
+    ('capex.Assessment', 'UPDATE', 'NuvoloRiskFlag'),
+    ('prep.Invoice', 'SELECT', 'InvoiceID'),
+    ('prep.Invoice', 'SELECT', 'NuvoloWorkOrderNo'),
+    ('prep.Invoice', 'UPDATE', 'NuvoloWorkOrderNo'),
     ('capex.Assessment', 'UPDATE', 'AroFlag'),
     ('capex.Assessment', 'UPDATE', 'PotentialTagsJson'),
     ('capex.Assessment', 'UPDATE', 'CategorySuggestion'),
+    ('capex.InvoiceLineAmount', 'SELECT', NULL), ('capex.InvoiceLineAmount', 'INSERT', NULL),
     ('capex.BundleCandidateGroup', 'SELECT', NULL), ('capex.BundleCandidateGroup', 'INSERT', NULL),
     ('capex.BundleCandidateGroup', 'UPDATE', 'SuggestedAssetClassCode'),
     ('capex.BundleCandidateMember', 'SELECT', NULL), ('capex.BundleCandidateMember', 'INSERT', NULL),
@@ -173,6 +179,110 @@ class _TransactionConnection:
         raise ValueError("Only the ADF SQL transaction owner may close the connection.")
 
 
+def _persist_line_amounts(connection: DatabaseConnection, result: DemoWorkflowResult) -> None:
+    amounts = [
+        (item, item.currency_conversion) for item in result.assessments
+        if item.currency_conversion is not None
+    ]
+    if not amounts:
+        return
+    if len(amounts) != len(result.assessments):
+        raise ValueError("USD policy requires preserved conversion evidence for every assessed line.")
+    values = [
+        (item.workflow_run_id, item.package_id, item.line_id,
+         amount.original_currency, amount.original_unit_cost, amount.original_line_amount,
+         amount.budget_exchange_rate_id, amount.rate_to_usd, amount.unit_cost_usd,
+         amount.line_amount_usd, amount.conversion_status, amount.policy_as_of_date,
+         amount.model_dump_json(by_alias=True))
+        for item, amount in amounts
+    ]
+    cursor = connection.cursor()
+    try:
+        cursor.executemany("""
+            INSERT INTO capex.InvoiceLineAmount
+                (WorkflowRunId, PackageId, LineId, OriginalCurrency, OriginalUnitCost,
+                 OriginalLineAmount, BudgetExchangeRateID, RateToUsd, UnitCostUsd,
+                 LineAmountUsd, ConversionStatus, PolicyAsOfDate, EvidenceJson)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
+        """, values)
+        cursor.execute("""
+            SELECT WorkflowRunId, PackageId, LineId, OriginalCurrency, OriginalUnitCost,
+                OriginalLineAmount, BudgetExchangeRateID, RateToUsd, UnitCostUsd,
+                LineAmountUsd, ConversionStatus, PolicyAsOfDate, EvidenceJson
+            FROM capex.InvoiceLineAmount WHERE WorkflowRunId=?;
+        """, (result.workflow_run_id,))
+
+        def normalized(row: Sequence) -> tuple:
+            return tuple(
+                Decimal(str(value)) if index in {4, 5, 7, 8, 9} and value is not None
+                else str(value) if index == 11 else value
+                for index, value in enumerate(row)
+            )
+
+        saved = [normalized(row) for row in cursor.fetchall()]
+        if len(saved) != len(values) or set(saved) != {normalized(row) for row in values}:
+            raise ValueError("SQL did not confirm exact original and USD-converted line amounts.")
+    finally:
+        cursor.close()
+
+
+def _persist_nuvolo_results(
+    connection: DatabaseConnection, packages: Sequence[NormalizedInvoicePackage],
+    result: DemoWorkflowResult,
+) -> None:
+    contexts = {package.package_id: package.nuvolo_context for package in packages}
+    if any(item.nuvolo_risk_flag != contexts[item.package_id].risk_flag
+           or item.nuvolo_review_reasons != contexts[item.package_id].review_reasons
+           for item in result.assessments):
+        raise ValueError("Assessment Nuvolo flags/review reasons must match original source evidence.")
+    cursor = connection.cursor()
+    try:
+        for package in packages:
+            number = contexts[package.package_id].work_order_no
+            if number is None:
+                continue
+            cursor.execute("""
+                SELECT NuvoloWorkOrderNo FROM prep.Invoice WITH (UPDLOCK, HOLDLOCK)
+                WHERE InvoiceID=?;
+            """, (package.invoice_id,))
+            rows = cursor.fetchall()
+            if len(rows) != 1:
+                raise ValueError(
+                    f"Preload exactly one prep.Invoice row before persisting Nuvolo evidence for {package.invoice_id}."
+                )
+            stored = rows[0][0]
+            if stored not in (None, "", number) and str(stored).strip().upper() != f"FWKD{number}":
+                raise ValueError(f"Existing Nuvolo work order conflicts with source for {package.invoice_id}.")
+            cursor.execute("""
+                UPDATE prep.Invoice SET NuvoloWorkOrderNo=? WHERE InvoiceID=?;
+            """, (number, package.invoice_id))
+            cursor.execute("""
+                SELECT NuvoloWorkOrderNo FROM prep.Invoice WHERE InvoiceID=?;
+            """, (package.invoice_id,))
+            if [tuple(row) for row in cursor.fetchall()] != [(number,)]:
+                raise ValueError(f"SQL did not confirm the exact Nuvolo work order for {package.invoice_id}.")
+        cursor.executemany("""
+            UPDATE capex.Assessment SET NuvoloRiskFlag=?
+            WHERE WorkflowRunId=? AND PackageId=? AND InvoiceId=? AND LineId=?;
+        """, [
+            (item.nuvolo_risk_flag, result.workflow_run_id, item.package_id, item.invoice_id, item.line_id)
+            for item in result.assessments
+        ])
+        cursor.execute("""
+            SELECT PackageId, InvoiceId, LineId, NuvoloRiskFlag
+            FROM capex.Assessment WHERE WorkflowRunId=?;
+        """, (result.workflow_run_id,))
+        saved = [tuple(row) for row in cursor.fetchall()]
+        expected = [
+            (item.package_id, item.invoice_id, item.line_id, item.nuvolo_risk_flag)
+            for item in result.assessments
+        ]
+        if len(saved) != len(expected) or set(saved) != set(expected):
+            raise ValueError("SQL did not confirm every assessment's exact Nuvolo risk flag.")
+    finally:
+        cursor.close()
+
+
 def persist_adf_results(
     connection: DatabaseConnection, *, request: DemoWorkflowRequest,
     packages: Sequence[NormalizedInvoicePackage], result: DemoWorkflowResult,
@@ -240,6 +350,8 @@ def persist_adf_results(
             connection=transaction, assessments=result.assessments, groups=result.bundle_groups,
             workflow_run_id=result.workflow_run_id, created_at_utc=result.completed_at_utc,
         )
+        _persist_nuvolo_results(transaction, packages, result)
+        _persist_line_amounts(transaction, result)
         if any(item.category_suggestion is not None for item in result.assessments):
             cursor = transaction.cursor()
             try:

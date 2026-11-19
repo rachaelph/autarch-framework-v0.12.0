@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
+from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -13,7 +16,8 @@ from autarch.capex.demo_v2_llm_showcase import _AuditedProvider
 from autarch.capex.demo_v2_potential_tags import screen_potential_tags
 from autarch.capex.demo_v2_review import ReviewStore
 from autarch.capex.demo_v2_sql_policy import (
-    SqlPolicyReferences, assess_governed_invoice, load_sql_policy_references,
+    SqlBudgetExchangeRate, SqlPolicyReferences, assess_governed_invoice,
+    convert_line_to_usd, load_sql_policy_references,
 )
 from tests.test_capex_demo_v2_adf_integration import ConditionalModel, use_mock_render
 from tests.test_capex_demo_v2_adf_job import run
@@ -75,19 +79,26 @@ class GovernedModel(ConditionalModel):
             threshold = request["threshold"]
             items = []
             for line in request["processingPackage"]["lines"]:
-                missing = line["unitCost"] is None or threshold is None
-                recommendation = "REVIEW" if missing else (
-                    "CAPEX" if line["unitCost"] >= float(threshold["governedThreshold"]) else "OPEX"
-                )
+                if request.get("assessmentBasis") == "INVOICE_LINE_USD":
+                    recommendation = request["standardThresholdDecisionsIfCapitalizable"][line["lineId"]]
+                    missing = recommendation == "REVIEW"
+                else:
+                    missing = line["unitCost"] is None or threshold is None
+                    recommendation = "REVIEW" if missing else (
+                        "CAPEX" if line["unitCost"] >= float(threshold["governedThreshold"]) else "OPEX"
+                    )
                 items.append({
                     "lineId": line["lineId"], "natureResult": "CAPITALIZABLE",
                     "recommendation": recommendation, "repairMaintenanceIndicator": False,
                     "neverCapitalizeHit": False, "appliedExceptionIds": [],
-                    "sourceQuote": line["description"], "rationale": "MOCK TEST ONLY: actual SQL unit-cost basis.",
+                    "sourceQuote": line["description"], "rationale": "MOCK TEST ONLY: supplied SQL threshold basis.",
                     "policyCitations": [
                         f"sql:ref.CapitalizationThreshold:{threshold['thresholdId']}"
                     ] if threshold else request["allowedPolicyCitations"][:1],
-                    "missingInputs": ["Printed unit cost or applicable policy"] if missing else [],
+                    "missingInputs": [
+                        "Applicable USD policy or approved FX" if request.get("assessmentBasis") == "INVOICE_LINE_USD"
+                        else "Printed unit cost or applicable policy"
+                    ] if missing else [],
                     "reviewReasons": ["MOCK TEST ONLY: missing governed threshold facts."] if missing else [],
                 })
             return json.dumps({"items": items})
@@ -225,6 +236,81 @@ def test_incompatible_category_is_rejected_with_audited_feedback(governed):
     assert evidence["status"] != "SUCCEEDED"
 
 
+@pytest.mark.parametrize(("field", "reference", "qualifies"), [
+    ("Customer PO", "FWKD7819574", True),
+    ("Customer PO", "FWKD123ABC", True),
+    ("Customer PO", "FWKD7819574 / FWKD8121179", True),
+    ("Customer PO", "XFWKD7819574", True),
+    ("Work Order Number", "FWKD7819574", False),
+    ("Invoice Number", "FWKD7819574", False),
+    ("Customer PO", "841305", False),
+])
+@pytest.mark.parametrize("repair_indicator", [False, True])
+def test_nuvolo_category_requires_fwkd_purchase_order_even_with_nuvolo_source_label(
+    references, screened_input, field, reference, qualifies, repair_indicator,
+):
+    from autarch.capex.demo_v2_contracts import CapitalizationAssessment
+    from autarch.capex.demo_v2_sql_policy import suggest_assessment_categories
+
+    package, result, response = screened_input
+    package = package.model_copy(update={
+        "source_references": {field: reference},
+        "source": package.source.model_copy(update={"source_system": "NUVOLO"}),
+    })
+    result = screen_potential_tags([package], result, TagModel(response))
+    result = result.model_copy(update={"assessments": [CapitalizationAssessment(
+        workflow_run_id=result.workflow_run_id, package_id=package.package_id, invoice_id=package.invoice_id,
+        line_id=line.line_id, nature_result="OPEX_BY_NATURE", repair_maintenance_indicator=repair_indicator,
+        never_capitalize_hit=False, recommendation="OPEX", outcome_category="SQL_GOVERNED_OPEX",
+        bundling_disposition="NOT_ELIGIBLE", rationale="MOCK TEST ONLY: ordinary maintenance.",
+        created_at_utc=package.created_at_utc,
+    ) for line in package.lines]})
+
+    requests = []
+
+    class CategoryModel(GovernedModel):
+        def complete(self, prompt, system=None):
+            payload = json.loads(prompt)
+            requests.append(payload)
+            return json.dumps({"lines": [{
+                "packageId": item["packageId"], "lineId": item["lineId"],
+                "categorySuggestion": "NUVOLO_RM" if "NUVOLO_RM" in item["allowedCategoryCodes"] else "OPEX_BY_NATURE",
+                "sourceQuote": next(line.description for line in package.lines if line.line_id == item["lineId"]),
+                "rationale": "MOCK TEST ONLY: use the constrained supported category.",
+            } for item in payload["lineConstraints"]]})
+
+    actual = suggest_assessment_categories(
+        [package], result, references,
+        _AuditedProvider(CategoryModel(), [], deployment="MOCK_TEST_ONLY", stage="ASSESSMENT_CATEGORY"),
+    )
+    assert all((item.category_suggestion == "NUVOLO_RM") == qualifies for item in actual.assessments)
+    assert all(item.recommendation == "OPEX" for item in actual.assessments)
+    if qualifies:
+        assert all(item["allowedCategoryCodes"] == ["NUVOLO_RM"] for item in requests[0]["lineConstraints"])
+    assert actual.task_determinations == result.task_determinations
+    assert all(item.repair_maintenance_indicator == repair_indicator for item in actual.assessments)
+
+
+@pytest.mark.parametrize("missing", [False, True])
+def test_nuvolo_category_cannot_silently_disappear_from_the_sql_catalog(governed, references, missing):
+    from autarch.capex.demo_v2_sql_policy import suggest_assessment_categories
+
+    _, _, captured, _ = governed
+    first, *others = captured["packages"]
+    packages = [first.model_copy(update={"source_references": {"Customer PO": "FWKD7819574"}}), *others]
+    references = references.model_copy(update={"outcome_categories": [
+        row.model_copy(update={"enabled_for_demo": False}) if row.category_code == "NUVOLO_RM" else row
+        for row in references.outcome_categories if not (missing and row.category_code == "NUVOLO_RM")
+    ]})
+    model = GovernedModel()
+    with pytest.raises(ValueError, match="enabled NUVOLO_RM"):
+        suggest_assessment_categories(
+            packages, captured["result"], references,
+            _AuditedProvider(model, [], deployment="MOCK_TEST_ONLY", stage="ASSESSMENT_CATEGORY"),
+        )
+    assert model.requests == []
+
+
 @pytest.mark.parametrize("corrupt", [False, True])
 def test_categories_and_deferred_bundling_commit_atomically(governed, native_helpers, tmp_path, corrupt):
     _, _, captured, _ = governed
@@ -283,6 +369,7 @@ def test_reference_loader_validates_real_row_shape_and_rolls_back_read_transacti
                 "ref.RepairMaintenanceIndicator": references.repair_indicators,
                 "ref.AROIndicator": references.aro_indicators,
                 "ref.AssessmentOutcomeCategory": references.outcome_categories,
+                "ref.BudgetExchangeRate": references.budget_exchange_rates,
             }
             rows = next(rows for table, rows in tables.items() if f"FROM {table} " in self.query)
             return [(json.dumps([] if empty else [
@@ -354,3 +441,462 @@ def test_governed_accounting_rejects_unsupported_facts_and_rule_claims(governed,
         assess_governed_invoice(package, tasks, references, provider, captured["request"], allow_demo=True)
     assert len(calls) == 2 and all(call.validation_error for call in calls)
     assert all(line.unit_cost is None for line in package.lines)
+
+
+@pytest.fixture
+def usd_references(references):
+    payload = references.model_dump(mode="json")
+    payload["thresholds"] = [{
+        "threshold_id": 10, "governed_threshold": "1000",
+        "threshold_type": "USD_BUDGET_EXPENDITURE", "country_region": "Global",
+        "currency": "USD", "project_budget_min": "30000", "minimum_site_amount": "300",
+        "policy_version": "MOCK-USD-POLICY",
+        "policy_reference": "MOCK TEST ONLY: USD expenditure policy and project exception.",
+        "effective_from": "2026-01-01", "effective_to": "2026-12-31",
+    }]
+    return SqlPolicyReferences.model_validate(payload)
+
+
+def _budget_rate(**changes):
+    return SqlBudgetExchangeRate.model_validate({
+        "budgetExchangeRateId": 1, "sourceCurrency": "EUR", "targetCurrency": "USD",
+        "usdPerSourceUnit": "1.25", "countryRegion": "Global", "budgetPeriod": "MOCK-2026",
+        "rateVersion": "MOCK-V1", "sourceReference": "MOCK TEST ONLY, not a Circle K rate",
+        "effectiveFrom": "2026-01-01", "effectiveTo": "2026-12-31",
+        "approvalStatus": "APPROVED", "approvedBy": "MOCK", "approvedAtUtc": "2026-01-01T00:00:00",
+        **changes,
+    })
+
+
+def _f27_budget_rates():
+    script = (Path(__file__).resolve().parents[1] / "sql" / "data" /
+              "012_import_f27_budget_exchange_rates.sql").read_text(encoding="utf-8")
+    schedule = re.findall(r"\('([A-Z]{3})',(\d+\.\d{4})\)", script)
+    dates = dict(re.findall(r"DECLARE @(EffectiveFrom|EffectiveTo) date='(\d{4}-\d{2}-\d{2})';", script))
+    return [
+        _budget_rate(
+            budgetExchangeRateId=index, sourceCurrency=currency, usdPerSourceUnit=amount,
+            budgetPeriod="FY27", rateVersion="F27 FX Rate",
+            effectiveFrom=dates["EffectiveFrom"], effectiveTo=dates["EffectiveTo"],
+            sourceReference="User-supplied F27 schedule and dates; MOCK approval for tests only",
+        )
+        for index, (currency, amount) in enumerate(schedule, 1) if currency != "USD"
+    ]
+
+
+@pytest.mark.parametrize("currency,expected_usd", [
+    ("USD", "1000"), ("EUR", "1166.2"), ("CAD", "724.3"), ("CHF", "1240.8"),
+    ("DKK", "155.8"), ("GBP", "1346.3"), ("HKD", "128.2"), ("INR", "11.4"),
+    ("NOK", "100.3"), ("PLN", "274"), ("SEK", "106.3"),
+])
+def test_f27_import_rates_multiply_source_amounts_and_preserve_provenance(
+    usd_references, currency, expected_usd,
+):
+    line = _line("1", "Equipment").model_copy(update={
+        "currency": currency, "unit_cost": None, "quantity": None, "line_amount": 1000,
+    })
+    package = _package([line]).model_copy(update={"currency": currency})
+    references = usd_references.model_copy(update={"budget_exchange_rates": _f27_budget_rates()})
+    conversion = convert_line_to_usd(package, line, references, date(2026, 11, 12))
+    assert conversion.line_amount_usd == Decimal(expected_usd)
+    assert conversion.original_currency == currency and conversion.original_line_amount == 1000
+    assert conversion.original_unit_cost is None and conversion.unit_cost_usd is None
+    assert conversion.rate_version == (None if currency == "USD" else "F27 FX Rate")
+
+
+@pytest.mark.parametrize("as_of,eligible", [
+    (date(2026, 4, 26), False), (date(2026, 4, 27), True),
+    (date(2027, 4, 25), True), (date(2027, 4, 26), False),
+])
+def test_f27_rates_apply_only_within_inclusive_fiscal_dates(usd_references, as_of, eligible):
+    line = _line("1", "Equipment").model_copy(update={
+        "currency": "DKK", "line_amount": 38014.39, "unit_cost": None, "quantity": None,
+    })
+    package = _package([line]).model_copy(update={"currency": "DKK"})
+    references = usd_references.model_copy(update={"budget_exchange_rates": _f27_budget_rates()})
+    conversion = convert_line_to_usd(package, line, references, as_of)
+    assert conversion.original_line_amount == Decimal("38014.39")
+    if eligible:
+        assert conversion.conversion_status == "CONVERTED"
+        assert conversion.line_amount_usd == Decimal("5922.641962")
+    else:
+        assert conversion.conversion_status == "REVIEW" and conversion.review_reason
+        assert conversion.line_amount_usd is None and conversion.rate_to_usd is None
+
+
+def test_budget_conversion_preserves_source_and_missing_unit_price(usd_references):
+    line = _line("1", "Equipment").model_copy(update={
+        "currency": "EUR", "unit_cost": None, "quantity": None, "line_amount": 800.03,
+    })
+    package = _package([line]).model_copy(update={"currency": "EUR"})
+    references = usd_references.model_copy(update={"budget_exchange_rates": [_budget_rate()]})
+    conversion = convert_line_to_usd(package, line, references, date(2026, 11, 12))
+    assert conversion.line_amount_usd == Decimal("1000.0375000000")
+    assert conversion.original_line_amount == Decimal("800.03")
+    assert conversion.unit_cost_usd is None and conversion.original_unit_cost is None
+    assert conversion.rate_to_usd == Decimal("1.25") and conversion.budget_exchange_rate_id == 1
+    assert conversion.budget_period == "MOCK-2026" and conversion.rate_version == "MOCK-V1"
+    assert line.line_amount == 800.03 and line.currency == "EUR" and line.quantity is None
+
+
+@pytest.mark.parametrize("problem", ["missing", "pending", "expired", "ambiguous", "scope", "currency_mismatch"])
+def test_budget_rate_failures_require_review_without_inventing_usd_amounts(usd_references, problem):
+    line = _line("1", "Equipment").model_copy(update={"currency": "EUR"})
+    package = _package([line]).model_copy(update={"currency": "EUR"})
+    rates = [_budget_rate()]
+    if problem == "missing":
+        rates = []
+    elif problem == "pending":
+        rates = [_budget_rate(approvalStatus="PENDING")]
+    elif problem == "expired":
+        rates = [_budget_rate(effectiveTo="2026-06-30")]
+    elif problem == "ambiguous":
+        rates.append(_budget_rate(budgetExchangeRateId=2, rateVersion="MOCK-V2"))
+    elif problem == "scope":
+        rates = [_budget_rate(countryRegion="Canada")]
+    else:
+        package = package.model_copy(update={"currency": "DKK"})
+    conversion = convert_line_to_usd(
+        package, line, usd_references.model_copy(update={"budget_exchange_rates": rates}),
+        date(2026, 11, 12),
+    )
+    assert conversion.conversion_status == "REVIEW" and conversion.review_reason
+    assert conversion.original_currency == "EUR" and conversion.original_line_amount == 100
+    assert conversion.line_amount_usd is None and conversion.rate_to_usd is None
+
+
+def test_usd_identity_conversion_needs_no_budget_rate(usd_references):
+    package = _package([_line("1", "Equipment")])
+    conversion = convert_line_to_usd(package, package.lines[0], usd_references, date(2026, 11, 12))
+    assert conversion.rate_to_usd == 1 and conversion.budget_exchange_rate_id is None
+    assert conversion.unit_cost_usd == conversion.original_unit_cost == 100
+    assert conversion.line_amount_usd == conversion.original_line_amount == 100
+
+
+@pytest.mark.parametrize("amount,expected_usd", [
+    (0, "0.0000000000"), (1e-10, "0.0000000001"),
+])
+def test_conversion_json_uses_exact_fixed_point_for_sql_decimal_readers(
+    usd_references, amount, expected_usd,
+):
+    line = _line("1", "Equipment").model_copy(update={"line_amount": amount, "unit_cost": amount})
+    package = _package([line])
+    conversion = convert_line_to_usd(package, line, usd_references, date(2026, 11, 12))
+    payload = json.loads(conversion.model_dump_json(by_alias=True))
+    assert payload["lineAmountUsd"] == payload["unitCostUsd"] == expected_usd
+    for field in ("originalLineAmount", "originalUnitCost", "rateToUsd"):
+        assert "e" not in payload[field].lower()
+        assert Decimal(payload[field]) == Decimal(str(amount if field != "rateToUsd" else 1))
+
+
+@pytest.fixture
+def usd_governed(monkeypatch, usd_references, request):
+    if getattr(request, "param", False):
+        usd_references = usd_references.model_copy(update={"budget_exchange_rates": _f27_budget_rates()})
+    use_mock_render(monkeypatch)
+    monkeypatch.setattr(sql, "load_adf_task_master", lambda connection, expected: expected)
+    monkeypatch.setattr(sql, "load_adf_asset_class_master", lambda connection, expected: expected)
+    monkeypatch.setattr(job, "load_sql_policy_references", lambda connection: usd_references)
+    captured = {}
+    monkeypatch.setattr(sql, "persist_adf_results", lambda connection, **kwargs: captured.update(kwargs) or {})
+    written = {}
+    model = GovernedModel()
+    summary = run(
+        model, written, connection=object(), fresh_pdf_extraction=True,
+        allow_provisional_pdf_recommendations=True, demo_recommendations=True,
+        governed_sql_references=True,
+    )
+    return summary, written, captured, model
+
+
+@pytest.mark.parametrize("usd_governed", [False, True], indirect=True, ids=["missing-rates", "f27-rates"])
+def test_usd_policy_routes_all_currencies_without_native_fallback_or_fake_project_totals(usd_governed):
+    summary, written, captured, model = usd_governed
+    assert summary["modelPackageCount"] == 10
+    for package in captured["packages"]:
+        assessments = [a for a in captured["result"].assessments if a.package_id == package.package_id]
+        for item in assessments:
+            assert item.threshold_currency == "USD" and item.threshold_amount == 1000
+            assert item.currency_conversion is not None
+            assert item.unit_cost_meets_threshold is None
+            amount = item.currency_conversion.line_amount_usd
+            expected = "REVIEW" if amount is None else ("CAPEX" if amount >= 1000 else "OPEX")
+            assert item.recommendation == expected
+            assert item.line_amount_usd_meets_threshold == (amount >= 1000 if amount is not None else None)
+            assert item.category_suggestion == (
+                "CAPEX" if expected == "CAPEX" else "OPEX_BELOW_THRESHOLD" if expected == "OPEX" else None
+            )
+            assert item.bundling_disposition == "REVIEW"
+    for request in [r for r in model.requests if r.get("stage") == "ACCOUNTING_DECISION"]:
+        assert request["threshold"]["minimumSiteAmount"] == "300"
+        assert request["threshold"]["projectBudgetMin"] == "30000"
+        assert request["assessmentBasis"] == "INVOICE_LINE_USD" and request["currencyConversions"]
+        assert request["projectExceptionStatus"] == "NOT_EVALUATED_NO_AUTHORITATIVE_SITE_PROJECT_CONTEXT"
+    evidence = written[summary["evidenceUri"]]
+    assert evidence["demoAssumptions"]["nativeThresholds"] == {}
+    assert evidence["demoAssumptions"]["assessmentBasis"] == "INVOICE_LINE_USD"
+    assert evidence["demoAssumptions"]["missingUnitCostBasis"] == "NOT_REQUIRED_FOR_INVOICE_LINE_BASIS"
+    assert not written[summary["reviewUri"]]["policySnapshots"]
+
+
+def test_expired_usd_policy_does_not_fall_back_to_legacy_native_policy(usd_references, references):
+    expired = usd_references.thresholds[0].model_copy(update={"effective_to": date(2026, 6, 30)})
+    mixed = references.model_copy(update={"thresholds": [*references.thresholds, expired]})
+    package = _package([_line("1", "Equipment")])
+    threshold, reason = mixed.threshold_for(package, date(2026, 11, 12), allow_demo=True)
+    assert threshold is None and reason
+
+
+@pytest.mark.parametrize("currency,amount,unit_cost,usd_amount,recommendation", [
+    ("USD", 0, None, "0", "OPEX"),
+    ("USD", 999.99, None, "999.99", "OPEX"),
+    ("USD", 1000, None, "1000", "CAPEX"),
+    ("USD", 1000.01, None, "1000.01", "CAPEX"),
+    ("USD", 1000, 10, "1000", "CAPEX"),
+    ("EUR", 900, None, "1049.58", "CAPEX"),
+    ("DKK", 1000, None, "155.8", "OPEX"),
+    ("DKK", 38014.39, None, "5922.641962", "CAPEX"),
+])
+def test_usd_threshold_uses_independent_converted_line_total_not_unit_or_native_amount(
+    usd_governed, usd_references, currency, amount, unit_cost, usd_amount, recommendation,
+):
+    _, _, captured, _ = usd_governed
+    package = captured["packages"][0]
+    package = package.model_copy(update={"currency": currency, "lines": [
+        line.model_copy(update={
+            "currency": currency, "line_amount": amount, "unit_cost": unit_cost,
+            "quantity": amount / unit_cost if unit_cost is not None else None,
+        }) for line in package.lines
+    ]})
+    tasks = [t for t in captured["result"].task_determinations if t.package_id == package.package_id]
+    provider = _AuditedProvider(
+        GovernedModel(), [], deployment="gpt-5.1",
+        stage="ACCOUNTING_DECISION", package_id=package.package_id,
+    )
+    assessments, model_batch = assess_governed_invoice(
+        package, tasks, usd_references.model_copy(update={"budget_exchange_rates": _f27_budget_rates()}),
+        provider, captured["request"], allow_demo=True,
+    )
+    for assessment, model_item in zip(assessments, model_batch.items, strict=True):
+        assert assessment.currency_conversion.line_amount_usd == Decimal(usd_amount)
+        assert assessment.recommendation == model_item.recommendation == recommendation
+        assert assessment.line_amount_usd_meets_threshold == (recommendation == "CAPEX")
+        assert assessment.unit_cost_meets_threshold is None
+        assert not assessment.missing_inputs and not assessment.review_reasons
+        assert assessment.bundling_disposition == "REVIEW" and assessment.bundle_group_id is None
+        assert "independent invoice line USD total" in assessment.rationale
+
+
+@pytest.mark.parametrize("nature,recommendation", [("OPEX_BY_NATURE", "OPEX"), ("REVIEW", "REVIEW")])
+def test_above_threshold_does_not_override_expense_nature_or_unresolved_eligibility(
+    usd_governed, usd_references, nature, recommendation,
+):
+    _, _, captured, _ = usd_governed
+    package = next(p for p in captured["packages"] if p.currency == "USD")
+    package = package.model_copy(update={"lines": [
+        line.model_copy(update={"line_amount": 5000, "unit_cost": None}) for line in package.lines
+    ]})
+    tasks = [t for t in captured["result"].task_determinations if t.package_id == package.package_id]
+
+    class NatureModel(GovernedModel):
+        def complete(self, prompt, system=None):
+            response = json.loads(super().complete(prompt, system))
+            for item in response["items"]:
+                item.update(natureResult=nature, recommendation=recommendation, missingInputs=[],
+                            reviewReasons=["Unclear asset attribution"] if nature == "REVIEW" else [])
+            return json.dumps(response)
+
+    provider = _AuditedProvider(
+        NatureModel(), [], deployment="gpt-5.1",
+        stage="ACCOUNTING_DECISION", package_id=package.package_id,
+    )
+    assessments, _ = assess_governed_invoice(
+        package, tasks, usd_references, provider, captured["request"], allow_demo=True,
+    )
+    assert all(a.recommendation == recommendation and a.line_amount_usd_meets_threshold is True
+               for a in assessments)
+
+
+@pytest.mark.parametrize("recommendation", ["OPEX", "REVIEW", "CAPEX"])
+def test_cited_never_capitalize_rule_takes_precedence_over_above_threshold_usd_amount(
+    usd_governed, usd_references, recommendation,
+):
+    _, _, captured, _ = usd_governed
+    package = next(p for p in captured["packages"] if p.currency == "USD")
+    package = package.model_copy(update={"lines": [
+        line.model_copy(update={
+            "description": "MOCK TEST ONLY: ordinary routine repair without asset replacement "
+                           "or useful-life/capacity improvement.",
+            "line_amount": 5000, "unit_cost": None,
+        }) for line in package.lines
+    ]})
+    tasks = [t for t in captured["result"].task_determinations if t.package_id == package.package_id]
+
+    class ExclusionModel(GovernedModel):
+        def complete(self, prompt, system=None):
+            response = json.loads(super().complete(prompt, system))
+            for item in response["items"]:
+                item.update(
+                    natureResult="CAPITALIZABLE" if recommendation == "CAPEX" else "OPEX_BY_NATURE",
+                    recommendation=recommendation, neverCapitalizeHit=True, appliedExceptionIds=[1],
+                    missingInputs=[], reviewReasons=["Accounting review"] if recommendation == "REVIEW" else [],
+                    rationale="MOCK TEST ONLY: routine maintenance; no replacement or qualifying improvement.",
+                    policyCitations=item["policyCitations"] + [usd_references.exclusions[0].citation],
+                )
+            return json.dumps(response)
+
+    model = ExclusionModel()
+    provider = _AuditedProvider(
+        model, [], deployment="gpt-5.1",
+        stage="ACCOUNTING_DECISION", package_id=package.package_id,
+    )
+    if recommendation == "CAPEX":
+        with pytest.raises(ValueError, match="repair/maintenance or exclusions require"):
+            assess_governed_invoice(
+                package, tasks, usd_references, provider, captured["request"], allow_demo=True,
+            )
+        assert model.calls == 2
+    else:
+        assessments, batch = assess_governed_invoice(
+            package, tasks, usd_references, provider, captured["request"], allow_demo=True,
+        )
+        assert all(a.recommendation == recommendation and a.never_capitalize_hit
+                   and a.line_amount_usd_meets_threshold is True for a in assessments)
+        assert all(item.never_capitalize_hit and item.recommendation == recommendation for item in batch.items)
+
+
+@pytest.mark.parametrize("unavailable", ["expired-policy", "ambiguous-policy", "expired-fx", "pending-fx", "ambiguous-fx"])
+def test_usd_line_comparison_requires_unambiguous_effective_policy_and_approved_fx(
+    usd_governed, usd_references, unavailable,
+):
+    _, _, captured, _ = usd_governed
+    package = captured["packages"][0]
+    package = package.model_copy(update={"currency": "EUR", "lines": [
+        line.model_copy(update={"currency": "EUR", "line_amount": 5000, "unit_cost": None})
+        for line in package.lines
+    ]})
+    thresholds = list(usd_references.thresholds)
+    rates = [_budget_rate()]
+    if unavailable == "expired-policy":
+        thresholds = [thresholds[0].model_copy(update={"effective_to": date(2026, 1, 2)})]
+    elif unavailable == "ambiguous-policy":
+        thresholds.append(thresholds[0].model_copy(update={"threshold_id": 99}))
+    elif unavailable == "expired-fx":
+        rates = [_budget_rate(effectiveTo="2026-01-02")]
+    elif unavailable == "pending-fx":
+        rates = [_budget_rate(approvalStatus="PENDING", approvedBy=None, approvedAtUtc=None)]
+    else:
+        rates.append(_budget_rate(budgetExchangeRateId=2))
+    references = usd_references.model_copy(update={"thresholds": thresholds, "budget_exchange_rates": rates})
+    tasks = [t for t in captured["result"].task_determinations if t.package_id == package.package_id]
+    provider = _AuditedProvider(
+        GovernedModel(), [], deployment="gpt-5.1",
+        stage="ACCOUNTING_DECISION", package_id=package.package_id,
+    )
+    assessments, _ = assess_governed_invoice(
+        package, tasks, references, provider, captured["request"], allow_demo=True,
+    )
+    _, policy_reason = references.threshold_for(
+        package, captured["request"].requested_at_utc.date(), allow_demo=True,
+    )
+    for assessment in assessments:
+        assert assessment.recommendation == "REVIEW"
+        assert assessment.line_amount_usd_meets_threshold is None
+        reason = policy_reason if unavailable.endswith("policy") else assessment.currency_conversion.review_reason
+        assert reason and reason in assessment.review_reasons
+
+
+@pytest.mark.parametrize("amount,recommendation", [(500, "CAPEX"), (1500, "OPEX"), (1500, "REVIEW")])
+def test_model_cannot_contradict_usd_line_threshold_or_block_it_for_missing_site(
+    usd_governed, usd_references, amount, recommendation,
+):
+    _, _, captured, _ = usd_governed
+    package = next(p for p in captured["packages"] if p.currency == "USD")
+    package = package.model_copy(update={"lines": [
+        line.model_copy(update={"line_amount": amount, "unit_cost": None}) for line in package.lines
+    ]})
+    tasks = [t for t in captured["result"].task_determinations if t.package_id == package.package_id]
+
+    class UnsupportedDecision(GovernedModel):
+        def complete(self, prompt, system=None):
+            response = json.loads(super().complete(prompt, system))
+            for item in response["items"]:
+                item.update(recommendation=recommendation, missingInputs=[],
+                            reviewReasons=["Missing site/project"] if recommendation == "REVIEW" else [])
+            return json.dumps(response)
+
+    calls = []
+    provider = _AuditedProvider(
+        UnsupportedDecision(), calls, deployment="gpt-5.1",
+        stage="ACCOUNTING_DECISION", package_id=package.package_id,
+    )
+    with pytest.raises(ValueError, match="must use the deterministic converted-line threshold decision"):
+        assess_governed_invoice(
+            package, tasks, usd_references, provider, captured["request"], allow_demo=True,
+        )
+    assert len(calls) == 2 and all(call.validation_error for call in calls)
+
+
+def test_nature_based_expense_does_not_require_fabricated_fx_or_project_facts(
+    usd_governed, usd_references,
+):
+    _, _, captured, _ = usd_governed
+    package = next(p for p in captured["packages"] if p.currency != "USD")
+    tasks = [t for t in captured["result"].task_determinations if t.package_id == package.package_id]
+
+    class NatureExpense(GovernedModel):
+        def complete(self, prompt, system=None):
+            response = json.loads(super().complete(prompt, system))
+            for item in response["items"]:
+                item.update(natureResult="OPEX_BY_NATURE", recommendation="OPEX",
+                            missingInputs=[], reviewReasons=[])
+            return json.dumps(response)
+
+    provider = _AuditedProvider(
+        NatureExpense(), [], deployment="gpt-5.1",
+        stage="ACCOUNTING_DECISION", package_id=package.package_id,
+    )
+    assessments, _ = assess_governed_invoice(
+        package, tasks, usd_references, provider, captured["request"], allow_demo=True,
+    )
+    assert all(item.recommendation == "OPEX" and item.currency_conversion.conversion_status == "REVIEW"
+               for item in assessments)
+
+
+@pytest.mark.parametrize("usd_governed", [False, True], indirect=True, ids=["missing-rates", "f27-rates"])
+@pytest.mark.parametrize("corrupt", [False, True])
+def test_usd_line_amounts_are_preserved_atomically_and_read_back(
+    usd_governed, native_helpers, tmp_path, corrupt,
+):
+    _, _, captured, _ = usd_governed
+    path = tmp_path / "usd-review.db"
+    ReviewStore(path).close()
+    connection = AtomicSqlHarness(path)
+    try:
+        if corrupt:
+            connection.db.execute("""
+                CREATE TRIGGER capex.corrupt_usd AFTER INSERT ON InvoiceLineAmount
+                BEGIN UPDATE InvoiceLineAmount SET OriginalLineAmount='0' WHERE rowid=NEW.rowid; END;
+            """)
+            with pytest.raises(ValueError, match="exact original and USD-converted"):
+                persist_adf_results(connection, **captured)
+            assert connection.db.execute("SELECT COUNT(*) FROM capex.InvoiceLineAmount").fetchone()[0] == 0
+            assert connection.db.execute("SELECT COUNT(*) FROM capex.Assessment").fetchone()[0] == 0
+            assert connection.commits == 0
+        else:
+            persist_adf_results(connection, **captured)
+            rows = connection.db.execute("""
+                SELECT PackageId, LineId, OriginalCurrency, ConversionStatus, LineAmountUsd
+                FROM capex.InvoiceLineAmount;
+            """).fetchall()
+            expected = {(a.package_id, a.line_id): a.currency_conversion
+                        for a in captured["result"].assessments}
+            assert len(rows) == len(expected) == 10
+            for package, line, currency, status, amount in rows:
+                conversion = expected[(package, line)]
+                assert (currency, status) == (conversion.original_currency, conversion.conversion_status)
+                assert (Decimal(amount) if amount is not None else None) == conversion.line_amount_usd
+            assert connection.commits == 1
+        assert connection.cursors_open == 0
+    finally:
+        connection.close()

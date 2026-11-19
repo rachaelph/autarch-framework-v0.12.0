@@ -31,7 +31,8 @@ _HEADER_FIELDS = {
     "Transaction id", "Invoice Number", "Invoice Date", "Vendor/ID", "Vendor/Name",
     "Vendor/Invoice Vendor Name", "Vendor/Country", "Business Unit/ID",
     "Business Unit/Name", "Business Unit/Country", "Currency", "Total",
-    "Work Order Number", "AFE Number", "CAPEX/OPEX", "Ingested Date",
+    "Work Order Number", "Customer PO", "Customer PO Number", "Customer Purchase Order",
+    "Customer Purchase Order Number", "Purchase Order Number", "PO Number", "AFE Number", "CAPEX/OPEX", "Ingested Date",
     "Processing Audit", "Confidence", "Invoice Data/Due Date",
     "Invoice Data/Payment Term", "Taxes/Total Net Amount", "Taxes/Total Taxes",
     "Taxes/Non Taxable Amount", "Freight",
@@ -174,6 +175,12 @@ def _append_package(
     ]
     metadata["normalizationSchemaVersion"] = package.schema_version
     metadata["normalizationStatus"] = package.normalization_status.value
+    nuvolo = package.model_copy(update={"source_references": {
+        **package.source_references,
+        **({"Work Order Number": work_order} if work_order is not None else {}),
+    }}).nuvolo_context
+    if nuvolo.risk_flag:
+        metadata["nuvolo"] = nuvolo.model_dump(mode="json", by_alias=True)
     metadata["loadControl"] = (
         "PREPARING and BundlingInScope=0 are staging controls, not source business assertions. "
         "No synthetic context, ready event, task mapping, or accounting result was applied."
@@ -184,7 +191,7 @@ def _append_package(
         "VendorName": package.vendor_name, "InvoiceCurrency": package.currency,
         "InvoiceTotal": _money(package.invoice_total), "PONumber": package.po_number,
         "CountryRegion": package.country_region, "SourceSystem": package.source.source_system,
-        "NuvoloWorkOrderNo": work_order, "HasLineItems": True, "RunID": package.run_id,
+        "NuvoloWorkOrderNo": nuvolo.work_order_no, "HasLineItems": True, "RunID": package.run_id,
     })
     payload["packages"].append({
         "PackageId": package.package_id, "SchemaVersion": "1.0", "RunId": package.run_id,

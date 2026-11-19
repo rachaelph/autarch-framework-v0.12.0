@@ -28,6 +28,19 @@ FROM capex.Assessment WHERE WorkflowRunId = @WorkflowRunId;
 
 SELECT * FROM capex.AssessmentRun WHERE WorkflowRunId = @WorkflowRunId;
 
+IF JSON_VALUE(@Payload, '$.partitions[0].evidence.demoAssumptions.fxConversion')='true'
+BEGIN
+    IF OBJECT_ID(N'capex.InvoiceLineAmount',N'U') IS NULL
+        THROW 51239, 'USD conversion evidence requires migration 019.', 1;
+    EXEC sys.sp_executesql N'
+        SELECT amount.*, assessment.Recommendation, assessment.ReviewReasons
+        FROM capex.InvoiceLineAmount AS amount
+        JOIN capex.Assessment AS assessment ON assessment.WorkflowRunId=amount.WorkflowRunId
+            AND assessment.PackageId=amount.PackageId AND assessment.LineId=amount.LineId
+        WHERE amount.WorkflowRunId=@RunId ORDER BY amount.PackageId, amount.LineId;',
+        N'@RunId nvarchar(128)', @RunId=@WorkflowRunId;
+END;
+
 SELECT assessment.InvoiceId, COUNT_BIG(*) AS InvoiceLines,
     SUM(CASE WHEN task.taskCode IS NOT NULL THEN 1 ELSE 0 END) AS SelectedTaskCodes,
     SUM(CASE WHEN asset.assetClassCode IS NOT NULL THEN 1 ELSE 0 END) AS SelectedAssetClassCodes,

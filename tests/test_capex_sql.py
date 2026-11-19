@@ -32,6 +32,15 @@ def test_sql_assets_use_ordered_migrations() -> None:
         "009_complete_capex_model_tables.sql",
         "010_preserve_source_invoice_gaps.sql",
         "011_grant_sql_demo_input_read_access.sql",
+        "012_store_capex_llm_showcase_outputs.sql",
+        "013_store_gpt_bundle_decisions.sql",
+        "014_create_thursday_mvp_stores.sql",
+        "015_create_eu_asset_class_stores.sql",
+        "016_add_potential_review_tags.sql",
+        "017_create_aro_indicator_store.sql",
+        "018_align_assessment_review_categories.sql",
+        "019_add_usd_budget_policy_support.sql",
+        "020_grant_nuvolo_evidence_write_access.sql",
     ]
 
     assert (
@@ -68,6 +77,25 @@ def test_operational_store_migration_defines_required_model() -> None:
         assert fragment in migration
 
     assert not re.search(r"\bDROP\s+(TABLE|SCHEMA)\b", migration, re.I)
+
+
+def test_nuvolo_precedence_update_is_preview_first_and_only_changes_existing_criteria() -> None:
+    update = read_text(SQL / "data" / "013_apply_nuvolo_category_precedence.sql")
+    seed = read_text(SQL / "data" / "009_seed_assessment_outcome_categories.sql")
+    assert "DECLARE @ApplyChanges bit=0;" in update
+    preview = update.index("IF @ApplyChanges=0")
+    write = update.index("UPDATE stored SET")
+    assert preview < update.index("ROLLBACK TRANSACTION;", preview) < update.index("RETURN;", preview) < write
+    assert not re.search(r"\b(?:CREATE|ALTER|DROP|DELETE|TRUNCATE|MERGE)\b", update, re.I)
+    assert re.findall(r"\bUPDATE\s+\w+\s+SET\s+(\w+)=", update, re.I) == ["DecisionCriteria"]
+    assert "JOIN @Changes AS proposed ON proposed.CategoryCode=stored.CategoryCode" in update
+    changes = re.findall(r"\(N'(NUVOLO_RM|ARO_TAG)',\s*N'([^']+)',\s*N'([^']+)'\)", update)
+    assert {code for code, _, _ in changes} == {"NUVOLO_RM", "ARO_TAG"}
+    for code, previous, proposed in changes:
+        original = re.search(rf"\(N'{code}',\s*N'[^']+',\s*N'([^']+)'", seed)
+        assert original is not None and original.group(1) == previous
+        assert proposed != previous
+    assert update.index("Updated category criteria did not reconcile") < update.index("COMMIT TRANSACTION;")
 
 
 def test_published_view_covers_invoice_package_contract() -> None:

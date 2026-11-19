@@ -2,6 +2,7 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
 -- Slide 1 labels/guidance; DecisionCriteria are proposed operational interpretations.
+-- After this initial seed, apply 013 for the confirmed November 17 Nuvolo precedence.
 DECLARE @ApplyChanges bit=0;
 IF DB_NAME()<>N'cict-ai-cus-sqldb' OR @@TRANCOUNT<>0
     THROW 51360, 'Use cict-ai-cus-sqldb outside an existing transaction.', 1;

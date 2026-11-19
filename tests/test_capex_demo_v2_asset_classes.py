@@ -186,6 +186,23 @@ def test_eu_classification_rejects_unknown_and_unsupported_ev_codes_but_allows_r
         assert result.resolution_status == ("RESOLVED" if code else "REVIEW")
 
 
+def test_eu_classification_uses_english_translation_for_supported_ev_context():
+    from autarch.capex.demo_v2_normalization import LineDescriptionTranslation
+
+    package, request, workflow = classification(
+        "JC-example.xlsx", "Installation de borne pour vehicule electrique", "800",
+    )
+    with pytest.raises(ValueError, match="ineligible"):
+        workflow.resolve(package, request)
+    package.lines[0].translation = LineDescriptionTranslation(
+        source_language="fr", language_detection_score=0.99,
+        english_text="Electric vehicle charging station installation",
+    )
+    result = workflow.resolve(package, request)[0]
+    assert result.suggested_asset_class == "800"
+    assert package.lines[0].description == "Installation de borne pour vehicule electrique"
+
+
 @pytest.mark.parametrize("tamper", [False, True])
 def test_sql_eu_catalog_is_checked_against_complete_pinned_workbook_reference(tamper):
     expected = load_asset_class_master()

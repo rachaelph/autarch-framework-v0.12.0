@@ -91,7 +91,7 @@ def suggest_asset_classes(
     for line in package.lines:
         ev_evidence = re.search(
             r"\b(?:evs?|evse|electric vehicles?|vehicle charg(?:ing|ers?))\b",
-            line.description.lower(),
+            line.description_for_matching.lower(),
         )
         eligible[line.line_id] = {
             code for code, item in catalog.items()

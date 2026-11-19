@@ -6,7 +6,194 @@
 > The model recommends. Application code validates and persists.
 > The analyst reviews and decides. No ERP posting occurs.
 
-## What changed, why, and what to say tomorrow
+## Preparing translation for externally extracted line items
+
+**Local source preparation only; not deployed or live-verified.** Standard
+Azure Translator NMT is the provisional translation choice, not a new GPT
+deployment. The opt-in `--translate-line-items` worker switch translates the
+descriptions already supplied by intake before task/asset-class matching,
+accounting and screening. It does not enable PDF extraction. Keep
+`--fresh-pdf-extraction` off when consuming externally extracted line items.
+Mapping the forthcoming external files into normalized packages still depends
+on their agreed format; this change does not invent an extractor or file adapter.
+
+**Sandbox configuration checked read-only on November 17, 2026:** resource
+`cict-ai-cus-translator` in `cict-aisandbox-cus-rg` is provisioned successfully as
+single-service `TextTranslation`, F0, Central US. Public network access and local
+key authentication are disabled. Private endpoint `pe-cict-ai-cus-translator` is
+approved in `cict-ai-cus-vnet/snet-pep`; its private DNS zone is linked to the
+worker VNet, and the Translator A record matches the endpoint NIC address.
+These are configuration checks, not a runtime connectivity/translation test.
+
+Use the following nonsecret settings with the updated worker image and opt-in
+switch at the later approved deployment:
+
+| Setting | Value |
+|---|---|
+| `CAPEX_TRANSLATOR_ENDPOINT` | `https://cict-ai-cus-translator.cognitiveservices.azure.com/` |
+| `CAPEX_TRANSLATOR_REGION` | `centralus` |
+| `AZURE_CLIENT_ID` | Keep the existing selector for `cict-ai-cus-capex-id`; it already matches the attached identity. |
+
+The deployed job does not yet have the Translator endpoint/region settings.
+No direct or inherited resource-scope role assignment was found for its identity
+during this check. Have the authorized owner grant **Cognitive Services User**
+on `cict-ai-cus-translator` to `cict-ai-cus-capex-id` before testing. Do not enable
+key authentication or widen public network access as a workaround. No Azure
+configuration was changed, no text was submitted and no worker was deployed by
+these checks. Actual job-network access and translation remain unverified.
+
+Configure `CAPEX_TRANSLATOR_ENDPOINT` with the approved HTTPS service base
+endpoint and `CAPEX_TRANSLATOR_REGION` with its resource region. Managed identity
+is used by default (including `AZURE_CLIENT_ID` when set); its Translator
+permissions, endpoint, private DNS/network reachability and processing geography
+must be approved and tested. A resource-specific endpoint is required for Entra
+authentication. If key authentication is approved instead, inject
+`CAPEX_TRANSLATOR_KEY` through the secret configuration, never source code or chat.
+Do not assume the global endpoint meets EU or Canadian residency requirements.
+
+The adapter pins API `2026-06-06` and the standard `general` NMT deployment,
+autodetects each description's source language and requests English only.
+It retains original descriptions, structured identifiers, quantities, amounts,
+currencies and source hashes. English text and language-detection scores are
+separate line metadata in immutable `translated-packages` artifacts, with
+`translation.json` linking the run to those packages. Detection scores are
+**not** translation-quality confidence. Exact-source task matches still use
+original text; translated matches feed candidate retrieval, not automatic
+confidence-1 source matches. Evidence quotes must continue to use original text.
+
+Exact duplicate descriptions across the current batch are sent once, in first-
+appearance order, and mapped back to every original line with independent
+translation metadata. Case, whitespace and Unicode differences are not merged.
+There is no cross-run cache or inferred-English skip. The translation manifest
+reports unique descriptions, reused lines and original/submitted UTF-16 code
+units; these counts describe request volume, not verified Azure billing.
+All descriptions are validated before any translation request. A failed
+translation produces batch-scoped failure evidence identifying the affected
+packages and publishes no translated-package artifacts or completion marker.
+
+Unsupported languages, service failures, malformed responses or missing line
+translations stop processing with explicit errors; there is no silent fallback
+to untranslated assessment. Translation is off by default. Offline mocked tests
+verify mechanics only: validate French Canadian and actual European terminology
+with bilingual reviewers when the extracted lines arrive before demo acceptance.
+
+See [Translator overview](https://learn.microsoft.com/azure/ai-services/translator/text-translation/overview)
+and [API contract](https://learn.microsoft.com/azure/ai-services/translator/text-translation/2026-06-06/translate-api).
+
+## Nuvolo purchase-order handling
+
+**Local source changes only; not deployed or live-verified.** Nuvolo requires
+`FWKD` in an original **purchase-order field**, including Customer PO. A source
+system named Nuvolo, a generic Work Order Number, invoice number, filename or
+description mention alone does not qualify. Translations are not PO evidence.
+ABBYY's `Purchase Order` CSV-link column is not a purchase-order number.
+
+For externally normalized input, retain the original value separately, for
+example `"sourceReferences": {"Customer PO": "FWKD7819574"}`. Actual POPA
+`poNumber` values remain unchanged. JC invoice rows retain their original
+`sourcePurchaseOrder`; unrelated/non-invoice ledger rows are not evidence.
+An unambiguous supported reference produces text `7819574`, preserving leading
+zeros where present. Repeated copies of the same reference are not conflicts.
+Malformed or conflicting FWKD PO references produce explicit Nuvolo review
+reasons and a risk flag, but no guessed work-order number. FWKD anywhere in a
+PO still qualifies for the Nuvolo category, even if its numeric part cannot be
+accepted. Marker detection and strict numeric work-order validation are separate.
+
+Every line's assessment carries the source-derived `nuvoloRiskFlag`, including
+non-model reference/extraction-review paths. The review handoff includes original
+PO evidence and diagnostics. This flag does **not** force OPEX, establish routine
+maintenance or change accounting. The business clarification received November
+17 confirms that FWKD in an original PO/Customer PO is sufficient for
+`NUVOLO_RM`, without extra repair/maintenance keywords. It is the sole primary
+category for those lines and wins when ARO also applies. Retain ARO evidence
+for review, not as a second primary category. Other category precedence and
+the wider single-category schema/UI redesign are not changed here.
+
+The seven listed categories are the current business taxonomy: CAPEX,
+Nuvolo R&M, OPEX below threshold, OPEX by nature, CAPEX potential bundling,
+CAPEX: site information missing, and ARO tag. The slide's "nine" count is stale:
+leased-site and OPEX-to-CAPEX categories were removed with the OPEX input
+population. Do not recreate them or suppress valid OPEX recommendations for
+lines in the remaining input population. Bundling still requires authoritative
+site/project/task context and remains deferred in the current governed worker.
+
+Before deploying this rule, have the approved DBA preview and apply
+[013_apply_nuvolo_category_precedence.sql](../../sql/data/013_apply_nuvolo_category_precedence.sql)
+to align the existing SQL category criteria. Its default `@ApplyChanges=0`
+previews only; set it to `1` only after review. It adds no categories or tables
+and does not rewrite historical assessments. This data update has not been run.
+
+For the existing SQL demo, the two physical fields already exist in migration
+009: `prep.Invoice.NuvoloWorkOrderNo` and `capex.Assessment.NuvoloRiskFlag`.
+The DBA permission-only prerequisite is
+[020_grant_nuvolo_evidence_write_access.sql](../../sql/migrations/020_grant_nuvolo_evidence_write_access.sql).
+The user reported `NUVOLO_EVIDENCE_WRITE_ACCESS_GRANTED` on November 17, 2026;
+this permission change has not been independently rechecked. The worker changes
+remain undeployed. No new tables are required. Intake/source loading must preload the real invoice
+row; runtime never invents missing headers or creates an incomplete invoice.
+Canonical work-order updates, assessment flags, evidence and review import are
+read back and committed in the same transaction. Missing source rows, conflicting
+stored numbers or readback failures roll back the handoff. Unresolved incoming
+references never clear an existing stored number.
+
+## Current USD policy and F27 run: independently verified
+
+**Source update, not yet deployed:** The user has now confirmed the independent
+invoice-line USD total as the assessment basis for ungrouped assets. The updated
+worker recommends CAPEX at or above the active USD 1,000 threshold and OPEX below
+it for capitalizable-nature lines, even without unit prices or site/project data.
+Context-qualified never-capitalize exclusions and expense nature take precedence:
+a high amount never overrides an established exclusion. Unresolved nature or
+missing policy/approved FX for capitalizable lines still requires REVIEW.
+Bundling and site/project exceptions remain deferred. A new build/publication
+and independently verified run are required before presenting these decisions
+as live results. The actual cj1f run below retains its original REVIEW outcomes.
+
+Use ADF RunId **`d2338474-deb4-11f1-9bee-ac00f903ed42`** for this walkthrough.
+Immutable worker `cj1f` (`35fc7cbff7b0bee8974a20566c957c0482cc34f6f25d1d552d1c370461c182db`)
+was published through image-only deployment `capex-usd-budget-cj1f`.
+ADF and worker `capex-task-determination-proof-4rznasm` succeeded. Independent
+read-only verifier `capex-task-determination-proof-ouxnqdz` passed both
+`ADF_SQL_REVIEW_VERIFIED` and `USD_SOURCE_AND_SQL_AMOUNTS_INDEPENDENTLY_VERIFIED`.
+The original saved job, networking and RBAC were not changed.
+
+1. In ADF Monitor, open this exact completed RunId. All four original sources
+   and ten invoices were processed using GPT-5.1. Original source hashes,
+   immutable artifacts, regional stores and committed review handoff reconcile.
+2. Run `sql/validation/present_capex_adf_demo_run.sql`, changing its first
+   RunId declaration to this ID. Show 21 NA task rows and eight EU asset-class
+   rows. Fifteen NA rows resolve: six `5220A` / `SHELVING`, nine `0007` /
+   `ENVIRONMENTAL`; six remain unresolved. Six EU lines resolve. Classification
+   suggestions are separate from accounting recommendations.
+3. Show the 29 `capex.InvoiceLineAmount` rows and their assessment join. Original
+   source currency, unit cost and line amount are retained; missing unit costs
+   stay missing. Twenty-one USD lines use identity conversion, seven DKK lines
+   use 0.1558 USD/DKK and one EUR line uses 1.1662 USD/EUR. Example from actual
+   invoice `JC2000A07465:2001069567`: DKK 38014.39 becomes USD 5922.6419620000.
+   The EUR 16123.79 line becomes USD 18803.5638980000. Conversion arithmetic and
+   every SQL amount/provenance record were checked independently.
+4. Explain the active manual-derived USD 1000 expenditure threshold, with the
+   joint USD 300/site and USD 30000/project exception. Policy begins 2026-04-27;
+   F27 rates apply inclusively through 2027-04-25. This does not establish an
+   assessed asset/expenditure unit or complete project/site expenditure in
+   this historical worker's decision basis; the subsequent user-confirmed
+   invoice-line source update has not changed these stored results.
+   **All 29 accounting recommendations are REVIEW, not approved CAPEX or OPEX.**
+   No primary outcome category is asserted. All lines were screened, with zero
+   repair/ARO flags in this run. Bundling remains deferred, not a negative finding.
+
+Ten review documents and one handoff were committed; human approval is false and
+ERP writes are zero. This demonstrates source-preserving budget FX and governed
+review, not complete automated capitalization or project-exception approval.
+The 157-test regression selection and production typing passed. A live acceptance
+failure on zero-valued scientific-notation JSON was corrected with exact
+fixed-point serialization; prior runs were not overwritten.
+
+## Historical and reference walkthroughs (not the current USD run)
+
+The material below retains prior demo iterations and their original assumptions.
+Do not use their native-unit thresholds, OPEX counts, missing-FX statements or
+historical RunIds to describe the current USD-policy run above.
 
 Task-label correction requested after checking the first run: NA
 `task.TaskSuggestion.assetClassCode` and its computed `SuggestedAssetClass`
@@ -16,15 +203,41 @@ not `STORE EQUIPMENT`. EU asset-class codes remain unchanged. The earlier
 `d6ca5111-e1ab-4f6f-b186-454fad2b1d40` run contains the old mapping and must
 not be presented as corrected. The code correction passes task/native SQL,
 governed-policy and ADF integration tests, and the three changed producers pass
-Pyright using the tested interpreter. Publication/rerun is blocked: the current
-Azure login has only read access on `cictaicusacr`, so the safe build failed
-before scheduling a new image. Restore the existing approved build access or
-refresh the intended login. No corrected image or new RunId has been published.
+Pyright using the tested interpreter. Refreshed Azure authorization succeeded
+without network or role changes. Corrected immutable build `cj1d` was published
+through deployment `capex-task-description-cj1d` on November 12 UTC. Its image is
+`732f6f5de821b8db8a8515c9003a39b1dac479b7125c574a69c93dfbbc83a0a1`.
+The image-only pipeline update passed official validation and live readback;
+the saved job remains unchanged. Fresh ADF RunId:
+`c2071ca2-de3b-11f1-9fad-84b1e26420af`. ADF and its named worker
+`capex-task-determination-proof-abfn7lu` succeeded. Independent read-only verifier
+`capex-task-determination-proof-hdnq1mi` also succeeded, including the general SQL
+guard that every selected NA task label equals its published TaskMaster description.
+
+### Historical task-description run: verified results before USD correction
+
+- Four original sources, ten invoices, 29 actual lines: 21 NA task suggestions,
+  eight EU asset-class suggestions and 29 assessments. Original-source hashes,
+  regional stores, immutable JSON, committed SQL and GPT-5.1 stages reconcile.
+- Actual SQL label readback: six `5220A` rows show `SHELVING` in both
+  `assetClassCode` and `SuggestedAssetClass`; nine `0007` rows show `ENVIRONMENTAL`.
+  Six NA rows have no resolved task code or label. The corrected label mapping
+  does not force a task selection when the model cannot resolve a governed code.
+- Six EU lines have resolved asset classes. All 29 lines were screened; this run
+  has zero repair/maintenance or ARO flags, zero bundle groups/decisions, and nine
+  primary categories (`OPEX_BELOW_THRESHOLD`). Bundling remains deferred.
+- Actual accounting results: zero CAPEX, nine OPEX, 20 REVIEW. These are model
+  recommendations under the disclosed SQL demo rules, not finance approval.
+  Model results differ from the earlier run; do not imply this was only a SQL
+  relabeling or that all earlier classifications were preserved.
+- Ten review documents and one imported handoff reconcile. Human approval is
+  false and ERP writes are zero. Independent acceptance completed on November 12
+  UTC with `READ_ONLY_SQL_GOVERNED_ADF_VERIFICATION_COMPLETED`.
 
 Earlier SQL-governed publication status: published; its ADF run and worker succeeded,
 but it contains the reported task-label mapping defect.
-Independent same-run SQL acceptance is still blocked by verifier-start
-authorization. Do not describe that final reconciliation as passed.
+Independent acceptance was blocked for that historical run. The corrected run
+above has now passed independent acceptance; keep the run identities separate.
 
 **ADF itself:** the existing pipeline and activities were retained. Published a new
 immutable worker-image digest in its execution override and explicitly enabled

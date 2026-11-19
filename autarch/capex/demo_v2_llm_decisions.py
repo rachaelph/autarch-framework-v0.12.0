@@ -183,7 +183,7 @@ class SqlLlmDecisionWorkflow(SqlLlmShowcase):
             return suggest_asset_classes(package, request, self.asset_class_master, provider)
         catalog = {task.task_code: task for task in self.task_master.tasks}
         if self.deterministic_task_bypass and all(
-            line.source_task_code in catalog and not _is_ancillary_review_line(line.description)
+            line.source_task_code in catalog and not _is_ancillary_review_line(line.description_for_matching)
             for line in package.lines
         ):
             from .demo_v2_task_suggestion import suggest_tasks_for_invoice
@@ -237,7 +237,7 @@ class SqlLlmDecisionWorkflow(SqlLlmShowcase):
             if any(query not in {"UNCLEAR", *category_names} for query in semantic_queries.values()):
                 raise ValueError("Semantic retrieval returned a category outside the supplied catalog.")
         for line in package.lines:
-            if _is_ancillary_review_line(line.description):
+            if _is_ancillary_review_line(line.description_for_matching):
                 selected = []
             elif line.source_task_code and (line.source_task_code in catalog or not self.demo_recommendations):
                 selected = [catalog[line.source_task_code]] if line.source_task_code in catalog else []
@@ -252,11 +252,11 @@ class SqlLlmDecisionWorkflow(SqlLlmShowcase):
                 selected = selected[:10]
             else:
                 selected = rank_task_candidates(
-                    f"{line.description} {line.part_number or ''}", self.task_master, limit=10,
+                    f"{line.description_for_matching} {line.part_number or ''}", self.task_master, limit=10,
                 )
             if self.demo_recommendations and not re.search(
                 r"\b(?:evs?|evse|electric vehicles?|vehicle charg(?:ing|ers?))\b",
-                _normalized_text(line.description),
+                _normalized_text(line.description_for_matching),
             ):
                 selected = [task for task in selected
                             if _normalized_text(task.asset_category_major) != "ev charging equipment"]

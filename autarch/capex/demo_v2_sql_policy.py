@@ -3,20 +3,20 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from decimal import Decimal
-from typing import Callable, Sequence, TypeVar
+from decimal import Decimal, ROUND_HALF_EVEN, localcontext
+from typing import Callable, Literal, Sequence, TypeVar
 
 from pydantic import Field
 
 from .demo_v2_asset_classes import is_eu_invoice
 from .demo_v2_contracts import (
-    BundlingDisposition, CapitalizationAssessment, CapitalizationRecommendation,
+    BudgetCurrencyConversion, BundlingDisposition, CapitalizationAssessment, CapitalizationRecommendation,
     DemoV2Model, DemoWorkflowRequest, DemoWorkflowResult, NatureResult, NonEmptyString,
     TaskDetermination,
 )
 from .demo_v2_llm_decisions import ModelAccountingBatch, ModelAccountingLine
 from .demo_v2_llm_showcase import _AuditedProvider
-from .demo_v2_normalization import NormalizedInvoicePackage
+from .demo_v2_normalization import NormalizedInvoiceLine, NormalizedInvoicePackage
 from .demo_v2_reference import DemoPolicySnapshot, canonical_sha256
 from .persistence import DatabaseConnection
 
@@ -31,10 +31,28 @@ class SqlThreshold(DemoV2Model):
     policy_reference: NonEmptyString
     effective_from: date
     effective_to: date | None
+    policy_version: NonEmptyString | None = None
+    minimum_site_amount: Decimal | None = Field(default=None, ge=0)
 
     @property
     def citation(self) -> str:
         return f"sql:ref.CapitalizationThreshold:{self.threshold_id}"
+
+
+class SqlBudgetExchangeRate(DemoV2Model):
+    budget_exchange_rate_id: int = Field(gt=0)
+    source_currency: str = Field(pattern=r"^[A-Z]{3}$")
+    target_currency: Literal["USD"]
+    usd_per_source_unit: Decimal = Field(gt=0, max_digits=28, decimal_places=12)
+    country_region: NonEmptyString
+    budget_period: NonEmptyString
+    rate_version: NonEmptyString
+    source_reference: NonEmptyString
+    effective_from: date
+    effective_to: date
+    approval_status: Literal["PENDING", "APPROVED", "REJECTED"]
+    approved_by: NonEmptyString | None
+    approved_at_utc: NonEmptyString | None
 
 
 class SqlExclusion(DemoV2Model):
@@ -92,6 +110,7 @@ class SqlPolicyReferences(DemoV2Model):
     repair_indicators: list[SqlRepairIndicator] = Field(min_length=1)
     aro_indicators: list[SqlAroIndicator] = Field(min_length=1)
     outcome_categories: list[SqlOutcomeCategory] = Field(min_length=1)
+    budget_exchange_rates: list[SqlBudgetExchangeRate] = Field(default_factory=list)
 
     @property
     def sha256(self) -> str:
@@ -100,17 +119,27 @@ class SqlPolicyReferences(DemoV2Model):
     def threshold_for(
         self, package: NormalizedInvoicePackage, as_of: date, *, allow_demo: bool,
     ) -> tuple[SqlThreshold | None, str | None]:
-        regions = {"europe" if is_eu_invoice(package) else "north america"}
+        regions = {"global", "europe" if is_eu_invoice(package) else "north america"}
         if package.country_region:
             regions.add(package.country_region.strip().casefold())
+        candidates = self.thresholds
+        if any(row.threshold_type == "USD_BUDGET_EXPENDITURE" for row in candidates):
+            candidates = [row for row in candidates if row.threshold_type == "USD_BUDGET_EXPENDITURE"]
         matches = [
-            row for row in self.thresholds
-            if row.currency == package.currency and row.country_region.strip().casefold() in regions
+            row for row in candidates
+            if (row.currency == package.currency or (
+                row.threshold_type == "USD_BUDGET_EXPENDITURE" and row.currency == "USD"
+            )) and row.country_region.strip().casefold() in regions
             and row.effective_from <= as_of and (row.effective_to is None or as_of <= row.effective_to)
         ]
         if len(matches) != 1:
             return None, "Missing or ambiguous effective SQL threshold for this source region and currency."
         row = matches[0]
+        if row.threshold_type == "USD_BUDGET_EXPENDITURE":
+            if row.currency != "USD" or row.policy_version is None \
+                    or row.minimum_site_amount is None or row.project_budget_min is None:
+                return None, "USD budget policy requires a version and explicit site/project exception thresholds."
+            return row, None
         if row.threshold_type not in {"UNIT_COST_GTE", "FRIDAY_DEMO_UNIT_COST_GTE"}:
             return None, "SQL threshold basis is not a supported explicit UNIT_COST_GTE rule."
         if row.project_budget_min is not None:
@@ -127,8 +156,10 @@ _QUERIES = {
         SELECT ThresholdID AS thresholdId, GovernedThreshold AS governedThreshold,
             ThresholdType AS thresholdType, CountryRegion AS countryRegion, Currency AS currency,
             ProjectBudgetMin AS projectBudgetMin, CapitalizationPolicyReference AS policyReference,
-            EffectiveFrom AS effectiveFrom, EffectiveTo AS effectiveTo
-        FROM ref.CapitalizationThreshold ORDER BY ThresholdID FOR JSON PATH, INCLUDE_NULL_VALUES;
+            EffectiveFrom AS effectiveFrom, EffectiveTo AS effectiveTo,
+            PolicyVersion AS policyVersion, MinimumSiteAmount AS minimumSiteAmount
+        FROM ref.CapitalizationThreshold WHERE IsActive=1
+        ORDER BY ThresholdID FOR JSON PATH, INCLUDE_NULL_VALUES;
     """,
     "exclusions": """
         SELECT ExceptionID AS exceptionId, ItemCategory AS itemCategory, Keyword AS keyword,
@@ -152,6 +183,17 @@ _QUERIES = {
             SuggestedAction AS suggestedAction, EnabledForDemo AS enabledForDemo
         FROM ref.AssessmentOutcomeCategory ORDER BY CategoryCode FOR JSON PATH, INCLUDE_NULL_VALUES;
     """,
+    "budget_exchange_rates": """
+        SELECT BudgetExchangeRateID AS budgetExchangeRateId, SourceCurrency AS sourceCurrency,
+            TargetCurrency AS targetCurrency, UsdPerSourceUnit AS usdPerSourceUnit,
+            CountryRegion AS countryRegion, BudgetPeriod AS budgetPeriod,
+            RateVersion AS rateVersion, SourceReference AS sourceReference,
+            EffectiveFrom AS effectiveFrom, EffectiveTo AS effectiveTo,
+            ApprovalStatus AS approvalStatus, ApprovedBy AS approvedBy,
+            CONVERT(varchar(33), ApprovedAtUtc, 126) AS approvedAtUtc
+        FROM ref.BudgetExchangeRate WHERE IsActive=1
+        ORDER BY BudgetExchangeRateID FOR JSON PATH, INCLUDE_NULL_VALUES;
+    """,
 }
 
 
@@ -168,6 +210,7 @@ def load_sql_policy_references(connection: DatabaseConnection) -> SqlPolicyRefer
             (references.thresholds, "threshold_id"), (references.exclusions, "exception_id"),
             (references.repair_indicators, "indicator_id"), (references.aro_indicators, "indicator_id"),
             (references.outcome_categories, "category_code"),
+            (references.budget_exchange_rates, "budget_exchange_rate_id"),
         ):
             if len({getattr(row, key) for row in rows}) != len(rows):
                 raise ValueError(f"Duplicate SQL reference identities: {key}.")
@@ -185,6 +228,53 @@ def load_sql_policy_references(connection: DatabaseConnection) -> SqlPolicyRefer
             connection.rollback()
         finally:
             cursor.close()
+
+
+def convert_line_to_usd(
+    package: NormalizedInvoicePackage, line: NormalizedInvoiceLine,
+    references: SqlPolicyReferences, as_of: date,
+) -> BudgetCurrencyConversion:
+    original = {
+        "original_currency": line.currency,
+        "original_unit_cost": Decimal(str(line.unit_cost)) if line.unit_cost is not None else None,
+        "original_line_amount": Decimal(str(line.line_amount)),
+        "policy_as_of_date": as_of,
+    }
+    regions = {"global", "europe" if is_eu_invoice(package) else "north america",
+               package.country_region.strip().casefold()}
+    matches = [
+        rate for rate in references.budget_exchange_rates
+        if rate.source_currency == line.currency and rate.country_region.strip().casefold() in regions
+        and rate.effective_from <= as_of <= rate.effective_to and rate.approval_status == "APPROVED"
+        and rate.approved_by is not None and rate.approved_at_utc is not None
+    ]
+    reason = None
+    if line.currency != package.currency:
+        reason = "Source line and invoice currencies disagree; conversion requires review."
+    elif line.currency != "USD" and len(matches) != 1:
+        reason = "Missing or ambiguous approved effective budget exchange rate; no spot-rate fallback."
+    if reason:
+        return BudgetCurrencyConversion(**original, conversion_status="REVIEW", review_reason=reason)
+    rate = matches[0] if line.currency != "USD" else None
+    multiplier = rate.usd_per_source_unit if rate else Decimal(1)
+
+    def converted(amount: float) -> Decimal:
+        # Computational storage precision only; not a Finance-approved booking-rounding rule.
+        with localcontext() as context:
+            context.prec = 50
+            return (Decimal(str(amount)) * multiplier).quantize(
+                Decimal("0.0000000001"), rounding=ROUND_HALF_EVEN,
+            )
+
+    return BudgetCurrencyConversion(
+        **original, conversion_status="CONVERTED", rate_to_usd=multiplier,
+        budget_exchange_rate_id=rate.budget_exchange_rate_id if rate else None,
+        unit_cost_usd=converted(line.unit_cost) if line.unit_cost is not None else None,
+        line_amount_usd=converted(line.line_amount),
+        budget_period=rate.budget_period if rate else None,
+        rate_version=rate.rate_version if rate else None,
+        rate_source=rate.source_reference if rate else "USD identity conversion; no FX required.",
+    )
 
 
 T = TypeVar("T", bound=DemoV2Model)
@@ -236,6 +326,22 @@ def assess_governed_invoice(
     threshold, threshold_reason = references.threshold_for(
         package, request.requested_at_utc.date(), allow_demo=allow_demo,
     )
+    usd_policy = any(row.threshold_type == "USD_BUDGET_EXPENDITURE" for row in references.thresholds)
+    conversions = {
+        line.line_id: convert_line_to_usd(package, line, references, request.requested_at_utc.date())
+        for line in package.lines
+    } if usd_policy else {}
+    usd_meets_threshold = {
+        key: conversion.line_amount_usd >= threshold.governed_threshold
+        if threshold is not None and conversion.line_amount_usd is not None else None
+        for key, conversion in conversions.items()
+    }
+    usd_decisions = {
+        key: CapitalizationRecommendation.REVIEW if meets is None else (
+            CapitalizationRecommendation.CAPEX if meets else CapitalizationRecommendation.OPEX
+        )
+        for key, meets in usd_meets_threshold.items()
+    }
     citations = {row.citation for row in references.exclusions}
     citations.update(row.citation for row in references.repair_indicators)
     if threshold is not None:
@@ -262,6 +368,16 @@ def assess_governed_invoice(
             ):
                 raise ValueError("Repair/maintenance accounting requires a cited SQL indicator and contextual evaluation.")
             if item.nature_result == NatureResult.CAPITALIZABLE:
+                if usd_policy:
+                    if item.recommendation != usd_decisions[item.line_id]:
+                        raise ValueError(
+                            "Capitalizable USD invoice line must use the deterministic converted-line "
+                            f"threshold decision: {usd_decisions[item.line_id].value}. "
+                            "Missing site/project data defers bundling/exceptions, not the standard line comparison."
+                        )
+                    if threshold is not None and threshold.citation not in item.policy_citations:
+                        raise ValueError("USD line-threshold accounting requires the selected SQL policy citation.")
+                    continue
                 missing = threshold is None or line.unit_cost is None or line.currency != package.currency
                 if missing and item.recommendation != CapitalizationRecommendation.REVIEW:
                     raise ValueError("Capitalizable nature with missing native unit-cost policy/facts requires REVIEW.")
@@ -276,11 +392,20 @@ def assess_governed_invoice(
                         raise ValueError("Accounting recommendation contradicts the SQL unit-cost threshold.")
 
     batch = _decide(provider, {
-        "stage": "ACCOUNTING_DECISION", "promptVersion": "adf-sql-governed-accounting-v1",
+        "stage": "ACCOUNTING_DECISION",
+        "promptVersion": "adf-sql-governed-accounting-v2-usd-line" if usd_policy else "adf-sql-governed-accounting-v1",
         "processingPackage": package.model_dump(mode="json", by_alias=True),
         "classificationSuggestions": [task.model_dump(mode="json", by_alias=True) for task in tasks],
         "threshold": threshold.model_dump(mode="json", by_alias=True) if threshold else None,
         "thresholdReviewReason": threshold_reason,
+        "assessmentBasis": "INVOICE_LINE_USD" if usd_policy else "LEGACY_NATIVE_UNIT_COST",
+        "projectExceptionStatus": "NOT_EVALUATED_NO_AUTHORITATIVE_SITE_PROJECT_CONTEXT",
+        "standardThresholdDecisionsIfCapitalizable": {
+            key: value.value for key, value in usd_decisions.items()
+        },
+        "currencyConversions": {
+            key: value.model_dump(mode="json", by_alias=True) for key, value in conversions.items()
+        },
         "policyAsOfDate": request.requested_at_utc.date().isoformat(),
         "neverCapitalizeExceptions": [row.model_dump(mode="json", by_alias=True) for row in references.exclusions],
         "repairMaintenanceIndicators": [
@@ -292,13 +417,30 @@ def assess_governed_invoice(
             "Use the supplied SQL rules and cite their identities as listed in allowedPolicyCitations. "
             "Keywords are screening signals, never unconditional exclusions. Apply each exclusion's "
             "ApplicabilityRule to the full same-invoice context; list appliedExceptionIds only when its "
-            "conditions are established, and explain the evidence in rationale. New-asset installation, "
+            "conditions are established, and explain the evidence in rationale. Established never-capitalize "
+            "exclusions take precedence over every monetary threshold: never recommend CAPEX for them, "
+            "even when the USD line amount meets or exceeds the threshold. New-asset installation, "
             "qualifying component replacements, major inspections and directly attributable asset costs "
             "must not be expensed solely due to labor, maintenance, inspection, testing or removal words. "
             "Separate routine maintenance from qualifying improvements; unclear mixed allocation, "
             "transferred-asset disposal facts or asset attribution requires REVIEW. "
             "SignalStrength is reference metadata, not an accounting probability. Potential maintenance "
             "screening is separate from the repairMaintenanceIndicator accounting conclusion. "
+            "For thresholdType USD_BUDGET_EXPENDITURE, supplied currencyConversions are calculated by "
+            "application code using approved effective budget rates, not model FX. They preserve original "
+            "unit and line amounts. The user-confirmed basis is each independent invoice line's "
+            "lineAmountUsd, never unitCostUsd or a grouped/invoice/project total. Application code supplies "
+            "standardThresholdDecisionsIfCapitalizable: for CAPITALIZABLE nature use that exact decision, "
+            "CAPEX at or above the SQL USD threshold and OPEX below it. A missing unit price or missing "
+            "site/project does NOT block this standard comparison. Missing/ambiguous policy or approved "
+            "FX requires REVIEW and an explicit reason. Never compare native amounts with USD thresholds. "
+            "The policy's BOTH-minimumSiteAmount-and-projectBudgetMin exception is NOT evaluated or "
+            "applied without authoritative site/project data; below-threshold OPEX is under the standard "
+            "line rule only. Do not aggregate or infer project expenditure from budgets, an invoice or task code. "
+            "Unknown nature, genuinely unclear mixed allocation or other substantive eligibility "
+            "uncertainty requires natureResult REVIEW, not invented CAPITALIZABLE nature. "
+            "Discretionary policy exceptions require Finance/reporting review, not automatic approval. "
+            "The following unit-cost rules apply ONLY to legacy UNIT_COST_GTE thresholds: "
             "CAPEX requires CAPITALIZABLE nature and the printed native unit cost meeting the selected "
             "SQL UNIT_COST_GTE threshold. For capitalizable nature, absent/ambiguous policy, currency "
             "mismatch or missing unit cost requires REVIEW: never substitute line amount or invent quantity. "
@@ -309,7 +451,7 @@ def assess_governed_invoice(
             "Cite the repair indicator when that accounting flag is true. Every REVIEW needs reviewReasons; "
             "missingInputs requires REVIEW; non-REVIEW needs empty missingInputs/reviewReasons. "
             "Apply effective SQL thresholds as of the DEMO RUN date, not as historical booking approval. "
-            "Unapproved synthetic demo policy stays unapproved. No FX, budget-rate conversion, approval, "
+            "Unapproved synthetic demo policy stays unapproved. No approval, model-invented FX, "
             "bundling conclusion, ARO liability calculation or ERP posting is authorized."
         ),
         "responseSchema": GovernedAccountingBatch.model_json_schema(by_alias=True),
@@ -319,6 +461,13 @@ def assess_governed_invoice(
     for item in batch.items:
         line = lines[item.line_id]
         task = task_by_line[item.line_id]
+        review_reasons = list(item.review_reasons)
+        if usd_policy and item.nature_result == NatureResult.CAPITALIZABLE:
+            conversion_reason = conversions[item.line_id].review_reason
+            if conversion_reason is not None:
+                review_reasons.append(conversion_reason)
+            if threshold_reason is not None:
+                review_reasons.append(threshold_reason)
         assessments.append(CapitalizationAssessment(
             workflow_run_id=request.workflow_run_id, package_id=package.package_id,
             invoice_id=package.invoice_id, line_id=item.line_id,
@@ -326,16 +475,26 @@ def assess_governed_invoice(
             suggested_asset_class_code=task.suggested_asset_class if task.classification_type == "ASSET_CLASS" else None,
             nature_result=item.nature_result, repair_maintenance_indicator=item.repair_maintenance_indicator,
             never_capitalize_hit=item.never_capitalize_hit,
-            unit_cost_meets_threshold=None if threshold is None or line.unit_cost is None else (
+            unit_cost_meets_threshold=None if usd_policy or threshold is None or line.unit_cost is None else (
                 Decimal(str(line.unit_cost)) >= threshold.governed_threshold
             ),
+            line_amount_usd_meets_threshold=usd_meets_threshold.get(item.line_id),
             threshold_amount=float(threshold.governed_threshold) if threshold else None,
             threshold_currency=threshold.currency if threshold else None,
-            recommendation=item.recommendation, outcome_category=f"SQL_GOVERNED_{item.recommendation.value}",
+            currency_conversion=conversions.get(item.line_id),
+            recommendation=usd_decisions[item.line_id]
+                if usd_policy and item.nature_result == NatureResult.CAPITALIZABLE else item.recommendation,
+            outcome_category=f"SQL_GOVERNED_{item.recommendation.value}",
             bundling_disposition=BundlingDisposition.REVIEW,
-            missing_inputs=item.missing_inputs, review_reasons=item.review_reasons,
+            missing_inputs=item.missing_inputs, review_reasons=list(dict.fromkeys(review_reasons)),
             rationale="SQL-backed demo recommendation; not finance approval. Bundling deferred. "
-                      + item.rationale + (f" Threshold policy: {threshold.policy_reference}." if threshold else ""),
+                      + item.rationale + (
+                          " User-confirmed assessment basis: independent invoice line USD total. "
+                          "Standard threshold only; site/project exceptions are not evaluated. "
+                          f"USD line amount: {conversions[item.line_id].line_amount_usd}; "
+                          f"meets threshold: {usd_meets_threshold[item.line_id]}."
+                          if usd_policy else ""
+                      ) + (f" Threshold policy: {threshold.policy_reference}." if threshold else ""),
             policy_citations=item.policy_citations, used_llm=True,
             model_version=request.model_deployment, policy_version=f"sql:{references.sha256}",
             created_at_utc=request.requested_at_utc,
@@ -372,6 +531,11 @@ def suggest_assessment_categories(
     for assessment in result.assessments:
         key = (assessment.package_id, assessment.line_id)
         package, _ = sources[key]
+        if package.nuvolo_context.risk_flag:
+            if "NUVOLO_RM" not in catalog:
+                raise ValueError("FWKD purchase-order evidence requires an enabled NUVOLO_RM category in SQL.")
+            allowed[key] = ["NUVOLO_RM"]
+            continue
         codes = set()
         if assessment.recommendation == CapitalizationRecommendation.CAPEX:
             codes.add("CAPEX")
@@ -381,14 +545,11 @@ def suggest_assessment_categories(
             if assessment.nature_result == NatureResult.OPEX_BY_NATURE:
                 codes.add("OPEX_BY_NATURE")
             elif assessment.nature_result == NatureResult.CAPITALIZABLE \
-                    and assessment.unit_cost_meets_threshold is False:
+                    and (assessment.unit_cost_meets_threshold is False
+                         or assessment.line_amount_usd_meets_threshold is False):
                 codes.add("OPEX_BELOW_THRESHOLD")
         if "POTENTIAL_ARO" in tags[key]:
             codes.add("ARO_TAG")
-        if package.source.source_system.upper() == "NUVOLO" and (
-            assessment.repair_maintenance_indicator or "POTENTIAL_REPAIR_MAINTENANCE_OPEX" in tags[key]
-        ):
-            codes.add("NUVOLO_RM")
         allowed[key] = sorted(codes & catalog.keys())
 
     def validate(batch: CategoryBatch) -> None:
@@ -406,7 +567,7 @@ def suggest_assessment_categories(
                 raise ValueError("Category is disabled or contradicts accounting, provenance or ARO evidence.")
 
     batch = _decide(provider, {
-        "stage": "ASSESSMENT_CATEGORY", "promptVersion": "adf-sql-assessment-category-v1",
+        "stage": "ASSESSMENT_CATEGORY", "promptVersion": "adf-sql-assessment-category-v2",
         "catalog": [row.model_dump(mode="json", by_alias=True) for row in catalog.values()],
         "packages": [package.model_dump(mode="json", by_alias=True) for package in packages],
         "assessments": [item.model_dump(mode="json", by_alias=True) for item in result.assessments],
@@ -421,7 +582,14 @@ def suggest_assessment_categories(
             "otherwise choose a supported code. Return the original packageId/lineId and an exact "
             "sourceQuote from its own description. Overlapping repair/ARO flags stay independent. "
             "Do not change accounting or claim approval. ARO tag does not establish a liability or GL posting. "
-            "Nuvolo requires actual source-system provenance, never repair words alone. Bundling is deferred; "
+            "FWKD anywhere in an original purchase-order field, including Customer PO, requires NUVOLO_RM "
+            "as the sole primary category. It wins over ARO_TAG and other primary categories, without "
+            "requiring separate repair/maintenance keywords or a parseable numeric work order. Retain "
+            "ARO evidence and malformed/conflicting work-order review reasons without making ARO a second "
+            "primary category. Source-system labels, invoice numbers, generic work-order fields and "
+            "description mentions alone do not qualify. There are seven business categories; do not "
+            "reintroduce the removed leased-site or OPEX-to-CAPEX categories. OPEX remains a valid "
+            "accounting outcome for submitted lines. Bundling is deferred; "
             "never select its disabled category or claim no bundling potential was found. Catalog review "
             "considerations/actions are guidance, NOT established facts or authorized postings. "
             "For below-threshold advice disclose unassessed project/bundling exceptions."

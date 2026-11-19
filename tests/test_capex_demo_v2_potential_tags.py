@@ -63,6 +63,28 @@ def test_potential_tags_allow_multiple_signals_and_same_invoice_context_without_
     assert tagged.assessments == result.assessments and tagged.bundle_groups == result.bundle_groups
 
 
+@pytest.mark.parametrize("quote_original", [True, False])
+def test_translated_lines_still_require_original_source_quotes(screened_input, quote_original):
+    from autarch.capex.demo_v2_normalization import LineDescriptionTranslation
+
+    package, result, response = screened_input
+    package.lines[1].description = "Cloture temporaire et installation"
+    package.lines[1].translation = LineDescriptionTranslation(
+        source_language="fr", language_detection_score=0.99,
+        english_text="Temporary fencing and installation labor",
+    )
+    response["lines"][1]["potentialTags"] = response["lines"][1]["potentialTags"][:1]
+    response["lines"][1]["potentialTags"][0]["evidence"][0]["quote"] = (
+        "Cloture temporaire" if quote_original else "Temporary fencing"
+    )
+    if quote_original:
+        tagged = screen_potential_tags([package], result, TagModel(response))
+        assert tagged.task_determinations[1].potential_tags[0].evidence[0].quote == "Cloture temporaire"
+    else:
+        with pytest.raises(ValueError, match="source text"):
+            screen_potential_tags([package], result, TagModel(response))
+
+
 @pytest.mark.parametrize("failure", ["invented_quote", "unknown_line", "other_invoice", "no_own_evidence",
                                     "duplicate_tag", "missing_line", "duplicate_line"])
 def test_potential_tags_reject_unverifiable_evidence_and_incomplete_coverage(screened_input, failure):

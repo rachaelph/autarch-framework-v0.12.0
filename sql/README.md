@@ -2,7 +2,250 @@
 
 Azure SQL assets for prepared CapEx invoices.
 
-## JC/EU asset classes, potential review tags and result reset
+## Nuvolo evidence write permissions (source-only preparation)
+
+No new Nuvolo tables or columns are required: migration 009 already defines
+`prep.Invoice.NuvoloWorkOrderNo` and `capex.Assessment.NuvoloRiskFlag`.
+Before running the updated SQL demo worker, have the approved DBA apply
+[020_grant_nuvolo_evidence_write_access.sql](migrations/020_grant_nuvolo_evidence_write_access.sql).
+It grants the existing runtime identity only the additional column-scoped
+read/update permissions needed for Nuvolo persistence, not schema ownership.
+The user reported `NUVOLO_EVIDENCE_WRITE_ACCESS_GRANTED` on November 17, 2026.
+That successful application has not been independently rechecked; the worker
+changes remain undeployed.
+
+Only FWKD references in original purchase-order fields, including Customer PO,
+qualify. Generic work-order fields, source-system labels, invoice numbers and
+description mentions alone do not. Valid numbers are stored as digits-only text,
+retaining leading zeros; the actual POPA PO remains separate. Ambiguous or
+malformed FWKD PO values require analyst review, not a guessed number or forced
+OPEX classification.
+
+The source loader uses the same parser. Runtime updates an already-loaded
+`prep.Invoice` row only when source evidence identifies an unambiguous number.
+It refuses missing source rows and conflicting stored values, and verifies exact
+source/assessment values before the complete review handoff commits. Unresolved
+references do not clear existing work orders. Review metadata retains the original
+PO values and diagnostics. New invoice source rows still require the approved
+source-load process; this permission script does not insert them.
+
+## Confirmed Nuvolo category precedence (not applied)
+
+The November 17 business clarification makes FWKD anywhere in an original
+PO/Customer PO sufficient for **Nuvolo R&M**, without requiring additional
+repair/maintenance keywords. Nuvolo wins over ARO as the single primary category.
+Malformed/conflicting numeric work orders retain that category but require
+review and never produce a guessed work-order number. Accounting recommendations
+and supporting ARO evidence remain separate from the primary category.
+
+The existing seven category codes remain unchanged. The slide's older count of
+nine included removed leased-site and OPEX-to-CAPEX categories; do not add them.
+Removing the OPEX input population does not remove valid OPEX outcomes from
+assessment of the remaining inputs.
+
+Have the approved DBA run
+[013_apply_nuvolo_category_precedence.sql](data/013_apply_nuvolo_category_precedence.sql)
+after the initial category seed 009. Default `@ApplyChanges=0` previews current
+and proposed criteria without changes. After review, set it to `1` to update only
+the Nuvolo/ARO criteria. It checks the seven-code catalog, rejects unrecognized
+policy edits, verifies readback and is replay-safe. No new schema or permissions
+are required, and no historical assessment rows are changed. **Not run or
+deployed.** Do not rerun the insert-only initial seed 009 to overwrite policies.
+
+## POPA project/site context discovery for the November invoice samples
+
+[extract_popa_bundling_context.sql](validation/extract_popa_bundling_context.sql)
+contains two simple source-side SELECT statements: one for US `adcw16q09t`,
+one for CA `ca1rabdw3601`. Run only the matching statement on each server.
+There are no variables, temporary tables, inserts or updates. Both read
+`[Projects].[dbo].[PA_Projects_Summary_All_VW]`.
+
+Filters use workbook POs and project hints, plus site numbers and references
+visually checked on the scanned invoices. `OR` intentionally retains known
+PO/project rows without sites and related rows at the listed sites.
+Invoice-number fallbacks cover samples without established PO/site identifiers.
+Results are candidates, not verified allocations; confirm supplier and line
+context. Printed store numbers may differ from POPA Site_Id and require a
+crosswalk. The query comments distinguish workbook POs from printed references
+whose PO/project meaning needs confirmation.
+
+The Transpal PDF shows store 1293 and reference 6001293, while the workbook
+provides POPA PO 1033971. Washmatics shows site 6000601 and PO reference 27EC0008.
+C to C shows store 52768 and reference 27CE0022, identified as an AFE in the
+workbook. EDP shows project/customer-order reference 10045COU26; no site is
+established. GRC likewise lacks a confirmed site. Fluid's vendor customer/location
+code, True's warehouse address and CGI's supplier project number are not assumed
+to be POPA site/project identifiers.
+
+Before any later load, the POPA owner must confirm view grain, row-type meanings,
+snapshot behavior and identifier uniqueness across source systems/entities and
+US/CA. No budgets, actuals or invoice distributions are summed or deduplicated.
+
+Target mapping candidates (subject to semantic and data-type validation):
+
+| Target | POPA candidate / requirement |
+|---|---|
+| `prep.Project.AFEProjectID` | `Project_Number`; confirm global/source-scoped key and AFE meaning. |
+| Project description/type/status/start | `Project_Name`, `Project_Type`, `Project_Status`, `Project_Start_Date`. |
+| `ProjectTotalBudget` | `Total_Budget`; confirm authoritative row, currency and grain. Never substitute for qualifying project expenditure. |
+| `BundlingInScope` | Not supplied by the view; business-approved eligibility required. |
+| `prep.Site.SiteID` | `Site_Id`; confirm identifier and uniqueness, including `Site_Bus_Entity`. |
+| `CountryRegion` | Explicit US/CA source provenance; confirm actual coverage, not currency. |
+| `IsLeased` | Not supplied; remains unknown pending an authoritative site source. |
+| `prep.PurchaseOrderLine` keys/context | `PO_Number`, `PO_Line_Number`, `PO_Description`, `Project_Number`, `Site_Id`; reject incomplete/ambiguous allocations. |
+| `POTaskCode` | No clearly identified code; confirm `Task_Type` meaning or obtain the code/crosswalk. `Task_Description` alone is not a code. |
+| `BusinessUnit` | Confirm `Bus_Entity` versus `Site_Bus_Entity`; do not assume interchangeability. |
+| `VendorID` | Not supplied as a stable supplier ID; `Supplier_Name` is evidence, not an ID. |
+
+The current physical schema also requires `prep.PurchaseOrder` parent rows
+before PO lines can be inserted. Existing keys do not include source/country;
+resolve collisions before loading. A PO line with multiple project/site/task
+distributions cannot be flattened arbitrarily into its current single-key row.
+Invoices without a PO may still have valid project/site context; preserve that
+invoice/line allocation separately rather than fabricating a PO.
+
+Ask for currency, stable vendor/task identifiers, authoritative site/project
+allocations and any required distribution mapping from additional sources if
+this view cannot provide them. Preserve raw provenance for reconciliation.
+The attached v1.0 diagram is a logical model; repository migration 009 is the
+physical-schema baseline used for these checks, not a live schema verification.
+Obtaining context alone does not complete bundling: source invoice lines still
+need confirmed allocations and compatible asset types, policy/exclusion checks,
+deterministic bundle validation and analyst review.
+
+## USD reporting policy and budget exchange rates (deployed and verified)
+
+Migration 019, policy activation 011 and the ten approved Global F27 rates from
+import 012 are applied. Candidate read-only SQL preflight independently confirmed
+their actual values, effective dates, approval provenance and runtime permissions.
+The corrected immutable worker `cj1f` is published. ADF run
+`d2338474-deb4-11f1-9bee-ac00f903ed42` and independent read-only verifier
+`capex-task-determination-proof-ouxnqdz` succeeded on November 12, 2026 UTC.
+All four original sources, ten invoices and 29 actual lines reconcile. The run
+has 29 `capex.InvoiceLineAmount` rows: 21 USD identity conversions, seven DKK
+conversions at 0.1558, and one EUR conversion at 1.1662. Each source amount,
+converted unit/line amount, rate ID and immutable provenance record matches
+independently recomputed Decimal arithmetic and actual SQL readback. For example,
+DKK 38014.39 is stored as USD 5922.6419620000, not rounded prematurely to cents.
+All 29 accounting recommendations in that deployed run remain REVIEW; its worker
+required confirmation of the expenditure basis and authoritative site/project
+evidence. The user subsequently confirmed the independent invoice-line basis;
+the source update below is not yet published. Bundling is deferred.
+No historical results or prepared invoice amounts were overwritten.
+
+The earlier completed ADF run
+`c2071ca2-de3b-11f1-9fad-84b1e26420af` used the earlier synthetic native-unit-cost
+rules. Preserve that run; do not describe it as compliant with the new policy.
+Initial USD run `c2e78bd2-deb1-11f1-b242-ac00f903ed42` completed but did not pass
+SQL acceptance because scientific-notation zero JSON was incompatible with
+SQL decimal conversion. Its records are retained; use the accepted cj1f run.
+
+Completed DBA steps, in order (reference only; do not rerun activation/import):
+
+1. [019_add_usd_budget_policy_support.sql](migrations/019_add_usd_budget_policy_support.sql)
+   adds active/version/site-minimum metadata to `ref.CapitalizationThreshold`,
+   creates **empty** `ref.BudgetExchangeRate` and `capex.InvoiceLineAmount`, and
+   grants only the existing worker's required SELECT/INSERT permissions.
+   It does not activate a policy, load rates, convert old rows, or alter source
+   invoice amounts. Success: `USD_BUDGET_POLICY_SCHEMA_READY`.
+2. [011_activate_reporting_manual_usd_policy.sql](data/011_activate_reporting_manual_usd_policy.sql)
+   defaults to preview, with user-confirmed `@EffectiveFrom='2026-04-27'`.
+   Inspect `CurrentActiveRows`, then supply `@ExpectedActiveRows` and
+   `@ApplyChanges=1`. This retains but deactivates the synthetic demo thresholds,
+   and inserts one versioned Global USD expenditure policy:
+   USD 1,000 standard threshold, USD 300 site minimum AND USD 30,000 aggregate
+   project expenditure for the below-threshold exception. `ProjectBudgetMin`
+   stores that exception threshold; it does not authorize treating a project
+   budget as qualifying expenditure. A non-synthetic active policy or existing
+   policy version blocks replacement. Success: `USD_REPORTING_POLICY_ACTIVATED`.
+3. [012_import_f27_budget_exchange_rates.sql](data/012_import_f27_budget_exchange_rates.sql)
+   contains the exact user-provided **F27 FX Rate** schedule (FY27), matching
+   the screenshot: EUR 1.1662, CAD 0.7243, CHF 1.2408, DKK 0.1558, GBP 1.3463,
+   HKD 0.1282, INR 0.0114, NOK 0.1003, PLN 0.2740 and SEK 0.1063. USD 1.0000
+   is shown in preview but uses identity conversion, not a stored foreign-rate
+   row. Preview is the default and approval status defaults to `PENDING`.
+   The user supplied inclusive FY27 dates: `@EffectiveFrom='2026-04-27'` and
+   `@EffectiveTo='2027-04-25'`; these are now populated in the script.
+   Before applying, confirm `@UsdPerSourceUnitConfirmed=1` and the proposed
+   `Global` scope. The user separately confirmed the capitalization policy's
+   effective date as April 27, 2026 as well. Supply actual Finance approval
+   identity/timestamp to use `APPROVED`; pending rows are not conversion-eligible.
+   Set `@ApplyChanges=1` only after review. The script inserts ten foreign-rate
+   rows atomically, rejects an existing version or overlapping approved rates,
+   and does not overwrite prior rate history. Success: `F27_BUDGET_RATES_IMPORTED`.
+
+Policy source: Reporting manual - April 2026 - Final, Property and Equipment,
+section 4, printed page 45 / PDF page 47; additional exceptions on printed page
+46 / PDF page 48. Applying the reference does not approve any individual asset.
+Do not use the legacy 009 model-table migration as a threshold-refresh script.
+
+The F27 schedule, fiscal dates, Global scope and APPROVED status have been
+independently verified in live SQL. Future rate imports still require actual
+authorization and provenance. `UsdPerSourceUnit` means **USD per
+one unit of SourceCurrency**, not its reciprocal. Each row has a target of USD,
+scope (`Global`, regional label or actual country), budget period/version,
+source, effective dates and approval metadata. Only an unambiguous active,
+approved, effective rate with approval provenance may be used. The runtime
+cannot insert or approve rates. No spot/web/model exchange-rate fallback exists.
+USD uses identity conversion with rate 1 and no budget-rate row.
+
+Original `prep.InvoiceLine.UnitCost` and `LineAmount` stay unchanged. Because ADF
+freshly processes the original files, it preserves original and converted amounts
+in **run-scoped `capex.InvoiceLineAmount`**, keyed by WorkflowRunId, PackageId and
+LineId, rather than overwriting old prepared packages. Columns include original
+currency/unit/line amounts, rate ID, rate-to-USD, converted unit/line amounts,
+conversion status, as-of date and immutable provenance JSON. The same evidence
+is included on each assessment in result/review JSON. Missing unit prices stay
+NULL, even if a line amount can be converted. Missing/ambiguous rates yield
+`REVIEW` conversion status and NULL converted values, never zero or copied
+native amounts. Internal conversion storage uses ten decimal places and
+ROUND_HALF_EVEN; this is not a Finance-approved booking-rounding rule.
+Conversion JSON emits exact fixed-point decimal strings, including zero and
+small amounts, so SQL decimal readers never need a floating-point intermediary.
+
+### Confirmed invoice-line basis (source update; not yet deployed)
+
+For the current ungrouped-asset scope, the user confirmed each independent
+invoice line's **converted USD line total** as the assessment basis. Application
+code compares `LineAmountUsd` against the effective SQL standard threshold:
+**USD 1,000 or more recommends CAPEX; below USD 1,000 recommends OPEX**, only
+when the line is capitalizable by nature. Model responses contradicting that
+comparison are rejected, not silently overridden.
+
+**Context-qualified never-capitalize rules and expense nature take precedence
+over the amount.** An established exclusion cannot become CAPEX even above
+USD 1,000. Existing contextual repair/maintenance safeguards remain; keywords
+alone do not establish an exclusion or disqualify an attributable asset cost.
+Unresolved nature/asset allocation remains REVIEW. A capitalizable line with
+missing/ambiguous effective policy or approved FX also remains REVIEW.
+
+A missing printed unit price or missing site/project does not block the standard
+line-total comparison. Unit prices, invoice totals and native-currency amounts
+are not substituted for `LineAmountUsd`. `UnitCostMeetsThreshold` stays NULL in
+this mode; result/review JSON records `lineAmountUsdMeetsThreshold`, and the
+rationale/evidence identifies `INVOICE_LINE_USD`. No new SQL schema is required.
+
+Bundling and the joint USD 300/site AND USD 30,000/project exception are not
+evaluated without authoritative context. A below-threshold OPEX recommendation
+uses the standard line rule, not a finding that a project exception is inapplicable.
+Discretionary exceptions remain subject to Finance review. Budgets, synthetic
+context and one invoice cannot establish project eligibility.
+The as-of date remains the disclosed demo-run date, not historical booking
+approval. Finance must confirm the appropriate budget period/date basis.
+
+Amount rows, recommendations, regional suggestions and review handoff commit
+together; exact readback or any failure rolls back the transaction.
+The updated worker requires migration 019 before preflight. After DBA setup,
+build/validate/publish the new immutable worker before a fresh ADF run. Existing
+workers/results are not silently upgraded. The read-only
+[presenter](validation/present_capex_adf_demo_run.sql) and
+[verifier](validation/validate_capex_adf_demo_run.sql) include run-scoped FX
+evidence, distinguish the confirmed invoice-line basis from historical mandatory
+REVIEW runs, and retain compatibility with earlier runs. A new immutable build,
+publication and fresh verified run are still required to demonstrate the updated
+line-threshold behavior live; the existing cj1f proof does not cover this change.
+
+## Historical pre-USD JC/EU setup and result reset
 
 These are prerequisites for the local worker; apply only missing steps.
 Read-only private-network execution `capex-task-determination-proof-4lh8zrn`

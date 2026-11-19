@@ -115,6 +115,7 @@ def build_adf_review(
     documents = []
     for package in packages:
         source = sources[package.package_id]
+        nuvolo = package.nuvolo_context
         extraction = (extraction_documents or {}).get(package.package_id)
         document = extraction["document"] if extraction is not None else {
             "documentId": package.invoice_id, "uri": source.uri,
@@ -123,13 +124,19 @@ def build_adf_review(
         }
         documents.append({
             "document": document,
-            "extraction": extraction["extraction"] if extraction is not None else {
-                "mode": "ABBYY_PREEXTRACTED_CSV" if source.format == "ABBYY_ZIP" else "JC_WORKBOOK_NORMALIZATION",
-                "normalizedInvoice": package.model_dump(mode="json", by_alias=True),
-                "freshPdfExtraction": False,
+            "extraction": {
+                **(extraction["extraction"] if extraction is not None else {
+                    "mode": "ABBYY_PREEXTRACTED_CSV" if source.format == "ABBYY_ZIP" else "JC_WORKBOOK_NORMALIZATION",
+                    "normalizedInvoice": package.model_dump(mode="json", by_alias=True),
+                    "freshPdfExtraction": False,
+                }),
+                **({"nuvoloContext": nuvolo.model_dump(mode="json", by_alias=True)} if nuvolo.risk_flag else {}),
             },
             "reviewReasons": list(dict.fromkeys([
                 *package.data_quality.review_reasons,
+                *(["Nuvolo work-order evidence requires analyst review; it does not determine CAPEX/OPEX."]
+                  if nuvolo.risk_flag else []),
+                *nuvolo.review_reasons,
                 *list(exception_reasons.get(package.package_id, [])),
             ])),
         })
@@ -149,7 +156,9 @@ def build_adf_review(
         "llmCallsAttempted": evidence.get("llmCallsAttempted", 0) + evidence.get("extractionCallsAttempted", 0),
         "policySnapshots": {
             currency: value.model_dump(mode="json", by_alias=True)
-            for currency, value in (policies or {policy.capitalization.currency: policy}).items()
+            for currency, value in (
+                policies if policies is not None else {policy.capitalization.currency: policy}
+            ).items()
         },
         "activeTaskCodes": [task.task_code for task in master.tasks],
         "activeAssetClassCodes": list(asset_class_codes),
