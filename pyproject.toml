@@ -44,4 +44,4 @@ addopts = "-q"
 
 
 [tool.setuptools.package-data]
-"autarch.capex" = ["schemas/*.json"]
+"autarch.capex" = ["schemas/*.json", "review-visual.html"]

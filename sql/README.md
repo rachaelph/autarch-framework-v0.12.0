@@ -2,6 +2,200 @@
 
 Azure SQL assets for prepared CapEx invoices.
 
+## Canadian TaskMaster handoff (prepared, not executed)
+
+[016_import_canada_task_master.sql](data/016_import_canada_task_master.sql)
+is a preview-first DBA handoff for the supplied `Task List CAN.xlsx`.
+MACS has 1,434 tasks; CTI has 3,324. Their 1,349 shared codes must remain
+distinct. Canadian keys use `(regionCode='CA', sourceSheet, taskCode)`; the
+existing `sourceSheet` identifies MACS/CTI without another reference table.
+US/non-Canadian uniqueness and US data are preserved. The apply transaction
+expands the original region constraint and creates Canadian filtered indexes.
+Unknown or different physical schemas stop the query, not a guessed migration.
+
+```powershell
+.\.venv314\Scripts\python.exe -m tools.build_canada_task_master_load `
+  --workbook "C:\path\Task List CAN.xlsx" `
+  --output-dir "C:\path\canada-taskmaster-handoff"
+```
+
+Use the generated `canada-taskmaster-preview.sql` in Azure portal Query Editor.
+Preview makes no permanent changes. Apply requires explicit DBA review and
+both `@ApplyChanges=1` and `@ApproveCatalogKeyChange=1`. Original separate GL
+accounts/categories/property type are preserved, including textual leading zeros
+and French descriptions. `TaskDescription` remains the computed description alias.
+Generic `GLAccount`, `AssetType`, `IsCapitalTask`, `TaskMasterVersion` and
+business effective dates remain NULL on new rows. `sourceVersion` is a content
+identifier, not an invented business date/version. Existing Canadian rows are
+never overwritten or automatically retired. Review CSV columns must be imported
+as text to retain codes/accounts; source JSON/SQL retain their exact string types.
+
+**Not enabled by this import:** selecting the MACS versus CTI catalog for a
+Canadian invoice. The current US-only loader must not be portrayed as using this
+new reference data. Confirm the authoritative source-system identifier and
+complete physical schema before enabling Canada inference; an unknown catalog
+must result in Review, never a US/MACS/CTI guess. No live SQL is executed by the
+generator, and no source workbook/data is committed into the repository.
+
+The ADF worker now explicitly routes invoices identified as `CA`, `CAN` or
+`Canada` to reference Review before classification, including SQL-governed and
+conditional-demo modes. No US task or EU asset-class fallback is permitted for
+those invoices while Canadian catalog routing is not enabled. Their source lines
+remain in the output and retain USD conversion evidence in SQL-governed mode.
+This safeguard is a local repository change, not a deployed worker update.
+
+## NA POPA four-table context load (prepared, not executed)
+
+### Current remaining-table load: Project and PO-line core
+
+**PAUSED DRAFT — do not apply migration 021 or the remaining-table load.**
+The user paused this approach pending clarification of PO commitments,
+distribution matching and bundling rules. The following documents the draft,
+not an approved run order. Local generator tests do not validate live SQL execution.
+
+After the Site/PO-header load, use the new remaining-table handoff, **not** the
+legacy full four-table query:
+
+1. DBA previews/applies
+   [021_allow_unknown_popa_project_line_context.sql](migrations/021_allow_unknown_popa_project_line_context.sql).
+   The generated copy is `popa-context-nullable-schema-preview.sql`.
+   It changes only six existing columns to nullable; no table or row is created,
+   deleted or updated. Defaults to `@ApplyChanges=0`; change to 1 only after review.
+2. Run generated `popa-context-project-line-preview.sql`, backed by
+   [017_load_popa_project_po_line_core.sql](data/017_load_popa_project_po_line_core.sql).
+   Check the single summary/blocker grid before setting `@ApplyChanges=1`.
+   Expected source candidates are 314 Projects and 1,060 PO lines.
+
+Missing project budgets remain NULL; three supplied budgets are retained once,
+never summed across source rows. `BundlingInScope` remains NULL, not an assumed
+bundling decision. PO lines retain their consistent description and business
+unit, but `AFEProjectID`, `SiteID`, `POTaskCode` and absent `VendorID` remain NULL.
+Alex confirmed AFE/site/task belong to PO distributions; choosing one allocation
+for an entire line would be incorrect even when it appears unambiguous.
+
+No PO-distribution table is created. All 1,378 source PO allocations and their
+distribution numbers/project/site/task identifiers remain in the generated
+`popa-context.json` audit snapshot and original CSVs, not in PO-line fields.
+The ZIP now includes that snapshot. These imports do not make bundling context
+available to the workflow or manufacture invoice-allocation amounts.
+
+Only the two remaining tables are inserted, atomically. Matching existing rows
+are preserved; known source conflicts or existing unverified line-level allocation
+context block apply rather than being overwritten/cleared. Unknown values on
+new rows and source/count readback are checked before commit. Existing Site,
+PO headers and invoice/reference/review tables are not written.
+
+Generate with the same `tools.build_popa_context_load` command below in a fresh
+directory. Older generated files remain untouched. The older full loader still
+has its original strict schema/approval assumptions; do not use it after migration
+021 or interpret its distribution-grain warnings as source corruption.
+
+POPA is **US/Canada only**, never an EU source. The invoice processing plan still
+uses the existing ADF resource/pipeline for `landing/capex/invoices/na/` and
+`landing/capex/invoices/eur/`; this context handoff does not change ADF.
+
+[014_load_popa_na_context.sql](data/014_load_popa_na_context.sql) is a preview-first,
+all-or-nothing, insert-only load into **only** `prep.Project`, `prep.Site`,
+`prep.PurchaseOrder`, and `prep.PurchaseOrderLine`. It never loads invoices,
+invoice lines, coding distributions, references, review records or other permanent
+tables. Existing matching records are no-ops; conflicting records block the batch
+rather than being overwritten. Temporary staging/diagnostics do not add schema.
+
+Generate a populated copy in a fresh directory outside the repository (existing
+handoff files are not overwritten, so reviewed approval edits cannot be lost):
+
+```powershell
+.\.venv314\Scripts\python.exe -m tools.build_popa_context_load `
+  --us-csv "C:\path\US_POPA_ProdSampleData_20261117.csv" `
+  --ca-csv "C:\path\CA_POPA_ProdSampleData_20261117.csv" `
+  --output-dir "C:\path\popa-context-handoff"
+```
+
+The generator implements the confirmed `MappingPOPA_DataModel` fields reviewed
+in the supplied Response/v2 workbooks, whose mapping sheets were identical.
+The specifically named Response (2) workbook was not found; no differing version
+has been assumed equivalent. Do not mix production and test snapshots.
+Output includes the runnable populated query, source hashes and row counts,
+record-level source references/conflicts, and every source-column disposition.
+Customer data is not embedded in this repository's empty template.
+
+The main generated `popa-context-load.sql` is an **eight-line launcher**, not a
+large inline-data query. The ZIP includes all three SQL files plus the review
+CSVs. Extract the files together, open the launcher in **SSMS with Query >
+SQLCMD Mode enabled**, and set `HandoffDirectory` to the extracted folder.
+The launcher defaults to preview and includes the separate source-data and
+validation/apply engine files in the same batch. **Azure portal query editor
+cannot run these local-file includes.** No new SQL objects, credentials or Blob
+access grants are needed. Do not copy just the launcher without its companion
+files. The engine retains the existing four-table boundaries, rollback and
+blocker checks; its documented approval JSON inputs remain empty by default.
+SQLCMD-like sequences in source text are JSON-escaped rather than interpreted.
+
+For **Azure portal Query Editor**, use the generated
+`popa-context-portal-preview.sql` instead of the launcher. It is a standalone
+query containing the same SQL-consumed source facts in a lossless GZIP/base64
+payload. Azure SQL decodes it with XML base64 conversion and `DECOMPRESS`;
+ASCII JSON escapes preserve original Unicode values. Run the entire file in
+one submission with `@ApplyChanges=0`; no companion execution, SQLCMD commands,
+new permanent objects or intermediate loads are needed. This retains the
+same all-or-nothing validation/apply engine and every source conflict. The ZIP
+includes both client options; do not run both. The portal's execution timeout
+still applies; server-side SQL validation is performed by the operator's preview,
+not by the local generator tests.
+
+The preview returns **one** result grid with `ResultType`, `TableName`,
+`RecordKey`, `SourceCandidates` and `Reason`. `1_SUMMARY` rows show the four
+candidate counts and total blockers; `2_BLOCKER` rows identify unresolved
+records. Any supplied approvals/crosswalks appear as `3_PROJECT_APPROVAL` and
+`4_VENDOR_MAPPING`. This avoids hiding diagnostics behind the last empty
+crosswalk result in portal clients. Candidate counts are not insertion counts.
+
+When intentionally loading only unblocked **Sites and PO headers**, use the
+separate generated `popa-context-site-po-preview.sql`, based on
+[015_load_popa_site_po_headers.sql](data/015_load_popa_site_po_headers.sql).
+This is an explicit partial load, not a relaxation of the four-table loader.
+It preserves all relevant site/header source conflicts and target preflight,
+rolls back preview, and commits both selected tables together only when clear.
+It neither inserts nor updates projects or PO lines; their pending counts remain
+visible. New sites retain unknown lease status; new PO headers contain only
+`PONumber`. Existing rows and optional header values are retained. After a clear
+partial preview, set `@ApplyChanges=1` in **that partial query only** to insert.
+`InsertedRows` reports actual inserts after commit; replaying matching rows inserts
+zero. Missing project/vendor facts and allocation decisions still block the
+separate full load and invoice enrichment.
+
+Project/site facts may be repeated on project/invoice/PO source rows; they are
+deduplicated without summing budgets. PO headers/lines come only from
+`Type_Order=4`. A line's project/site/task must be single-valued across all its
+distributions. Multiple allocations with different keys are blockers, not an
+arbitrarily selected row. PO headers load only their confirmed `PONumber`;
+line descriptions/projects, vendor names and local timestamps are not silently
+promoted into header facts. `Site_Bus_Entity` is not country. Country comes from
+the explicit US/CA file assignment; no site prefixes or task codes are invented.
+
+Current required-field gaps must be resolved, not defaulted:
+
+- A new project needs its authoritative budget and an evidence-backed
+  `BundlingInScope` decision; project budget is not qualifying expenditure.
+- A new PO line needs a genuine `VendorID`; `Supplier_Name` is not one.
+- The target's single `(PONumber, POLineNumber)` row cannot represent multiple
+  project/site/task distributions. Preserve those source allocations outside this
+  load until an approved mapping/model decision resolves them.
+- `IsLeased` stays unknown for new sites; existing tenure is retained.
+- Source `Created_Date` is absent from the provided exports and
+  `Last_Updated_Date` is NULL. No source timestamps are relabeled as UTC.
+- Global identifier uniqueness is not established by having no collisions in
+  these samples; the source owner must confirm keys before applying the load.
+
+Run the generated query with `@ApplyChanges=0` to see target-dependent blockers.
+It uses a transaction and key-range locks during validation, then rolls back.
+Supply only real, scoped, evidence-backed project approvals and vendor
+crosswalks in the documented JSON inputs. Leave unresolved facts missing.
+After reviewing every blocker and confirming key scope, an authorized operator
+may set `@ApplyChanges=1`; any blocker aborts **all** inserts. The generator never
+connects to Azure SQL. Python tests validate preparation and write boundaries;
+the SQL must still be reviewed/run in the approved SQL environment.
+
 ## Nuvolo evidence write permissions (source-only preparation)
 
 No new Nuvolo tables or columns are required: migration 009 already defines
@@ -14,11 +208,11 @@ The user reported `NUVOLO_EVIDENCE_WRITE_ACCESS_GRANTED` on November 17, 2026.
 That successful application has not been independently rechecked; the worker
 changes remain undeployed.
 
-Only FWKD references in original purchase-order fields, including Customer PO,
+Only FWKD anywhere or FFX prefixes in original purchase-order fields, including Customer PO,
 qualify. Generic work-order fields, source-system labels, invoice numbers and
 description mentions alone do not. Valid numbers are stored as digits-only text,
 retaining leading zeros; the actual POPA PO remains separate. Ambiguous or
-malformed FWKD PO values require analyst review, not a guessed number or forced
+malformed FWKD/FFX PO values require analyst review, not a guessed number or forced
 OPEX classification.
 
 The source loader uses the same parser. Runtime updates an already-loaded
@@ -34,6 +228,10 @@ source-load process; this permission script does not insert them.
 The November 17 business clarification makes FWKD anywhere in an original
 PO/Customer PO sufficient for **Nuvolo R&M**, without requiring additional
 repair/maintenance keywords. Nuvolo wins over ARO as the single primary category.
+The November 20 extension also qualifies **FFX at the start of the original PO**
+after leading whitespace, case-insensitively. An FFX mention later in a PO or
+outside PO fields does not qualify. Alphanumeric references such as
+`FFXP0011831` retain the category/evidence but require work-order parsing review.
 Malformed/conflicting numeric work orders retain that category but require
 review and never produce a guessed work-order number. Accounting recommendations
 and supporting ARO evidence remain separate from the primary category.
@@ -47,7 +245,9 @@ Have the approved DBA run
 [013_apply_nuvolo_category_precedence.sql](data/013_apply_nuvolo_category_precedence.sql)
 after the initial category seed 009. Default `@ApplyChanges=0` previews current
 and proposed criteria without changes. After review, set it to `1` to update only
-the Nuvolo/ARO criteria. It checks the seven-code catalog, rejects unrecognized
+the Nuvolo/ARO criteria. The update accepts both the original seed and the
+previously approved FWKD-only criteria, as well as the new matching criteria.
+It checks the seven-code catalog, rejects unrecognized
 policy edits, verifies readback and is replay-safe. No new schema or permissions
 are required, and no historical assessment rows are changed. **Not run or
 deployed.** Do not rerun the insert-only initial seed 009 to overwrite policies.

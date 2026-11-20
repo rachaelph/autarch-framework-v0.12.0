@@ -6,7 +6,74 @@
 > The model recommends. Application code validates and persists.
 > The analyst reviews and decides. No ERP posting occurs.
 
+## USD-only assessment amounts (repository change; not deployed)
+
+The SQL-governed workflow (`--sql-persist --governed-sql-references`) uses
+`ref.BudgetExchangeRate`, not `ref.BudgetExchange`, for approved, effective
+budget FX. Source amounts are multiplied by `UsdPerSourceUnit`; USD lines use
+an identity rate of 1. No spot-rate lookup or model-generated FX is permitted.
+
+Every assessed line, including extraction/reference-review lines, retains its
+original currency, original unit cost and original line amount alongside the
+conversion status, USD unit/line amounts, selected rate ID, rate provenance and
+policy date. The original normalized invoice is not overwritten. Existing
+`capex.InvoiceLineAmount` stores these run-scoped values, atomically with the
+assessment and with exact readback checks.
+
+All monetary accounting and final-category criteria in this workflow use each
+independent **`LineAmountUsd`**, compared to the applicable **USD** threshold.
+Neither the native amount, unit price, invoice total nor an invented project
+total substitutes for that line amount. Legacy native-currency/unit-cost
+threshold rows are never a fallback. Missing/ambiguous approved FX or an
+applicable USD policy requires Review for threshold-dependent decisions.
+Nature-based exclusions and FWKD/FFX Nuvolo precedence remain separate rules;
+conversion evidence is retained for those lines too.
+
+Existing schema handoff:
+[`019_add_usd_budget_policy_support.sql`](../../sql/migrations/019_add_usd_budget_policy_support.sql).
+This creates `ref.BudgetExchangeRate` and `capex.InvoiceLineAmount` if needed.
+No new migration, rate import, live table change or deployment is performed by
+this repository change. Authoritative project/site exceptions and bundling remain
+deferred until their required context is available. Older JSON-only rehearsal
+modes are not the SQL-governed workflow and do not establish USD-policy results.
+
 ## Preparing translation for externally extracted line items
+
+### POPA-independent analyst visual
+
+**Paused, unvalidated prototype; not a current demo deliverable.** Do not treat
+the following export instructions as a validated or deployed review application.
+
+Export a self-contained HTML source preview from an existing intake:
+
+```powershell
+python -m autarch.capex.demo_v2_review_visual `
+  --intake "<local run directory>\intake.json" `
+  --output "<local directory>\fixed-asset-review.html"
+```
+
+Open the HTML file locally. Region/category filters, source references and
+browser-local line-review notes work without another database or hosting.
+Feedback JSON/CSV exports preserve run, snapshot, invoice, line and source
+identities; they do not constitute authenticated approval or retrain a model.
+In source-preview mode, task/asset-class and accounting suggestions remain
+explicitly awaiting workflow, and bundling is not evaluated.
+
+To show completed English interpretations, supply
+`--translation-report "<run directory>\translation.json"` from the existing
+worker's opt-in `--translate-line-items` stage. The exporter checks full coverage
+and that translated packages preserve all original source facts. It shows the
+original description, English text, detected language/confidence and provenance.
+Absent translations are marked **not run / not supplied**, never silently
+assumed English. Translation failures stop the worker before matching; the
+visual rejects failed or mismatched translation reports.
+
+An optional `--workflow-result` accepts the existing direct `DemoWorkflowResult`
+contract only when the successful output covers this exact intake run and every
+source line. Recorded recommendations and potential bundles remain unapproved.
+Do not substitute an older run, synthetic fixture, or ADF review envelope.
+The available local source samples are not evidence that the new NA/EU Azure
+folders were inventoried or processed. This visual is not deployed Power Apps.
 
 **Local source preparation only; not deployed or live-verified.** Standard
 Azure Translator NMT is the provisional translation choice, not a new GPT
@@ -83,7 +150,8 @@ and [API contract](https://learn.microsoft.com/azure/ai-services/translator/text
 ## Nuvolo purchase-order handling
 
 **Local source changes only; not deployed or live-verified.** Nuvolo requires
-`FWKD` in an original **purchase-order field**, including Customer PO. A source
+`FWKD` anywhere or the `FFX` prefix (after leading whitespace) in an original
+**purchase-order field**, including Customer PO. Both are case-insensitive. A source
 system named Nuvolo, a generic Work Order Number, invoice number, filename or
 description mention alone does not qualify. Translations are not PO evidence.
 ABBYY's `Purchase Order` CSV-link column is not a purchase-order number.
@@ -94,16 +162,20 @@ example `"sourceReferences": {"Customer PO": "FWKD7819574"}`. Actual POPA
 `sourcePurchaseOrder`; unrelated/non-invoice ledger rows are not evidence.
 An unambiguous supported reference produces text `7819574`, preserving leading
 zeros where present. Repeated copies of the same reference are not conflicts.
-Malformed or conflicting FWKD PO references produce explicit Nuvolo review
+Malformed or conflicting FWKD/FFX PO references produce explicit Nuvolo review
 reasons and a risk flag, but no guessed work-order number. FWKD anywhere in a
 PO still qualifies for the Nuvolo category, even if its numeric part cannot be
 accepted. Marker detection and strict numeric work-order validation are separate.
+FFX must be a prefix, not a mention later in the PO. An alphanumeric reference
+such as `FFXP0011831` qualifies for classification but does not become a guessed
+digits-only work-order number; its original value and review reason are retained.
 
 Every line's assessment carries the source-derived `nuvoloRiskFlag`, including
 non-model reference/extraction-review paths. The review handoff includes original
 PO evidence and diagnostics. This flag does **not** force OPEX, establish routine
 maintenance or change accounting. The business clarification received November
-17 confirms that FWKD in an original PO/Customer PO is sufficient for
+17, extended November 20 to include the FFX prefix, confirms qualifying
+original PO/Customer PO evidence is sufficient for
 `NUVOLO_RM`, without extra repair/maintenance keywords. It is the sole primary
 category for those lines and wins when ARO also applies. Retain ARO evidence
 for review, not as a second primary category. Other category precedence and
@@ -347,11 +419,13 @@ It rejects changed policy data before committing. The new image and validated
 ADF publication are live; same-run independent readback remains required before
 claiming final SQL acceptance.
 
-**Policy limitation:** the actual threshold rows are explicitly unapproved
+**Historical published-worker limitation:** the threshold rows observed in the
+earlier private-network verification were explicitly unapproved
 synthetic demo unit-cost rules, not approved manual-derived local thresholds.
-Conditional-demo opt-in permits their disclosed use, not finance approval.
-No FX, budget-rate conversion or line-amount substitution is performed.
-Missing printed unit costs require accounting Review for capitalizable nature.
+That older worker did not perform budget FX conversion. The repository's
+USD-only workflow described above no longer accepts those native-unit rules as
+a fallback; it requires applicable USD policy and approved effective budget rates.
+Do not describe an older published run as exercising this undeployed change.
 The demo-run date is the disclosed policy-effective-date basis, not approval of
 historical booking treatment. Bundling is deferred, not a negative finding.
 

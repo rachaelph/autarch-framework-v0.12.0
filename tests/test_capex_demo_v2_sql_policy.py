@@ -151,9 +151,9 @@ def test_governed_batch_uses_sql_values_routes_all_invoices_and_defers_bundling(
     assert summary["bundlingDeferred"] and summary["governedSqlReferences"]
     assert summary["sqlPolicyReferencesSha256"] == references.sha256
     evidence = written[summary["evidenceUri"]]
-    assert evidence["demoAssumptions"]["nativeThresholds"] == {"USD": 2500, "EUR": 2000, "DKK": 12000}
-    assert evidence["demoAssumptions"]["missingUnitCostBasis"] == "REVIEW_NO_LINE_AMOUNT_PROXY"
-    assert not evidence["demoAssumptions"]["fxConversion"]
+    assert evidence["demoAssumptions"]["nativeThresholds"] == {}
+    assert evidence["demoAssumptions"]["missingUnitCostBasis"] == "NOT_REQUIRED_FOR_INVOICE_LINE_BASIS"
+    assert evidence["demoAssumptions"]["fxConversion"]
     assert len([call for call in evidence["calls"] if call["stage"] == "ACCOUNTING_DECISION"]) == 10
     assert len([call for call in evidence["calls"] if call["stage"] == "ASSESSMENT_CATEGORY"]) == 1
     assert not any(call["stage"] == "BUNDLE_DECISION" for call in evidence["calls"])
@@ -162,9 +162,10 @@ def test_governed_batch_uses_sql_values_routes_all_invoices_and_defers_bundling(
         assessments = [item for item in captured["result"].assessments if item.package_id == package.package_id]
         tasks = [item for item in captured["result"].task_determinations if item.package_id == package.package_id]
         assert all(item.classification_type == ("ASSET_CLASS" if is_eu_invoice(package) else "TASK") for item in tasks)
-        if is_eu_invoice(package):
-            assert all(item.recommendation == "REVIEW" and item.unit_cost_meets_threshold is None for item in assessments)
-            assert all(item.category_suggestion is None for item in assessments)
+        assert all(item.recommendation == "REVIEW" and item.unit_cost_meets_threshold is None for item in assessments)
+        assert all(item.category_suggestion is None and item.threshold_amount is None for item in assessments)
+        assert all(item.currency_conversion is not None for item in assessments)
+        assert all("no native-currency fallback" in " ".join(item.review_reasons) for item in assessments)
         assert all(item.bundling_disposition == "REVIEW" for item in assessments)
     accounts = [request for request in model.requests if request.get("stage") == "ACCOUNTING_DECISION"]
     assert all(request["neverCapitalizeExceptions"][0]["applicabilityRule"] ==
@@ -181,13 +182,13 @@ def test_regional_routing_uses_source_format_not_jc_prefix(source, europe):
 
 
 @pytest.mark.parametrize("change", ["currency", "region", "expired", "ambiguous", "unsupported_basis", "project_budget"])
-def test_missing_or_ambiguous_policy_is_not_replaced_by_a_currency_default(references, change):
+def test_missing_or_ambiguous_policy_is_not_replaced_by_a_currency_default(usd_references, change):
     package = _package([_line("1", "Equipment")])
     package = package.model_copy(update={
         "currency": "USD", "country_region": "US",
         "source": package.source.model_copy(update={"file_name": "na.zip"}),
     })
-    payload = references.model_dump(mode="json")
+    payload = usd_references.model_dump(mode="json")
     row = payload["thresholds"][0]
     if change == "currency":
         row["currency"] = "CAD"
@@ -200,12 +201,15 @@ def test_missing_or_ambiguous_policy_is_not_replaced_by_a_currency_default(refer
     elif change == "unsupported_basis":
         row["threshold_type"] = "UNSPECIFIED_EXPENDITURE"
     else:
-        row["project_budget_min"] = "30000"
+        row["project_budget_min"] = None
     selected, reason = SqlPolicyReferences.model_validate(payload).threshold_for(
         package, date(2026, 11, 11), allow_demo=True,
     )
     assert selected is None and reason
-    selected, reason = references.threshold_for(package, date(2026, 11, 11), allow_demo=False)
+    unapproved = usd_references.model_copy(update={"thresholds": [
+        usd_references.thresholds[0].model_copy(update={"policy_reference": "UNAPPROVED MOCK policy"}),
+    ]})
+    selected, reason = unapproved.threshold_for(package, date(2026, 11, 11), allow_demo=False)
     assert selected is None and "opt-in" in reason
 
 
@@ -241,12 +245,20 @@ def test_incompatible_category_is_rejected_with_audited_feedback(governed):
     ("Customer PO", "FWKD123ABC", True),
     ("Customer PO", "FWKD7819574 / FWKD8121179", True),
     ("Customer PO", "XFWKD7819574", True),
+    ("Customer PO", "FFX0001234", True),
+    ("Customer PO", "FFXP0011831", True),
+    ("Customer PO", "FFX", True),
+    ("Customer PO", "FFX123ABC", True),
+    ("Customer PO", "XFFX7819574", False),
+    ("Customer PO", "PO reference FFX7819574", False),
+    ("Work Order Number", "FFX7819574", False),
+    ("Invoice Number", "FFX7819574", False),
     ("Work Order Number", "FWKD7819574", False),
     ("Invoice Number", "FWKD7819574", False),
     ("Customer PO", "841305", False),
 ])
 @pytest.mark.parametrize("repair_indicator", [False, True])
-def test_nuvolo_category_requires_fwkd_purchase_order_even_with_nuvolo_source_label(
+def test_nuvolo_category_requires_qualifying_purchase_order_even_with_nuvolo_source_label(
     references, screened_input, field, reference, qualifies, repair_indicator,
 ):
     from autarch.capex.demo_v2_contracts import CapitalizationAssessment
@@ -312,8 +324,8 @@ def test_nuvolo_category_cannot_silently_disappear_from_the_sql_catalog(governed
 
 
 @pytest.mark.parametrize("corrupt", [False, True])
-def test_categories_and_deferred_bundling_commit_atomically(governed, native_helpers, tmp_path, corrupt):
-    _, _, captured, _ = governed
+def test_categories_and_deferred_bundling_commit_atomically(usd_governed, native_helpers, tmp_path, corrupt):
+    _, _, captured, _ = usd_governed
     path = tmp_path / "governed-review.db"
     ReviewStore(path).close()
     connection = AtomicSqlHarness(path)
@@ -645,6 +657,131 @@ def test_expired_usd_policy_does_not_fall_back_to_legacy_native_policy(usd_refer
     package = _package([_line("1", "Equipment")])
     threshold, reason = mixed.threshold_for(package, date(2026, 11, 12), allow_demo=True)
     assert threshold is None and reason
+
+
+def test_native_only_policy_still_converts_but_cannot_authorize_threshold_classification(
+    usd_governed, references,
+):
+    _, _, captured, _ = usd_governed
+    package = captured["packages"][0].model_copy(update={"currency": "EUR", "lines": [
+        line.model_copy(update={"currency": "EUR", "line_amount": 5000, "unit_cost": 5000})
+        for line in captured["packages"][0].lines
+    ]})
+    tasks = [item for item in captured["result"].task_determinations if item.package_id == package.package_id]
+    references = references.model_copy(update={"budget_exchange_rates": [_budget_rate()]})
+    model = GovernedModel()
+    assessments, _ = assess_governed_invoice(
+        package, tasks, references,
+        _AuditedProvider(model, [], deployment="MOCK_TEST_ONLY", stage="ACCOUNTING_DECISION"),
+        captured["request"], allow_demo=True,
+    )
+    for assessment in assessments:
+        assert assessment.currency_conversion.line_amount_usd == 6250
+        assert assessment.currency_conversion.original_line_amount == 5000
+        assert assessment.recommendation == "REVIEW"
+        assert assessment.threshold_amount is None and assessment.threshold_currency is None
+        assert assessment.unit_cost_meets_threshold is None
+        assert assessment.line_amount_usd_meets_threshold is None
+        assert "no native-currency fallback" in " ".join(assessment.review_reasons)
+
+
+@pytest.mark.parametrize("country", ["CA", "CAN", " Canada "])
+def test_canadian_invoice_cannot_use_us_catalog_even_with_governed_sql_or_demo_opt_in(
+    usd_governed, monkeypatch, country,
+):
+    from autarch.capex import demo_v2_adf_extraction as extraction
+
+    _, _, captured, _ = usd_governed
+    original = extraction.extract_adf_pdfs
+    canadian_ids = []
+
+    def extract_canadian(**kwargs):
+        batch = original(**kwargs)
+        first = batch.packages[0]
+        batch.packages[0] = first.model_copy(update={"country_region": country})
+        canadian_ids.append(first.package_id)
+        return batch
+
+    monkeypatch.setattr(extraction, "extract_adf_pdfs", extract_canadian)
+    written = {}
+    summary = run(
+        GovernedModel(), written, connection=object(), fresh_pdf_extraction=True,
+        allow_provisional_pdf_recommendations=True, demo_recommendations=True,
+        governed_sql_references=True,
+    )
+    tasks = [item for item in captured["result"].task_determinations if item.package_id in canadian_ids]
+    assert tasks and all(item.resolution_status == "REVIEW" for item in tasks)
+    assert all(item.suggested_task_code is None and item.suggested_asset_class is None for item in tasks)
+    assert all("MACS or CTI" in item.unresolved_reason for item in tasks)
+    assert summary["modelPackageCount"] == 9
+    calls = written[summary["evidenceUri"]]["calls"]
+    assert not any(call.get("packageId") in canadian_ids and call["stage"] in {
+        "TASK_RETRIEVAL", "TASK_SUGGESTION", "ASSET_CLASS_SUGGESTION", "ACCOUNTING_DECISION",
+    } for call in calls)
+    assessments = [item for item in captured["result"].assessments if item.package_id in canadian_ids]
+    assert all(item.recommendation == "REVIEW" and item.currency_conversion is not None for item in assessments)
+
+
+def test_extraction_review_lines_keep_currency_evidence_and_persist_with_model_lines(
+    usd_governed, monkeypatch, native_helpers, tmp_path,
+):
+    from autarch.capex import demo_v2_adf_extraction as extraction
+
+    _, _, captured, _ = usd_governed
+    original = extraction.extract_adf_pdfs
+    review_ids = []
+
+    def extract_with_review(**kwargs):
+        batch = original(**kwargs)
+        package_id = next(iter(batch.documents))
+        batch.documents[package_id]["blockingReviewReasons"] = ["MOCK TEST ONLY: required header unreadable."]
+        review_ids.append(package_id)
+        return batch
+
+    monkeypatch.setattr(extraction, "extract_adf_pdfs", extract_with_review)
+    written = {}
+    summary = run(
+        GovernedModel(), written, connection=object(), fresh_pdf_extraction=True,
+        allow_provisional_pdf_recommendations=True, demo_recommendations=True, governed_sql_references=True,
+    )
+    result = captured["result"]
+    review = [item for item in result.assessments if item.package_id in review_ids]
+    assert review and all(item.outcome_category == "REFERENCE_OR_EXTRACTION_REVIEW" for item in review)
+    assert all(item.recommendation == "REVIEW" and item.currency_conversion is not None for item in review)
+    assert all(item.currency_conversion.rate_to_usd == 1 for item in review)
+    assert all(item.currency_conversion is not None for item in result.assessments)
+    assert summary["assessmentCount"] == 10 and summary["modelPackageCount"] == 9
+    path = tmp_path / "review-with-currency.db"
+    ReviewStore(path).close()
+    connection = AtomicSqlHarness(path)
+    try:
+        persist_adf_results(connection, **captured)
+        assert connection.db.execute("SELECT COUNT(*) FROM capex.InvoiceLineAmount").fetchone()[0] == 10
+        assert connection.commits == 1
+    finally:
+        connection.close()
+
+
+def test_final_category_cannot_use_a_legacy_native_unit_cost_flag(references, screened_input):
+    from autarch.capex.demo_v2_contracts import CapitalizationAssessment
+    from autarch.capex.demo_v2_sql_policy import suggest_assessment_categories
+
+    package, result, _ = screened_input
+    result = result.model_copy(update={"assessments": [
+        CapitalizationAssessment(
+            workflow_run_id=result.workflow_run_id, package_id=package.package_id, invoice_id=package.invoice_id,
+            line_id=line.line_id, nature_result="CAPITALIZABLE", repair_maintenance_indicator=False,
+            never_capitalize_hit=False, unit_cost_meets_threshold=False,
+            recommendation="OPEX", outcome_category="LEGACY_OPEX", bundling_disposition="NOT_ELIGIBLE",
+            rationale="MOCK TEST ONLY: legacy native-unit evidence is not a USD comparison.",
+            created_at_utc=package.created_at_utc,
+        ) for line in package.lines
+    ]})
+    actual = suggest_assessment_categories(
+        [package], result, references,
+        _AuditedProvider(GovernedModel(), [], deployment="MOCK_TEST_ONLY", stage="ASSESSMENT_CATEGORY"),
+    )
+    assert all(item.category_suggestion is None for item in actual.assessments)
 
 
 @pytest.mark.parametrize("currency,amount,unit_cost,usd_amount,recommendation", [

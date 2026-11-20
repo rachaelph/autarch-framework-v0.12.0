@@ -152,10 +152,10 @@ def _cell_value(
     return value.text
 
 
-def read_us_task_rows(workbook_path: Path) -> list[dict[str, str]]:
+def read_task_rows(workbook_path: Path, sheet_name: str) -> list[dict[str, str]]:
     with zipfile.ZipFile(workbook_path) as archive:
         shared_strings = _shared_strings(archive)
-        sheet_path = _sheet_path(archive, SOURCE_SHEET)
+        sheet_path = _sheet_path(archive, sheet_name)
         root = ElementTree.fromstring(archive.read(sheet_path))
 
     namespace = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
@@ -182,7 +182,7 @@ def read_us_task_rows(workbook_path: Path) -> list[dict[str, str]]:
 
     if headers != EXPECTED_HEADERS:
         raise ValueError(
-            f"Unexpected headers for {SOURCE_SHEET}: {headers}"
+            f"Unexpected headers for {sheet_name}: {headers}"
         )
 
     rows: list[dict[str, str]] = []
@@ -201,6 +201,10 @@ def read_us_task_rows(workbook_path: Path) -> list[dict[str, str]]:
         rows.append(normalized)
 
     return rows
+
+
+def read_us_task_rows(workbook_path: Path) -> list[dict[str, str]]:
+    return read_task_rows(workbook_path, SOURCE_SHEET)
 
 
 def _sql_string(value: str | None) -> str:

@@ -1,4 +1,4 @@
--- Confirmed November 17, 2026: FWKD in a PO means Nuvolo, including when ARO applies.
+-- Confirmed November 17/20, 2026: FWKD anywhere or an FFX prefix in a PO means Nuvolo.
 -- Data-only update to the existing seven-category catalog; preview is the default.
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
@@ -24,10 +24,18 @@ DECLARE @Changes TABLE (
 INSERT INTO @Changes VALUES
     (N'NUVOLO_RM',
      N'Reliable Nuvolo provenance and repairs/maintenance context are required. Do not infer Nuvolo solely from repair wording.',
-     N'FWKD anywhere in an original purchase-order field, including Customer PO, assigns Nuvolo R&M as the sole primary category. Nuvolo wins over ARO and other primary categories without requiring separate repairs/maintenance keywords. Malformed or conflicting numeric work orders still require analyst review; never guess a number. This category does not change the accounting recommendation.'),
+     N'FWKD anywhere or FFX at the start after leading whitespace in an original purchase-order field, including Customer PO, assigns Nuvolo R&M as the sole primary category. Matching is case-insensitive. Nuvolo wins over ARO and other primary categories without requiring separate repairs/maintenance keywords. Malformed or conflicting numeric work orders still require analyst review; never guess a number. This category does not change the accounting recommendation.'),
     (N'ARO_TAG',
      N'Supported potential retirement/removal/closure evidence warrants ARO review. A tag alone does not establish a liability, final OPEX treatment or an automatic GL posting.',
-     N'Supported ARO keyword evidence warrants ARO review. When FWKD also appears in an original purchase-order field, Nuvolo R&M wins as the primary category; retain ARO evidence for review. A tag alone does not establish a liability, final OPEX treatment or an automatic GL posting.');
+     N'Supported ARO keyword evidence warrants ARO review. When FWKD anywhere or an FFX prefix also appears in an original purchase-order field, Nuvolo R&M wins as the primary category; retain ARO evidence for review. A tag alone does not establish a liability, final OPEX treatment or an automatic GL posting.');
+
+DECLARE @PreviouslyApproved TABLE (
+    CategoryCode nvarchar(64) NOT NULL PRIMARY KEY,
+    DecisionCriteria nvarchar(2000) NOT NULL
+);
+INSERT INTO @PreviouslyApproved VALUES
+    (N'NUVOLO_RM', N'FWKD anywhere in an original purchase-order field, including Customer PO, assigns Nuvolo R&M as the sole primary category. Nuvolo wins over ARO and other primary categories without requiring separate repairs/maintenance keywords. Malformed or conflicting numeric work orders still require analyst review; never guess a number. This category does not change the accounting recommendation.'),
+    (N'ARO_TAG', N'Supported ARO keyword evidence warrants ARO review. When FWKD also appears in an original purchase-order field, Nuvolo R&M wins as the primary category; retain ARO evidence for review. A tag alone does not establish a liability, final OPEX treatment or an automatic GL posting.');
 
 BEGIN TRY
     BEGIN TRANSACTION;
@@ -61,6 +69,12 @@ BEGIN TRY
         WHERE CONVERT(varbinary(max), stored.DecisionCriteria) NOT IN (
             CONVERT(varbinary(max), proposed.PreviousCriteria),
             CONVERT(varbinary(max), proposed.DecisionCriteria)
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM @PreviouslyApproved AS approved
+            WHERE approved.CategoryCode=stored.CategoryCode
+              AND CONVERT(varbinary(max), approved.DecisionCriteria)
+                  =CONVERT(varbinary(max), stored.DecisionCriteria)
         )
     )
         THROW 51634, 'Unrecognized existing criteria; review them instead of overwriting other policy changes.', 1;

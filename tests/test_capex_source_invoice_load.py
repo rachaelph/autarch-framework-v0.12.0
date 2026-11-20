@@ -23,6 +23,7 @@ from tools.build_capex_source_invoice_load import (
 @pytest.mark.parametrize("reference", [
     "FWKD7819574", "FWKD0001234", "UNRELATED-PROJECT-42",
     "FWKD12X", "FWKD7819574 / FWKD8121179",
+    "FFX7819574", "FFXP0011831",
 ])
 def test_generic_work_order_field_never_establishes_nuvolo(reference):
     from tests.test_capex_demo_v2_task_suggestion import _line, _package
@@ -38,6 +39,9 @@ def test_generic_work_order_field_never_establishes_nuvolo(reference):
 @pytest.mark.parametrize(("reference", "expected"), [
     ("FWKD7819574", "7819574"),
     ("FWKD0001234", "0001234"),
+    ("FFX0001234", "0001234"),
+    ("FFXP0011831", None),
+    ("PO reference FFX7819574", None),
     ("841305", None),
     ("FWKD12X", None),
     ("FWKD7819574 / FWKD8121179", None),
@@ -53,7 +57,7 @@ def test_customer_po_sets_only_an_unambiguous_digits_only_nuvolo_number(referenc
     _append_package(payload, package, {}, [{}], None)
     assert payload["invoices"][0]["NuvoloWorkOrderNo"] == expected
     assert payload["invoices"][0]["PONumber"] == "841305"
-    if "FWKD" in reference:
+    if "FWKD" in reference or reference.startswith("FFX"):
         assert payload["packages"][0]["SourceMetadataJson"]["nuvolo"]["riskFlag"]
 
 

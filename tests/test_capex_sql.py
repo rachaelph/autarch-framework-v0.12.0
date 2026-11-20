@@ -41,6 +41,7 @@ def test_sql_assets_use_ordered_migrations() -> None:
         "018_align_assessment_review_categories.sql",
         "019_add_usd_budget_policy_support.sql",
         "020_grant_nuvolo_evidence_write_access.sql",
+        "021_allow_unknown_popa_project_line_context.sql",
     ]
 
     assert (
@@ -95,6 +96,13 @@ def test_nuvolo_precedence_update_is_preview_first_and_only_changes_existing_cri
         original = re.search(rf"\(N'{code}',\s*N'[^']+',\s*N'([^']+)'", seed)
         assert original is not None and original.group(1) == previous
         assert proposed != previous
+        assert "FFX" in proposed
+    approved = update.split("INSERT INTO @PreviouslyApproved VALUES", 1)[1].split("BEGIN TRY", 1)[0]
+    assert {code for code, _ in re.findall(r"\(N'(NUVOLO_RM|ARO_TAG)',\s*N'([^']+)'\)", approved)} == {
+        "NUVOLO_RM", "ARO_TAG",
+    }
+    assert "SELECT 1 FROM @PreviouslyApproved AS approved" in update
+    assert "approved.CategoryCode=stored.CategoryCode" in update
     assert update.index("Updated category criteria did not reconcile") < update.index("COMMIT TRANSACTION;")
 
 

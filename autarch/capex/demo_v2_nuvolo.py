@@ -9,8 +9,8 @@ from pydantic import Field
 from .demo_v2_contracts import DemoV2Model
 
 
-_PREFIX = re.compile(r"FWKD", re.IGNORECASE)
-_WORK_ORDER = re.compile(r"(?<![\w])FWKD(?:[ \t]*[-:#]?[ \t]*)([0-9]{1,128})(?![\w]|[-.][\w])", re.IGNORECASE)
+_PREFIX = re.compile(r"FWKD|FFX", re.IGNORECASE)
+_WORK_ORDER = re.compile(r"(?<![\w])(?:FWKD|FFX)(?:[ \t]*[-:#]?[ \t]*)([0-9]{1,128})(?![\w]|[-.][\w])", re.IGNORECASE)
 _PO_FIELDS = {
     "po", "ponumber", "purchaseorder", "purchaseordernumber",
     "customerpo", "customerponumber", "customerpurchaseorder", "customerpurchaseordernumber",
@@ -32,20 +32,24 @@ def resolve_nuvolo_work_order(references: Mapping[str, str]) -> NuvoloContext:
         name = re.sub(r"[^a-z0-9]", "", field.rsplit(":", 1)[-1].casefold())
         if name not in _PO_FIELDS:
             continue
-        prefixes = list(_PREFIX.finditer(value))
-        if not prefixes:
+        original_po = value.lstrip()
+        prefixes = list(_PREFIX.finditer(original_po))
+        if not prefixes or not (
+            original_po.upper().startswith("FFX")
+            or any(prefix.group().upper() == "FWKD" for prefix in prefixes)
+        ):
             continue
         evidence[field] = value
         for prefix in prefixes:
-            match = _WORK_ORDER.match(value, prefix.start())
+            match = _WORK_ORDER.match(original_po, prefix.start())
             if match is None:
-                reason = f"Malformed FWKD reference in {field}; verify the original work order."
+                reason = f"Malformed {prefix.group().upper()} reference in {field}; verify the original work order."
                 if reason not in reasons:
                     reasons.append(reason)
             else:
                 numbers.add(match.group(1))
     if len(numbers) > 1:
-        reasons.append("Conflicting FWKD work-order numbers; no single Nuvolo work order was selected.")
+        reasons.append("Conflicting Nuvolo work-order numbers; no single Nuvolo work order was selected.")
     return NuvoloContext(
         work_order_no=next(iter(numbers)) if len(numbers) == 1 and not reasons else None,
         risk_flag=bool(evidence),

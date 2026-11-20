@@ -59,9 +59,11 @@ def handoff(monkeypatch, request):
     return observed
 
 
-@pytest.mark.parametrize("handoff", [{"customer_po": "FWKD7819574"}], indirect=True)
+@pytest.mark.parametrize("handoff", [
+    {"customer_po": "FWKD7819574"}, {"customer_po": "FFX7819574"},
+], indirect=True)
 @pytest.mark.parametrize("fault", [None, "legacy-prefix", "missing", "conflict", "source-readback",
-                                    "flag-readback", "late-failure"])
+                                    "flag-readback", "late-failure", "legacy-ffx-prefix"])
 def test_nuvolo_work_orders_flags_and_review_handoff_commit_or_roll_back_together(
     handoff, native_helpers, tmp_path, fault,
 ):
@@ -76,7 +78,8 @@ def test_nuvolo_work_orders_flags_and_review_handoff_commit_or_roll_back_togethe
                 continue
             number = (
                 "9123456" if fault == "conflict" and index == len(linked) - 1
-                else "FWKD7819574" if fault == "legacy-prefix" else None
+                else "FWKD7819574" if fault == "legacy-prefix"
+                else "FFX7819574" if fault == "legacy-ffx-prefix" else None
             )
             connection.db.execute("INSERT INTO prep.Invoice VALUES (?,?)", (package.invoice_id, number))
         connection.db.commit()
@@ -91,7 +94,7 @@ def test_nuvolo_work_orders_flags_and_review_handoff_commit_or_roll_back_togethe
                 CREATE TRIGGER capex.corrupt_nuvolo AFTER UPDATE OF NuvoloRiskFlag ON Assessment
                 BEGIN UPDATE Assessment SET NuvoloRiskFlag=0 WHERE rowid=NEW.rowid; END;
             """)
-        if fault in (None, "legacy-prefix"):
+        if fault in (None, "legacy-prefix", "legacy-ffx-prefix"):
             sql.persist_adf_results(connection, **handoff)
             assert connection.db.execute("SELECT DISTINCT NuvoloWorkOrderNo FROM prep.Invoice").fetchall() == [
                 ("7819574",),
@@ -130,6 +133,7 @@ def test_nuvolo_work_orders_flags_and_review_handoff_commit_or_roll_back_togethe
 @pytest.mark.parametrize("handoff", [
     {"customer_po": "FWKD123ABC"},
     {"customer_po": "FWKD7819574 / FWKD8121179"},
+    {"customer_po": "FFXP0011831"},
 ], indirect=True)
 def test_unresolved_nuvolo_purchase_orders_preserve_existing_work_orders(handoff, native_helpers, tmp_path):
     path = tmp_path / "unresolved-nuvolo.db"

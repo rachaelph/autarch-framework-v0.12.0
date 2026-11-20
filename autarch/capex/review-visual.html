@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'">
+<title>CapEx | Fixed-asset analyst review</title>
+<style>
+:root{font:15px system-ui;color:#172535;background:#edf2f5}
+body{margin:0}header{background:#17394b;color:white;padding:26px 4%;border-top:6px solid #ce253c}
+h1{margin:0 0 8px}main{max-width:1500px;margin:24px auto;padding:0 3%}
+.notice{background:#fff3d5;border-left:5px solid #b87813;padding:16px;line-height:1.5}
+.toolbar,.metrics,.card{background:white;border:1px solid #d6dfe4;border-radius:8px;padding:18px;margin:16px 0}
+.toolbar{display:flex;flex-wrap:wrap;gap:16px;align-items:end}
+label{display:block;font-weight:600}input,select,textarea,button{font:inherit;border:1px solid #aebbc4;border-radius:5px;padding:9px}
+input[type=checkbox]{width:20px;height:20px}button{background:#17394b;color:white;cursor:pointer}
+textarea{width:95%;box-sizing:border-box;min-height:65px}small,.muted{color:#566573}
+.error{color:#9b1930;background:#fff0f1;padding:12px}#error:empty{display:none}
+table{width:100%;border-collapse:collapse;min-width:1000px}th,td{text-align:left;vertical-align:top;border-bottom:1px solid #e1e7eb;padding:12px}
+th{font-size:13px;color:#566573}td:nth-child(2){width:36%}td:last-child{width:23%}
+.scroll{overflow:auto}h2{font-size:19px;margin:0 0 8px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.english{background:#eef7f3;padding:10px;margin-top:8px}.pending{color:#8b5b11;padding-top:8px}
+summary{cursor:pointer}a{color:#175c91}#bundles{line-height:1.5}
+</style>
+</head>
+<body>
+<header><h1>Fixed-asset analyst review</h1><div>Invoice evidence &rarr; English interpretation &rarr; recommendations &rarr; analyst feedback</div></header>
+<main>
+<div class="notice" id="notice"></div>
+<div class="metrics" id="metrics"></div>
+<div class="toolbar">
+<label>Region<br><select id="region"><option value="">All regions</option></select></label>
+<label>Category<br><select id="category"><option value="">All categories</option></select></label>
+<label>Find invoice or line<br><input id="search" type="search" placeholder="Invoice, vendor, description or code"></label>
+<label>Analyst label (not authenticated)<br><input id="analyst" maxlength="100"></label>
+<button id="export-json">Export feedback JSON</button><button id="export-csv">Export feedback CSV</button>
+</div>
+<div class="error" id="error" role="alert"></div>
+<p id="visible" aria-live="polite"></p><section id="invoices" aria-label="Invoice lines"></section>
+<section class="card"><h2>Potential bundling</h2><div id="bundles"></div></section>
+<details class="card"><summary>Immutable source and workflow snapshot</summary><pre id="snapshot"></pre></details>
+</main>
+<script id="review-data" type="application/json">/*REVIEW_SNAPSHOT*/</script>
+<script>
+"use strict";
+const data = JSON.parse(document.getElementById("review-data").textContent);
+const byId = id => document.getElementById(id);
+const error = message => { byId("error").textContent = message; };
+const rowKeys = new Set(data.rows.map(row => row.key));
+const storageKey = "capex-offline-review:" + data.snapshotSha256;
+let state = {analyst: "", rows: Object.create(null)};
+function node(tag, text, className) {
+  const element = document.createElement(tag);
+  if (text !== undefined) element.textContent = text;
+  if (className) element.className = className;
+  return element;
+}
+try {
+  const saved = localStorage.getItem(storageKey);
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (!parsed || typeof parsed.analyst !== "string" || parsed.analyst.length > 100 || !parsed.rows ||
+        Object.entries(parsed.rows).some(([key,value]) => !rowKeys.has(key) || !value ||
+          typeof value.reviewed !== "boolean" || typeof value.notes !== "string" || value.notes.length > 2000)) {
+      throw new Error("Stored feedback does not match this snapshot.");
+    }
+    state = parsed;
+  }
+} catch (exception) {
+  error("Browser feedback could not be restored: " + exception.message + " Use the export buttons to retain this session.");
+}
+function save() {
+  try { localStorage.setItem(storageKey, JSON.stringify(state)); }
+  catch (exception) { error("Browser feedback could not be saved: " + exception.message + " Export before closing."); }
+}
+byId("analyst").value = state.analyst;
+byId("analyst").addEventListener("input", event => {state.analyst = event.target.value; save();});
+byId("notice").textContent = data.mode === "SOURCE_PREVIEW"
+  ? "SOURCE PREVIEW ONLY: actual locally available sample invoices, not a newly processed Azure batch. No task, CapEx/OpEx or bundling decisions have been supplied. Checkboxes record source review only."
+  : "RECORDED WORKFLOW SNAPSHOT: recommendations are unapproved; checkboxes record demo review, not financial approval. This page does not rerun the model.";
+byId("notice").append(node("div", "Feedback stays in this browser or your downloaded export. No SQL/POPA writes, ERP posting, shared persistence, authentication or automated learning."));
+byId("metrics").textContent = new Set(data.rows.map(row => row.invoiceId)).size + " invoices | " +
+  data.rows.length + " lines | " + data.rows.filter(row => row.translation).length +
+  " English interpretations supplied | " + data.excludedRecordCount + " non-invoice ledger records excluded";
+for (const field of ["region", "category"]) {
+  for (const value of [...new Set(data.rows.map(row => row[field]))].sort()) {
+    const option = node("option", value); option.value = value; byId(field).append(option);
+  }
+  byId(field).addEventListener("change", render);
+}
+byId("search").addEventListener("input", render);
+function details(title, value) {
+  const element = node("details"); element.append(node("summary", title), node("pre", JSON.stringify(value, null, 2))); return element;
+}
+function render() {
+  const search = byId("search").value.toLowerCase().trim();
+  const rows = data.rows.filter(row => (!byId("region").value || row.region === byId("region").value) &&
+    (!byId("category").value || row.category === byId("category").value) &&
+    [row.invoiceId,row.invoiceNumber,row.vendor,row.description,row.translation?.englishText,row.classification]
+      .filter(Boolean).join(" ").toLowerCase().includes(search));
+  byId("visible").textContent = "Showing " + rows.length + " of " + data.rows.length + " lines. Exports include feedback for hidden lines.";
+  byId("invoices").replaceChildren();
+  const groups = new Map();
+  for (const row of rows) { if (!groups.has(row.packageId)) groups.set(row.packageId, []); groups.get(row.packageId).push(row); }
+  for (const lines of groups.values()) {
+    const first = lines[0], card = node("article", undefined, "card");
+    card.append(node("h2", (first.invoiceNumber || first.invoiceId) + " | " + first.vendor),
+      node("p", first.region + " | PO: " + (first.poNumber || "Not supplied"), "muted"));
+    const link = node("a", "Open original source file"); link.href = first.sourceUrl; link.rel = "noopener";
+    card.append(link, details("Original references, source hash and source gaps", {
+      source: first.sourceFile, sha256: first.sourceSha256, references: first.sourceReferences, reviewReasons: first.reviewReasons}));
+    const scroll = node("div", undefined, "scroll"), table = node("table"), head = node("thead"), heading = node("tr");
+    for (const title of ["Line / amount", "Original and English interpretation", "Classification / assessment", "Demo analyst feedback"]) heading.append(node("th", title));
+    head.append(heading); table.append(head); const body = node("tbody");
+    for (const row of lines) {
+      const tr = node("tr"); tr.dataset.rowKey = row.key;
+      const amount = node("td", "#" + row.lineNumber + " | " + row.amount.toLocaleString(undefined, {maximumFractionDigits: 4}) + " " + row.currency);
+      const description = node("td"); description.append(node("div", row.description));
+      if (row.translation) {
+        const interpretation = node("div", undefined, "english");
+        interpretation.append(node("strong", row.translation.sourceLanguage === "en" ? "Detected English" : "English interpretation"),
+          node("div", row.translation.englishText),
+          node("small", "Source language: " + row.translation.sourceLanguage + " | detection confidence: " +
+            row.translation.languageDetectionScore + " | " + row.translation.engine));
+        interpretation.append(details("Translation provenance", row.translation)); description.append(interpretation);
+      } else description.append(node("div", "Translation not run / not supplied. Original language has not been verified.", "pending"));
+      const classification = node("td");
+      classification.append(node("strong", row.category), node("p", row.classification ? row.classificationType + ": " + row.classification : "Task / asset class: awaiting workflow"));
+      if (row.assessment) classification.append(details("Model and policy evidence", {task: row.task, assessment: row.assessment}));
+      const feedback = node("td"), label = node("label");
+      const current = state.rows[row.key] || {reviewed: false, notes: ""};
+      const checkbox = node("input"); checkbox.type = "checkbox"; checkbox.checked = current.reviewed;
+      label.append(checkbox, document.createTextNode(data.mode === "SOURCE_PREVIEW" ? " Source reviewed" : " Suggestion reviewed (demo)"));
+      const notes = node("textarea"); notes.value = current.notes; notes.maxLength = 2000;
+      notes.placeholder = "Correction, reason or question"; notes.setAttribute("aria-label", "Feedback for " + row.invoiceId + " line " + row.lineNumber);
+      const update = () => { state.rows[row.key] = {reviewed: checkbox.checked, notes: notes.value}; save(); };
+      checkbox.addEventListener("change", update); notes.addEventListener("input", update);
+      feedback.append(label, notes); tr.append(amount, description, classification, feedback); body.append(tr);
+    }
+    table.append(body); scroll.append(table); card.append(scroll); byId("invoices").append(card);
+  }
+  if (!rows.length) byId("invoices").append(node("p", "No lines match these filters."));
+}
+const groups = data.recordedWorkflow?.bundleGroups;
+byId("bundles").textContent = groups
+  ? groups.length + " groups in the supplied recorded output. No groups is not proof that bundling was evaluated. Consult each line's bundlingDisposition and review reasons. Potential bundles are not approved assets."
+  : "Not evaluated. No bundling result is supplied; valid project/site/task or asset-class context is still required. Do not group unknown context values.";
+if (groups?.length) byId("bundles").append(details("Recorded candidate groups", groups));
+byId("snapshot").textContent = JSON.stringify(data, null, 2);
+function exportFeedback(format) {
+  const feedback = {
+    schemaVersion: "1.0-capex-offline-feedback", workflowRunId: data.workflowRunId,
+    snapshotSha256: data.snapshotSha256, exportedAtUtc: new Date().toISOString(),
+    analystLabel: state.analyst, authenticated: false, businessApproved: false, sqlWrites: 0, popaWrites: 0,
+    reviewKind: data.mode === "SOURCE_PREVIEW" ? "SOURCE_REVIEW" : "RECOMMENDATION_REVIEW",
+    rows: data.rows.filter(row => state.rows[row.key]?.reviewed || state.rows[row.key]?.notes).map(row => ({
+      packageId: row.packageId, invoiceId: row.invoiceId, lineId: row.lineId,
+      sourceSha256: row.sourceSha256, ...state.rows[row.key]
+    }))
+  };
+  if (!feedback.rows.length) { error("Review a line or enter feedback before exporting."); return; }
+  const cell = value => {
+    let text = String(value ?? "");
+    if (/^[=+\-@\t\r]/.test(text)) text = "'" + text;
+    return '"' + text.replaceAll('"', '""') + '"';
+  };
+  let contents = JSON.stringify(feedback, null, 2), type = "application/json";
+  if (format === "csv") {
+    const headers = ["workflowRunId","snapshotSha256","reviewKind","analystLabel","packageId","invoiceId","lineId","sourceSha256","reviewed","notes"];
+    contents = [headers, ...feedback.rows.map(row => headers.map(key => row[key] ?? feedback[key]))]
+      .map(values => values.map(cell).join(",")).join("\r\n"); type = "text/csv";
+  }
+  const url = URL.createObjectURL(new Blob([contents], {type})), link = node("a");
+  link.href = url; link.download = "capex-feedback-" + data.snapshotSha256.slice(0,12) + "." + format;
+  document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+byId("export-json").addEventListener("click", () => exportFeedback("json"));
+byId("export-csv").addEventListener("click", () => exportFeedback("csv"));
+render();
+</script>
+</body>
+</html>

@@ -251,7 +251,9 @@ def _persist_nuvolo_results(
                     f"Preload exactly one prep.Invoice row before persisting Nuvolo evidence for {package.invoice_id}."
                 )
             stored = rows[0][0]
-            if stored not in (None, "", number) and str(stored).strip().upper() != f"FWKD{number}":
+            if stored not in (None, "", number) and str(stored).strip().upper() not in {
+                f"FWKD{number}", f"FFX{number}",
+            }:
                 raise ValueError(f"Existing Nuvolo work order conflicts with source for {package.invoice_id}.")
             cursor.execute("""
                 UPDATE prep.Invoice SET NuvoloWorkOrderNo=? WHERE InvoiceID=?;

@@ -26,7 +26,7 @@ from .demo_v2_normalization import NormalizedInvoicePackage
 from .demo_v2_translation import AzureNmtTranslator, DescriptionTranslator, translate_invoice_packages
 from .demo_v2_reference import DemoPolicySnapshot, TaskMasterSnapshot, canonical_sha256
 from .demo_v2_sql_policy import (
-    SqlPolicyReferences, assess_governed_invoice, load_sql_policy_references,
+    SqlPolicyReferences, assess_governed_invoice, convert_line_to_usd, load_sql_policy_references,
     suggest_assessment_categories,
 )
 from .persistence import DatabaseConnection
@@ -74,9 +74,9 @@ class AdfDecisionWorkflow(SqlLlmDecisionWorkflow):
             payload.update(
                 bundlingMaxAttempts=0, bundlingEligibilityAuthority="DEFERRED_NOT_EVALUATED",
                 decisionPromptVersions={
-                    "accounting": "adf-sql-governed-accounting-v1",
+                    "accounting": "adf-sql-governed-accounting-v3-usd-only",
                     "potentialTags": "sql-governed-potential-tags-v1",
-                    "category": "adf-sql-assessment-category-v1", "bundling": None,
+                    "category": "adf-sql-assessment-category-v4-usd-only", "bundling": None,
                 },
             )
         return payload
@@ -321,6 +321,11 @@ def run_adf_batch(
     package_uris = {reference.package_id: reference.package_uri for reference in request.packages}
     for package in packages:
         reasons = []
+        if package.country_region.strip().casefold() in {"ca", "can", "canada"}:
+            reasons.append(
+                "Canadian invoice requires its governed MACS or CTI TaskMaster catalog. "
+                "Canadian catalog selection is not enabled; US TaskMaster and EU asset-class fallback are prohibited."
+            )
         if package.package_id in extraction_documents:
             reasons.extend(extraction_documents[package.package_id]["blockingReviewReasons"])
         if references is None and not is_eu_invoice(package) and not demo_recommendations and (master.region_code != "US" or package.country_region not in {
@@ -413,24 +418,17 @@ def run_adf_batch(
         "bundlingDeferred": references is not None,
     }
     if references is not None:
-        usd_budget_policy = any(
-            row.threshold_type == "USD_BUDGET_EXPENDITURE" for row in references.thresholds
-        )
         workflow.adf_context["demoAssumptions"] = {
-            "nativeThresholds": {key: value.capitalization.base_threshold for key, value in policies.items()},
+            "nativeThresholds": {},
             "thresholdAuthority": "SQL_REFERENCE_ROWS_WITH_ORIGINAL_APPROVAL_LABELS",
             "policyDateBasis": "DEMO_RUN_DATE_NOT_HISTORICAL_BOOKING_APPROVAL",
-            "fxConversion": usd_budget_policy, "businessApproved": False, "crossRegionUsCatalog": False,
-            "fxConversionMeaning": "BUDGET_CONVERSION_ENABLED_NOT_GUARANTEED_FOR_EVERY_LINE"
-                if usd_budget_policy else "NO_CONVERSION",
-            "fxRateBasis": "APPROVED_EFFECTIVE_BUDGET_RATE_OR_REVIEW" if usd_budget_policy else None,
-            "assessmentBasis": "INVOICE_LINE_USD"
-                if usd_budget_policy else "LEGACY_NATIVE_UNIT_COST",
-            "assessmentBasisAuthority": "USER_CONFIRMED_INDEPENDENT_INVOICE_LINE"
-                if usd_budget_policy else None,
+            "fxConversion": True, "businessApproved": False, "crossRegionUsCatalog": False,
+            "fxConversionMeaning": "BUDGET_CONVERSION_ENABLED_NOT_GUARANTEED_FOR_EVERY_LINE",
+            "fxRateBasis": "APPROVED_EFFECTIVE_BUDGET_RATE_OR_REVIEW",
+            "assessmentBasis": "INVOICE_LINE_USD",
+            "assessmentBasisAuthority": "USER_CONFIRMED_INDEPENDENT_INVOICE_LINE",
             "projectExceptionStatus": "NOT_EVALUATED_NO_AUTHORITATIVE_SITE_PROJECT_CONTEXT",
-            "missingUnitCostBasis": "NOT_REQUIRED_FOR_INVOICE_LINE_BASIS"
-                if usd_budget_policy else "REVIEW_NO_LINE_AMOUNT_PROXY",
+            "missingUnitCostBasis": "NOT_REQUIRED_FOR_INVOICE_LINE_BASIS",
             "sourceValuesOverwritten": False,
         }
 
@@ -476,6 +474,20 @@ def run_adf_batch(
     # Keep the JSON-only default's original model-subset contract.
     if connection is not None or fresh_pdf_extraction:
         result = _with_reference_reviews(result, packages, reference_exceptions, master, full_request, policy, asset_master)
+    if references is not None:
+        conversions = {
+            (package.package_id, line.line_id): convert_line_to_usd(
+                package, line, references, full_request.requested_at_utc.date(),
+            ) for package in packages for line in package.lines
+        }
+        for assessment in result.assessments:
+            expected = conversions[(assessment.package_id, assessment.line_id)]
+            if assessment.currency_conversion is not None and assessment.currency_conversion != expected:
+                raise ValueError("Assessment conversion evidence differs from the original source and budget rates.")
+        result = result.model_copy(update={"assessments": [
+            assessment.model_copy(update={"currency_conversion": conversions[(assessment.package_id, assessment.line_id)]})
+            for assessment in result.assessments
+        ]})
     tagged_packages = [package for package in packages
                        if package.package_id in {item.package_id for item in result.task_determinations}]
     tag_provider = _AuditedProvider(

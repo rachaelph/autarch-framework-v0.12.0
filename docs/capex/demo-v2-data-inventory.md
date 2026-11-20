@@ -146,7 +146,7 @@ No target is currently ready for a fully truthful end-to-end capitalization and 
 - Positive source amounts total 20,968.76, but these values cannot be summed as one business amount without confirming ledger/currency semantics.
 - One of two rows has invoice number `20294`.
 - One of two rows has PO `12038910`.
-- One row contains `FFXP0011831`, which resembles the unconfirmed Nuvolo/R&M prefix discussed in the policy review.
+- One row contains `FFXP0011831`. The FFX prefix was confirmed for Nuvolo R&M on November 20, 2026; retain this alphanumeric original as evidence, not a guessed digits-only work-order number.
 - Site, asset number, subledger, complete quantity/unit cost, approved exchange rate, and invoice-line detail are missing.
 
 **Conclusion:** This file is useful project/accounting context. It can be normalized losslessly into a review artifact, but it is not sufficient to produce a governed CapEx/OpEx result. The workflow needs an EU task/asset reference source and an approved interpretation of the accounting rows and currencies.
@@ -185,7 +185,7 @@ No target is currently ready for a fully truthful end-to-end capitalization and 
 | Site ID | Missing | Missing | Missing | Provide or visibly synthesize |
 | Project status | Missing | Missing | Missing | Provide or visibly synthesize |
 | Bundling-in-scope flag | Missing/false default | Missing/false default | Missing | Obtain approved value or label demo assumption |
-| R&M/work-order source | Missing | Missing | `FFXP0011831` on one row | Confirm prefix and source semantics |
+| R&M/work-order source | Missing | Missing | `FFXP0011831` on one row | FFX PO prefix confirmed November 20; numeric work-order parsing remains unresolved |
 | Expected finance result | Missing | Missing | Missing | Finance owner must provide acceptance expectations |
 
 ## Required Circle K data

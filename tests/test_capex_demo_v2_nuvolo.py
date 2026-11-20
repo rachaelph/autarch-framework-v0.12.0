@@ -14,7 +14,16 @@ from tests.test_capex_demo_v2_task_suggestion import NOW, _line, _package
     ("Purchase Order", "fwkd: 7819574", "7819574", True),
     ("PO Number", "PO reference FWKD-7819574", "7819574", True),
     ("Customer PO", "841305", None, False),
-    ("Customer PO", "FFX7819574", None, False),
+    ("Customer PO", "FFX7819574", "7819574", True),
+    ("Customer PO", "  ffx: 0001234", "0001234", True),
+    ("Customer PO", "FFXP0011831", None, True),
+    ("Customer PO", "FFX", None, True),
+    ("Customer PO", "FFX123ABC", None, True),
+    ("Customer PO", "FFX123-ABC", None, True),
+    ("Customer PO", "FFX123.1", None, True),
+    ("Customer PO", "FFX" + "1" * 129, None, True),
+    ("Customer PO", "XFFX7819574", None, False),
+    ("Customer PO", "PO reference FFX7819574", None, False),
     ("Customer PO", "XFWKD7819574", None, True),
     ("Customer PO", "FWKD7819574ABC", None, True),
     ("Customer PO", "FWKD7819574-ABC", None, True),
@@ -25,23 +34,29 @@ from tests.test_capex_demo_v2_task_suggestion import NOW, _line, _package
     ("Invoice Number", "FWKD7819574", None, False),
     ("Description", "Repair for FWKD7819574", None, False),
     ("File Name", "FWKD7819574.pdf", None, False),
+    ("Work Order Number", "FFX7819574", None, False),
+    ("Invoice Number", "FFX7819574", None, False),
+    ("Description", "FFX7819574", None, False),
 ])
-def test_only_fwkd_in_purchase_order_fields_establishes_nuvolo(field, reference, number, risk):
+def test_only_qualifying_markers_in_purchase_order_fields_establish_nuvolo(field, reference, number, risk):
     context = resolve_nuvolo_work_order({field: reference})
     assert context.work_order_no == number
     assert context.risk_flag is risk
     assert bool(context.review_reasons) is (risk and number is None)
 
 
-def test_repeated_same_po_is_not_a_conflict_but_distinct_or_malformed_pos_require_review():
+@pytest.mark.parametrize("prefix", ["FWKD", "FFX"])
+def test_repeated_same_po_is_not_a_conflict_but_distinct_or_malformed_pos_require_review(prefix):
     repeated = resolve_nuvolo_work_order({
-        "Customer PO": "FWKD0001234 / FWKD0001234",
-        "PO Number": "FWKD0001234",
+        "Customer PO": f"{prefix}0001234 / {prefix}0001234",
+        "PO Number": "FFX0001234",
         "Work Order Number": "FWKD9999999",
     })
     assert repeated.work_order_no == "0001234" and not repeated.review_reasons
-    for second in ("FWKD9999999", "FWKD12X"):
+    for second in ("FWKD9999999", "FWKD12X", "FFX9999999", "FFX12X"):
         context = resolve_nuvolo_work_order({"Customer PO": "FWKD0001234", "PO Number": second})
+        assert context.risk_flag and context.work_order_no is None and context.review_reasons
+        context = resolve_nuvolo_work_order({"Customer PO": f"{prefix}0001234 / {second}"})
         assert context.risk_flag and context.work_order_no is None and context.review_reasons
 
 
@@ -63,8 +78,9 @@ def test_source_labels_descriptions_invoice_numbers_and_translations_are_not_po_
     assert package.nuvolo_context.work_order_no is None
 
 
-def test_original_line_purchase_orders_are_recognized_without_changing_the_popa_po():
-    line = _line("line-1", "Routine service").model_copy(update={"source_purchase_order": "FWKD0001234"})
+@pytest.mark.parametrize("prefix", ["FWKD", "FFX"])
+def test_original_line_purchase_orders_are_recognized_without_changing_the_popa_po(prefix):
+    line = _line("line-1", "Routine service").model_copy(update={"source_purchase_order": f"{prefix}0001234"})
     package = _package([line]).model_copy(update={"po_number": "841305"})
     assert package.nuvolo_context.work_order_no == "0001234"
     assert package.po_number == "841305"
